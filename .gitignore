@@ -48,6 +48,13 @@ __pycache__/
 nul
 gdextension/nul
 
+# Local AI / agent workflow files
+AGENTS.md
+AI WORKER OPERATING SPEC.txt
+DECOMP ENGINE ARCHITECTURE V2.txt
+opencode.jsonc
+prompts/
+
 # Editor / OS noise
 .idea/
 .vscode/
