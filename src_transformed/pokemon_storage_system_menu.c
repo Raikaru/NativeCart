@@ -388,6 +388,9 @@ static void Task_PCMainMenu(u8 taskId)
 
 void ShowPokemonStorageSystemPC(void)
 {
+#ifdef PORTABLE
+    EnsurePokemonStoragePointerPortable();
+#endif
     u8 taskId = CreateTask(Task_PCMainMenu, 80);
     gTasks[taskId].tState = STATE_LOAD;
     gTasks[taskId].tSelectedOption = 0;
@@ -399,6 +402,9 @@ static void FieldTask_ReturnToPcMenu(void)
     u8 taskId;
     MainCallback vblankCb = gMain.vblankCallback;
 
+#ifdef PORTABLE
+    EnsurePokemonStoragePointerPortable();
+#endif
     SetVBlankCallback(NULL);
     taskId = CreateTask(Task_PCMainMenu, 80);
     gTasks[taskId].tState = STATE_LOAD;

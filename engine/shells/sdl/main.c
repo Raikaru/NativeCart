@@ -20,6 +20,8 @@
 #define SDL_SHELL_AUDIO_FREQUENCY 32768
 #define SDL_SHELL_AUDIO_CHANNELS 2
 #define SDL_SHELL_MAX_AUDIO_QUEUE_BYTES (SDL_SHELL_AUDIO_FREQUENCY * SDL_SHELL_AUDIO_CHANNELS * (int)sizeof(int16_t))
+#define SDL_SHELL_RENDERER_FLAGS SDL_RENDERER_ACCELERATED
+#define SDL_SHELL_TARGET_FPS 60.0
 
 enum
 {
@@ -43,6 +45,9 @@ typedef struct SdlShellContext
     SDL_AudioDeviceID audio_device;
     int scale;
     const char *state_path;
+    uint16_t input_state;
+    uint16_t input_latched;
+    bool has_focus;
     bool running;
 } SdlShellContext;
 
@@ -100,23 +105,41 @@ static uint8_t *sdl_shell_read_file(const char *path, size_t *size_out)
     return buffer;
 }
 
-static uint16_t sdl_shell_collect_input(void)
+static uint16_t sdl_shell_key_to_gba_button(SDL_Scancode scancode)
 {
-    const uint8_t *keys = SDL_GetKeyboardState(NULL);
-    uint16_t buttons = 0;
+    switch (scancode)
+    {
+    case SDL_SCANCODE_Z:
+        return GBA_BUTTON_A;
+    case SDL_SCANCODE_X:
+        return GBA_BUTTON_B;
+    case SDL_SCANCODE_BACKSPACE:
+        return GBA_BUTTON_SELECT;
+    case SDL_SCANCODE_RETURN:
+        return GBA_BUTTON_START;
+    case SDL_SCANCODE_RIGHT:
+        return GBA_BUTTON_RIGHT;
+    case SDL_SCANCODE_LEFT:
+        return GBA_BUTTON_LEFT;
+    case SDL_SCANCODE_UP:
+        return GBA_BUTTON_UP;
+    case SDL_SCANCODE_DOWN:
+        return GBA_BUTTON_DOWN;
+    case SDL_SCANCODE_S:
+        return GBA_BUTTON_R;
+    case SDL_SCANCODE_A:
+        return GBA_BUTTON_L;
+    default:
+        return 0;
+    }
+}
 
-    if (keys[SDL_SCANCODE_Z]) buttons |= GBA_BUTTON_A;
-    if (keys[SDL_SCANCODE_X]) buttons |= GBA_BUTTON_B;
-    if (keys[SDL_SCANCODE_BACKSPACE]) buttons |= GBA_BUTTON_SELECT;
-    if (keys[SDL_SCANCODE_RETURN]) buttons |= GBA_BUTTON_START;
-    if (keys[SDL_SCANCODE_RIGHT]) buttons |= GBA_BUTTON_RIGHT;
-    if (keys[SDL_SCANCODE_LEFT]) buttons |= GBA_BUTTON_LEFT;
-    if (keys[SDL_SCANCODE_UP]) buttons |= GBA_BUTTON_UP;
-    if (keys[SDL_SCANCODE_DOWN]) buttons |= GBA_BUTTON_DOWN;
-    if (keys[SDL_SCANCODE_S]) buttons |= GBA_BUTTON_R;
-    if (keys[SDL_SCANCODE_A]) buttons |= GBA_BUTTON_L;
+static uint16_t sdl_shell_collect_input(const SdlShellContext *ctx)
+{
+    if (!ctx->has_focus)
+        return 0;
 
-    return buttons;
+    return ctx->input_state | ctx->input_latched;
 }
 
 static bool sdl_shell_init_audio(SdlShellContext *ctx)
@@ -164,10 +187,11 @@ static bool sdl_shell_init_video(SdlShellContext *ctx)
         return false;
     }
 
-    ctx->renderer = SDL_CreateRenderer(ctx->window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
+    SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "0");
+    ctx->renderer = SDL_CreateRenderer(ctx->window, -1, SDL_SHELL_RENDERER_FLAGS);
     if (ctx->renderer == NULL)
     {
-        ctx->renderer = SDL_CreateRenderer(ctx->window, -1, SDL_RENDERER_ACCELERATED);
+        ctx->renderer = SDL_CreateRenderer(ctx->window, -1, SDL_RENDERER_SOFTWARE);
     }
     if (ctx->renderer == NULL)
     {
@@ -206,15 +230,37 @@ static void sdl_shell_update_audio(SdlShellContext *ctx)
 static bool sdl_shell_update_video(SdlShellContext *ctx)
 {
     EngineVideoFrame frame = engine_video_get_frame();
+    void *pixels;
+    int pitch;
+    int y;
 
     if (frame.rgba == NULL || frame.width <= 0 || frame.height <= 0)
         return false;
 
-    if (SDL_UpdateTexture(ctx->texture, NULL, frame.rgba, frame.width * 4) != 0)
+    if (SDL_LockTexture(ctx->texture, NULL, &pixels, &pitch) != 0)
     {
-        fprintf(stderr, "SDL_UpdateTexture failed: %s\n", SDL_GetError());
+        fprintf(stderr, "SDL_LockTexture failed: %s\n", SDL_GetError());
         return false;
     }
+
+    if (pitch == frame.width * 4)
+    {
+        memcpy(pixels, frame.rgba, (size_t)(frame.width * frame.height * 4));
+    }
+    else
+    {
+        const uint8_t *src = frame.rgba;
+        uint8_t *dst = pixels;
+
+        for (y = 0; y < frame.height; y++)
+        {
+            memcpy(dst, src, (size_t)(frame.width * 4));
+            src += frame.width * 4;
+            dst += pitch;
+        }
+    }
+
+    SDL_UnlockTexture(ctx->texture);
 
     SDL_RenderClear(ctx->renderer);
     SDL_RenderCopy(ctx->renderer, ctx->texture, NULL, NULL);
@@ -228,6 +274,31 @@ static void sdl_shell_handle_event(SdlShellContext *ctx, const SDL_Event *event)
     {
         ctx->running = false;
         return;
+    }
+
+    if (event->type == SDL_WINDOWEVENT)
+    {
+        if (event->window.event == SDL_WINDOWEVENT_FOCUS_GAINED)
+            ctx->has_focus = true;
+        else if (event->window.event == SDL_WINDOWEVENT_FOCUS_LOST)
+            ctx->has_focus = false;
+        return;
+    }
+
+    if (event->type == SDL_KEYDOWN || event->type == SDL_KEYUP)
+    {
+        uint16_t button = sdl_shell_key_to_gba_button(event->key.keysym.scancode);
+
+        if (button != 0)
+        {
+            if (event->type == SDL_KEYDOWN)
+            {
+                ctx->input_state |= button;
+                ctx->input_latched |= button;
+            }
+            else
+                ctx->input_state &= (uint16_t)~button;
+        }
     }
 
     if (event->type != SDL_KEYDOWN || event->key.repeat != 0)
@@ -272,6 +343,8 @@ int main(int argc, char **argv)
     SdlShellContext ctx;
     uint8_t *rom_data;
     size_t rom_size;
+    Uint64 perf_freq;
+    double target_frame_ms;
 
     if (argc < 2)
     {
@@ -282,7 +355,10 @@ int main(int argc, char **argv)
     memset(&ctx, 0, sizeof(ctx));
     ctx.scale = SDL_SHELL_DEFAULT_SCALE;
     ctx.state_path = (argc >= 3) ? argv[2] : SDL_SHELL_DEFAULT_STATE_PATH;
+    ctx.has_focus = true;
     ctx.running = true;
+    perf_freq = SDL_GetPerformanceFrequency();
+    target_frame_ms = 1000.0 / SDL_SHELL_TARGET_FPS;
 
     rom_data = sdl_shell_read_file(argv[1], &rom_size);
     if (rom_data == NULL)
@@ -318,16 +394,27 @@ int main(int argc, char **argv)
     while (ctx.running)
     {
         SDL_Event event;
+        Uint64 frame_start;
+        Uint64 frame_end;
+        double elapsed_ms;
+
+        frame_start = SDL_GetPerformanceCounter();
 
         while (SDL_PollEvent(&event))
             sdl_shell_handle_event(&ctx, &event);
 
-        engine_input_set_buttons(sdl_shell_collect_input());
+        engine_input_set_buttons(sdl_shell_collect_input(&ctx));
         engine_run_frame();
+        ctx.input_latched = 0;
 
         if (!sdl_shell_update_video(&ctx))
             break;
         sdl_shell_update_audio(&ctx);
+
+        frame_end = SDL_GetPerformanceCounter();
+        elapsed_ms = (double)(frame_end - frame_start) * 1000.0 / (double)perf_freq;
+        if (elapsed_ms < target_frame_ms)
+            SDL_Delay((Uint32)(target_frame_ms - elapsed_ms));
     }
 
     sdl_shell_shutdown(&ctx);

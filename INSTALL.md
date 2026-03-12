@@ -120,6 +120,9 @@ cd engine/shells/sdl
 scons -Q platform=windows target=debug -j4
 ```
 
+The SDL shell currently defaults to a debug build for stability.
+If you want a faster optimized build, pass `target=release`.
+
 If SDL2 is installed in a custom location, pass:
 
 ```bash

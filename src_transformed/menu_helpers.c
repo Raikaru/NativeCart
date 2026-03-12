@@ -16,11 +16,21 @@ static EWRAM_DATA const struct YesNoFuncTable *sYesNo = NULL;
 static EWRAM_DATA TaskFunc sMessageNextTask = NULL;
 static EWRAM_DATA u8 sMessageWindowId = {0};
 
+#ifdef PORTABLE
+static const struct YesNoFuncTable *sYesNo_Portable = NULL;
+static TaskFunc sMessageNextTask_Portable = NULL;
+static u8 sMessageWindowId_Portable = 0;
+#endif
+
 static void Task_ContinueTaskAfterMessagePrints(u8 taskId);
 
 void DisplayMessageAndContinueTask(u8 taskId, u8 windowId, u16 tileNum, u8 paletteNum, u8 fontId, u8 textSpeed, const u8 *string, void *taskFunc)
 {
+#ifdef PORTABLE
+    sMessageWindowId_Portable = windowId;
+#else
     sMessageWindowId = windowId;
+#endif
     DrawDialogFrameWithCustomTileAndPalette(windowId, TRUE, tileNum, paletteNum);
 
     if (string != gStringVar4)
@@ -28,7 +38,11 @@ void DisplayMessageAndContinueTask(u8 taskId, u8 windowId, u16 tileNum, u8 palet
 
     gTextFlags.canABSpeedUpPrint = 1;
     AddTextPrinterParameterized2(windowId, fontId, gStringVar4, textSpeed, NULL, TEXT_COLOR_DARK_GRAY, TEXT_COLOR_WHITE, TEXT_COLOR_LIGHT_GRAY);
+#ifdef PORTABLE
+    sMessageNextTask_Portable = taskFunc;
+#else
     sMessageNextTask = taskFunc;
+#endif
     gTasks[taskId].func = Task_ContinueTaskAfterMessagePrints;
 }
 
@@ -40,8 +54,18 @@ bool16 RunTextPrinters_CheckActive(u8 textPrinterId)
 
 static void Task_ContinueTaskAfterMessagePrints(u8 taskId)
 {
-    if (!RunTextPrinters_CheckActive(sMessageWindowId))
+    if (!RunTextPrinters_CheckActive(
+#ifdef PORTABLE
+        sMessageWindowId_Portable
+#else
+        sMessageWindowId
+#endif
+        ))
+#ifdef PORTABLE
+        sMessageNextTask_Portable(taskId);
+#else
         sMessageNextTask(taskId);
+#endif
 }
 
 static void Task_CallYesOrNoCallback(u8 taskId)
@@ -50,12 +74,20 @@ static void Task_CallYesOrNoCallback(u8 taskId)
     {
     case 0:
         PlaySE(SE_SELECT);
+#ifdef PORTABLE
+        gTasks[taskId].func = sYesNo_Portable->yesFunc;
+#else
         gTasks[taskId].func = sYesNo->yesFunc;
+#endif
         break;
     case 1:
     case MENU_B_PRESSED:
         PlaySE(SE_SELECT);
+#ifdef PORTABLE
+        gTasks[taskId].func = sYesNo_Portable->noFunc;
+#else
         gTasks[taskId].func = sYesNo->noFunc;
+#endif
         break;
     }
 }
@@ -63,7 +95,11 @@ static void Task_CallYesOrNoCallback(u8 taskId)
 void CreateYesNoMenuWithCallbacks(u8 taskId, const struct WindowTemplate *template, u8 fontId, u8 left, u8 top, u16 tileStart, u8 palette, const struct YesNoFuncTable *yesNo)
 {
     CreateYesNoMenu(template, fontId, left, top, tileStart, palette, 0);
+#ifdef PORTABLE
+    sYesNo_Portable = yesNo;
+#else
     sYesNo = yesNo;
+#endif
     gTasks[taskId].func = Task_CallYesOrNoCallback;
 }
 

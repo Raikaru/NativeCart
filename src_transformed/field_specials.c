@@ -213,6 +213,11 @@ void AnimatePcTurnOn(void)
 {
     u8 taskId;
 
+#ifdef PORTABLE
+    PcTurnOnUpdateMetatileId(FALSE);
+    DrawWholeMapView();
+    return;
+#endif
     if (FuncIsActiveTask(Task_AnimatePcTurnOn) != TRUE)
     {
         taskId = CreateTask(Task_AnimatePcTurnOn, 8);

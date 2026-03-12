@@ -36,6 +36,15 @@ cd engine/shells/sdl
 scons -Q platform=windows target=debug -j4
 ```
 
+The SDL shell currently defaults to `target=debug` for correctness while the
+shell path is still being stabilized.
+
+If you want to try a faster optimized build:
+
+```bash
+scons -Q platform=windows target=release -j4
+```
+
 Optional SCons variables:
 
 - `sdl_include_dir=/path/to/include`
