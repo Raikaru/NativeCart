@@ -1,0 +1,46 @@
+decomp-engine architecture
+
+Layers
+- `engine/` contains reusable shell-facing runtime abstractions.
+- `cores/` contains game-specific implementations that satisfy `GameCore`.
+- `engine/shells/` contains host integrations such as Godot.
+
+Current transition state
+- `engine/interfaces/game_core.h` defines the contract between shell and core.
+- `engine/core/core_loader.c` owns the active core selection pointer.
+- `engine/core/engine_runtime.c` exposes generic shell entrypoints such as ROM load,
+  frame stepping, reset, save/load state, and start-menu open.
+- `engine/core/engine_video.c`, `engine/core/engine_audio.c`, and
+  `engine/core/engine_input.c` expose reusable shell-side frame, audio, and input
+  accessors.
+- Canonical build ownership for reusable runtime implementation now points at:
+  - `engine/core/engine_runtime_backend.c`
+  - `engine/core/engine_renderer_backend.c`
+  - `engine/core/engine_memory.c`
+  - `engine/core/engine_audio_backend.c`
+  - `engine/core/engine_input_backend.c`
+  - `engine/core/engine_platform_portable.c`
+- `cores/firered/firered_core.c` adapts the existing FireRed runtime to `GameCore`.
+
+Rendering pipeline
+- The active `GameCore` advances one frame at a time.
+- The shell asks `engine_video_get_frame()` for an RGBA framebuffer.
+- The Godot shell uploads that frame into an `ImageTexture`.
+
+Portable runtime
+- Portable memory mapping, platform shims, renderer internals, and frame-threading
+  are now built canonically from `engine/core/`.
+- `pokefirered_core/src/` now acts as a compatibility wrapper subtree for the old
+  FireRed-named runtime entrypoints.
+- FireRed-specific portable glue now builds canonically from `cores/firered/portable/`.
+- FireRed-specific generated portable data now builds canonically from
+  `cores/firered/generated/data/` through wrapper translation units.
+
+Shell layer concept
+- Shells only talk to the selected core through `GameCore` and engine wrapper APIs.
+- Shells should not include FireRed runtime internals directly.
+
+Adding a new core
+- Implement `GameCore` in `cores/<name>/`.
+- Register/select it through `engine_set_core()`.
+- Reuse the same shell code without coupling to the new core's internals.

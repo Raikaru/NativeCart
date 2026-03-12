@@ -1,0 +1,401 @@
+{
+  "version": {
+    "major": 4,
+    "minor": 1,
+    "patch": 0,
+    "string": "4.1.0-stable"
+  },
+  "classes": [
+    {
+      "name": "PokeFireRedEmulator",
+      "is_refcounted": true,
+      "is_instantiable": true,
+      "inherits": "RefCounted",
+      "api_type": "core",
+      "constants": [],
+      "enums": [
+        {
+          "name": "EmulationState",
+          "is_bitfield": false,
+          "values": [
+            {
+              "name": "STATE_STOPPED",
+              "value": 0
+            },
+            {
+              "name": "STATE_RUNNING",
+              "value": 1
+            },
+            {
+              "name": "STATE_PAUSED",
+              "value": 2
+            },
+            {
+              "name": "STATE_ERROR",
+              "value": 3
+            }
+          ]
+        },
+        {
+          "name": "VideoMode",
+          "is_bitfield": false,
+          "values": [
+            {
+              "name": "MODE_0",
+              "value": 0
+            },
+            {
+              "name": "MODE_1",
+              "value": 1
+            },
+            {
+              "name": "MODE_2",
+              "value": 2
+            },
+            {
+              "name": "MODE_3",
+              "value": 3
+            },
+            {
+              "name": "MODE_4",
+              "value": 4
+            },
+            {
+              "name": "MODE_5",
+              "value": 5
+            }
+          ]
+        }
+      ],
+      "methods": [
+        {
+          "name": "initialize",
+          "is_const": false,
+          "is_vararg": false,
+          "is_static": false,
+          "is_virtual": false,
+          "hash": 1234567890,
+          "return_value": {
+            "type": "bool"
+          },
+          "arguments": [
+            {
+              "name": "rom_path",
+              "type": "String"
+            }
+          ]
+        },
+        {
+          "name": "load_rom",
+          "is_const": false,
+          "is_vararg": false,
+          "is_static": false,
+          "is_virtual": false,
+          "hash": 1234567891,
+          "return_value": {
+            "type": "bool"
+          },
+          "arguments": [
+            {
+              "name": "rom_path",
+              "type": "String"
+            }
+          ]
+        },
+        {
+          "name": "run_frame",
+          "is_const": false,
+          "is_vararg": false,
+          "is_static": false,
+          "is_virtual": false,
+          "hash": 1234567892,
+          "return_value": {
+            "type": "void"
+          },
+          "arguments": []
+        },
+        {
+          "name": "get_framebuffer",
+          "is_const": true,
+          "is_vararg": false,
+          "is_static": false,
+          "is_virtual": false,
+          "hash": 1234567893,
+          "return_value": {
+            "type": "Image"
+          },
+          "arguments": []
+        },
+        {
+          "name": "set_input",
+          "is_const": false,
+          "is_vararg": false,
+          "is_static": false,
+          "is_virtual": false,
+          "hash": 1234567894,
+          "return_value": {
+            "type": "void"
+          },
+          "arguments": [
+            {
+              "name": "button",
+              "type": "int"
+            },
+            {
+              "name": "pressed",
+              "type": "bool"
+            }
+          ]
+        },
+        {
+          "name": "save_state",
+          "is_const": false,
+          "is_vararg": false,
+          "is_static": false,
+          "is_virtual": false,
+          "hash": 1234567895,
+          "return_value": {
+            "type": "bool"
+          },
+          "arguments": [
+            {
+              "name": "slot",
+              "type": "int"
+            }
+          ]
+        },
+        {
+          "name": "load_state",
+          "is_const": false,
+          "is_vararg": false,
+          "is_static": false,
+          "is_virtual": false,
+          "hash": 1234567896,
+          "return_value": {
+            "type": "bool"
+          },
+          "arguments": [
+            {
+              "name": "slot",
+              "type": "int"
+            }
+          ]
+        },
+        {
+          "name": "get_audio_buffer",
+          "is_const": true,
+          "is_vararg": false,
+          "is_static": false,
+          "is_virtual": false,
+          "hash": 1234567897,
+          "return_value": {
+            "type": "PackedByteArray"
+          },
+          "arguments": []
+        },
+        {
+          "name": "reset",
+          "is_const": false,
+          "is_vararg": false,
+          "is_static": false,
+          "is_virtual": false,
+          "hash": 1234567898,
+          "return_value": {
+            "type": "void"
+          },
+          "arguments": []
+        },
+        {
+          "name": "set_speed_multiplier",
+          "is_const": false,
+          "is_vararg": false,
+          "is_static": false,
+          "is_virtual": false,
+          "hash": 1234567899,
+          "return_value": {
+            "type": "void"
+          },
+          "arguments": [
+            {
+              "name": "multiplier",
+              "type": "float"
+            }
+          ]
+        },
+        {
+          "name": "get_emulation_state",
+          "is_const": true,
+          "is_vararg": false,
+          "is_static": false,
+          "is_virtual": false,
+          "hash": 1234567900,
+          "return_value": {
+            "type": "int"
+          },
+          "arguments": []
+        }
+      ],
+      "signals": [
+        {
+          "name": "frame_ready",
+          "arguments": [
+            {
+              "name": "frame_number",
+              "type": "int"
+            }
+          ]
+        },
+        {
+          "name": "audio_buffer_ready",
+          "arguments": [
+            {
+              "name": "sample_count",
+              "type": "int"
+            }
+          ]
+        },
+        {
+          "name": "state_changed",
+          "arguments": [
+            {
+              "name": "new_state",
+              "type": "int"
+            }
+          ]
+        }
+      ],
+      "properties": [
+        {
+          "name": "running",
+          "type": "bool",
+          "default_value": "false",
+          "setter": "set_running",
+          "getter": "is_running"
+        },
+        {
+          "name": "fps",
+          "type": "float",
+          "default_value": "0.0",
+          "getter": "get_fps"
+        },
+        {
+          "name": "speed_multiplier",
+          "type": "float",
+          "default_value": "1.0",
+          "setter": "set_speed_multiplier",
+          "getter": "get_speed_multiplier"
+        }
+      ]
+    },
+    {
+      "name": "GBAMemoryRegion",
+      "is_refcounted": true,
+      "is_instantiable": false,
+      "inherits": "RefCounted",
+      "api_type": "core",
+      "constants": [
+        {
+          "name": "EWRAM_SIZE",
+          "type": "int",
+          "value": "262144"
+        },
+        {
+          "name": "IWRAM_SIZE",
+          "type": "int",
+          "value": "32768"
+        },
+        {
+          "name": "VRAM_SIZE",
+          "type": "int",
+          "value": "98304"
+        },
+        {
+          "name": "OAM_SIZE",
+          "type": "int",
+          "value": "1024"
+        },
+        {
+          "name": "PALETTE_SIZE",
+          "type": "int",
+          "value": "1024"
+        }
+      ]
+    },
+    {
+      "name": "GBAInput",
+      "is_refcounted": false,
+      "is_instantiable": false,
+      "inherits": "Object",
+      "api_type": "core",
+      "constants": [
+        {
+          "name": "BUTTON_A",
+          "type": "int",
+          "value": "1"
+        },
+        {
+          "name": "BUTTON_B",
+          "type": "int",
+          "value": "2"
+        },
+        {
+          "name": "BUTTON_SELECT",
+          "type": "int",
+          "value": "4"
+        },
+        {
+          "name": "BUTTON_START",
+          "type": "int",
+          "value": "8"
+        },
+        {
+          "name": "BUTTON_RIGHT",
+          "type": "int",
+          "value": "16"
+        },
+        {
+          "name": "BUTTON_LEFT",
+          "type": "int",
+          "value": "32"
+        },
+        {
+          "name": "BUTTON_UP",
+          "type": "int",
+          "value": "64"
+        },
+        {
+          "name": "BUTTON_DOWN",
+          "type": "int",
+          "value": "128"
+        },
+        {
+          "name": "BUTTON_R",
+          "type": "int",
+          "value": "256"
+        },
+        {
+          "name": "BUTTON_L",
+          "type": "int",
+          "value": "512"
+        }
+      ]
+    }
+  ],
+  "singletons": [
+    {
+      "name": "PokeFireRed",
+      "type": "Object",
+      "is_singleton": true
+    }
+  ],
+  "native_structures": [
+    {
+      "name": "GBARegisters",
+      "format": "uint16_t dispcnt;uint16_t dispstat;uint16_t vcount;uint16_t bg0cnt;uint16_t bg1cnt;uint16_t bg2cnt;uint16_t bg3cnt;"
+    },
+    {
+      "name": "GBASprite",
+      "format": "uint16_t attr0;uint16_t attr1;uint16_t attr2;uint16_t affine;"
+    }
+  ]
+}

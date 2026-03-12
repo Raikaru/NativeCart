@@ -1,0 +1,18 @@
+Build notes
+
+Current working Godot build
+- `cd gdextension`
+- `scons -Q platform=windows target=debug -j4`
+
+Current transition behavior
+- Runtime/renderer/memory/audio/input/platform now build through canonical
+  `engine/core/` translation units.
+- Legacy FireRed runtime code still exists in `pokefirered_core/src/` as a
+  compatibility wrapper layer for old symbol/include paths.
+- FireRed-only portable shims and generated portable data now build through
+  canonical `cores/firered/portable/` and `cores/firered/generated/data/` paths.
+- Godot-facing source now routes through the engine/core abstractions.
+
+Verification target for this refactor
+- successful library build
+- FireRed ROM still loads and frame stepping still works through the Godot shell

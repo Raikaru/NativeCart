@@ -1,0 +1,55 @@
+# Copyrighted / local-only ROM inputs and outputs
+baserom*.gba
+*.gba
+
+# Build products
+build/
+gdextension/bin/
+gdextension/demo/bin/
+godot-cpp/bin/
+gdextension/godot-cpp/
+
+# Object files, libraries, and executables
+*.o
+*.obj
+*.a
+*.lib
+*.dll
+*.dll.a
+*.exe
+*.elf
+*.so
+*.dylib
+*.exp
+*.ilk
+*.pdb
+*.map
+*.sym
+*.trace.map
+*.sha1
+
+# SCons and Python caches
+.sconsign.dblite
+__pycache__/
+*.pyc
+
+# Godot cache / editor state
+.godot/
+/android/
+*.import
+
+# Runtime logs, saves, and transient debugging output
+*.log
+*.sav
+*.state
+*.tmp
+*.uid
+*~
+nul
+gdextension/nul
+
+# Editor / OS noise
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db

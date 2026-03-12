@@ -1,0 +1,165 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+
+  "default_agent": "gpt54-build",
+
+  "agent": {
+    "gpt54-build": {
+      "description": "Primary implementation agent for the FireRed portable-runtime + Godot host project. Final decision-maker only.",
+      "model": "openai/gpt-5.4",
+      "prompt": "{file:./prompts/gpt54-build.txt}",
+      "permission": {
+        "task": {
+          "*": "deny",
+          "kimi-researcher": "allow",
+          "kimi-symbol-trace": "allow",
+          "kimi-link-triage": "allow",
+          "kimi-asm-family": "allow"
+        }
+      }
+    },
+
+    "kimi-researcher": {
+      "description": "Cheap helper for repo search, file discovery, include-chain tracing, and first-pass investigation.",
+      "mode": "subagent",
+      "hidden": true,
+      "model": "opencode-go/kimi-k2.5",
+      "prompt": "{file:./prompts/kimi-researcher.txt}",
+      "permission": {
+        "edit": "deny",
+        "write": "deny",
+        "webfetch": "deny",
+        "bash": {
+          "*": "ask",
+          "rg *": "allow",
+          "grep *": "allow",
+          "find *": "allow",
+          "ls *": "allow",
+          "dir *": "allow",
+          "cat *": "allow",
+          "sed *": "allow",
+          "awk *": "allow",
+          "head *": "allow",
+          "tail *": "allow"
+        }
+      }
+    },
+
+    "kimi-symbol-trace": {
+      "description": "Cheap helper for unresolved symbol tracing, original production path lookup, nm/ar checks, and object-family tracing.",
+      "mode": "subagent",
+      "hidden": true,
+      "model": "opencode-go/kimi-k2.5",
+      "prompt": "{file:./prompts/kimi-symbol-trace.txt}",
+      "permission": {
+        "edit": "deny",
+        "write": "deny",
+        "webfetch": "deny",
+        "bash": {
+          "*": "ask",
+          "rg *": "allow",
+          "grep *": "allow",
+          "find *": "allow",
+          "cat *": "allow",
+          "sed *": "allow",
+          "awk *": "allow",
+          "head *": "allow",
+          "tail *": "allow",
+          "nm *": "allow",
+          "ar *": "allow",
+          "ctags *": "allow",
+          "cscope *": "allow"
+        }
+      }
+    },
+
+    "kimi-link-triage": {
+      "description": "Cheap helper for compressing build logs, grouping unresolved symbols, and naming the single highest-value next blocker.",
+      "mode": "subagent",
+      "hidden": true,
+      "model": "opencode-go/kimi-k2.5",
+      "prompt": "{file:./prompts/kimi-link-triage.txt}",
+      "permission": {
+        "edit": "deny",
+        "write": "deny",
+        "webfetch": "deny",
+        "bash": {
+          "*": "ask",
+          "rg *": "allow",
+          "grep *": "allow",
+          "find *": "allow",
+          "cat *": "allow",
+          "sed *": "allow",
+          "awk *": "allow",
+          "head *": "allow",
+          "tail *": "allow",
+          "nm *": "allow",
+          "ar *": "allow"
+        }
+      }
+    },
+
+    "kimi-asm-family": {
+      "description": "Cheap helper specialized for tracing .s + .inc families, generated asm wrappers, pointer-bearing data directives, and original production paths.",
+      "mode": "subagent",
+      "hidden": true,
+      "model": "opencode-go/kimi-k2.5",
+      "prompt": "{file:./prompts/kimi-asm-family.txt}",
+      "permission": {
+        "edit": "deny",
+        "write": "deny",
+        "webfetch": "deny",
+        "bash": {
+          "*": "ask",
+          "rg *": "allow",
+          "grep *": "allow",
+          "find *": "allow",
+          "cat *": "allow",
+          "sed *": "allow",
+          "awk *": "allow",
+          "head *": "allow",
+          "tail *": "allow",
+          "nm *": "allow",
+          "ar *": "allow"
+        }
+      }
+    }
+  },
+
+  "command": {
+    "repo-scout": {
+      "description": "Cheap repo investigation before GPT-5.4 reasons.",
+      "agent": "kimi-researcher",
+      "subtask": true,
+      "template": "Investigate the user query with repository search only. Return only: findings, evidence, likely cause, smallest next step."
+    },
+
+    "trace-symbol": {
+      "description": "Trace one unresolved symbol or very small symbol set.",
+      "agent": "kimi-symbol-trace",
+      "subtask": true,
+      "template": "Trace the exact defining file(s), expected object file(s), original production path, why the symbol is absent from the current build or link, and the smallest faithful fix. Do not guess."
+    },
+
+    "trace-family": {
+      "description": "Trace a symbol family such as event_scripts, battle_scripts, text data, BIOS functions, or Godot host symbols.",
+      "agent": "kimi-symbol-trace",
+      "subtask": true,
+      "template": "Treat the user input as a symbol family. Find defining files, expected object families, original production path, current build gap, and the narrowest correct restoration path."
+    },
+
+    "trace-asm-family": {
+      "description": "Trace .s + .inc + generated wrapper families and identify pointer-bearing directives and object production paths.",
+      "agent": "kimi-asm-family",
+      "subtask": true,
+      "template": "Trace the named asm/data family. Identify defining .s/.inc files, included data, original object production path, pointer-bearing directives/macros, current wrapper/generation path, and the smallest portable restoration strategy."
+    },
+
+    "triage-link": {
+      "description": "Compress a build log into grouped unresolved families and one next blocker.",
+      "agent": "kimi-link-triage",
+      "subtask": true,
+      "template": "Read the supplied build log or linker output. Group unresolveds into families, identify likely defining files or object families, separate platform/runtime issues from missing data/script objects and pointer-width issues, and output only the single highest-value next step."
+    }
+  }
+}

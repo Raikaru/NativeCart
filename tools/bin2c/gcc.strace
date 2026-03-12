@@ -1,0 +1,40 @@
+--- Process 116088 created
+--- Process 116088 loaded C:\Windows\System32\ntdll.dll at 00007fffaf920000
+--- Process 116088 loaded C:\Windows\System32\kernel32.dll at 00007fffae860000
+--- Process 116088 loaded C:\Windows\System32\KernelBase.dll at 00007fffac9c0000
+--- Process 116088 loaded C:\Windows\System32\apphelp.dll at 00007fffa5ae0000
+--- Process 116088 loaded C:\Windows\System32\msvcrt.dll at 00007fffad6c0000
+--- Process 116088 thread 46568 created
+--- Process 116088 thread 105212 created
+--- Process 116088 thread 79756 created
+--- Process 116088 loaded C:\msys64\mingw64\bin\libgcc_s_seh-1.dll at 00007fff7ef20000
+--- Process 116088 loaded C:\msys64\mingw64\bin\libwinpthread-1.dll at 00007fff80a30000
+--- Process 116088 loaded C:\Windows\System32\cryptbase.dll at 00007fffab920000
+--- Process 116088 loaded C:\Windows\System32\bcryptprimitives.dll at 00007fffac850000
+--- Process 116088 loaded C:\Windows\System32\sechost.dll at 00007fffae780000
+--- Process 90152 created
+--- Process 90152 loaded C:\Windows\System32\ntdll.dll at 00007fffaf920000
+--- Process 90152 loaded C:\Windows\System32\kernel32.dll at 00007fffae860000
+--- Process 90152 loaded C:\Windows\System32\KernelBase.dll at 00007fffac9c0000
+--- Process 90152 loaded C:\Windows\System32\apphelp.dll at 00007fffa5ae0000
+--- Process 90152 thread 100684 created
+--- Process 90152 thread 108784 created
+--- Process 90152 thread 47700 created
+--- Process 90152 loaded C:\Windows\System32\msvcrt.dll at 00007fffad6c0000
+--- Process 90152 loaded C:\Program Files\Git\mingw64\bin\libgmp-10.dll at 00007fff74c20000
+--- Process 90152 loaded C:\Program Files\Git\mingw64\bin\libgcc_s_seh-1.dll at 00007fff7eef0000
+--- Process 90152 loaded C:\Program Files\Git\mingw64\bin\libwinpthread-1.dll at 00007fff7f0a0000
+--- Process 90152 loaded C:\Program Files\Git\mingw64\bin\zlib1.dll at 00007fff76110000
+--- Process 90152 loaded C:\msys64\mingw64\bin\libmpfr-6.dll at 00007fff74a90000
+--- Process 90152 loaded C:\Program Files\Git\mingw64\bin\libzstd.dll at 00007fff3d490000
+--- Process 90152 loaded C:\msys64\mingw64\bin\libmpc-3.dll at 00007fff75f30000
+--- Process 90152 loaded C:\msys64\mingw64\bin\libisl-23.dll at 00007fff16540000
+--- Process 90152, exception c0000139 at 00007fffaf92dcbf
+--- Process 90152 thread 47700 exited with status 0xc0000139
+--- Process 90152 thread 42636 exited with status 0xc0000139
+--- Process 90152 thread 108784 exited with status 0xc0000139
+--- Process 90152 exited with status 0xc0000139
+--- Process 116088 thread 105212 exited with status 0x1
+--- Process 116088 thread 79756 exited with status 0x1
+--- Process 116088 thread 46568 exited with status 0x1
+--- Process 116088 exited with status 0x1
