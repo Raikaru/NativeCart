@@ -1,0 +1,207 @@
+#!/usr/bin/env python3
+
+import glob
+import os
+import platform
+import subprocess
+import sys
+
+EnsureSConsVersion(4, 0)
+
+
+def detect_platform():
+    if sys.platform.startswith("win32"):
+        return "windows"
+    if sys.platform.startswith("darwin"):
+        return "macos"
+    if sys.platform.startswith("linux"):
+        return "linux"
+    raise ValueError("Unsupported platform: {}".format(sys.platform))
+
+
+def build_static_archive(target, source, env):
+    target_path = str(target[0])
+    source_paths = [str(node) for node in source]
+    if os.path.exists(target_path):
+        os.remove(target_path)
+
+    chunk_size = 64
+    for index in range(0, len(source_paths), chunk_size):
+        chunk = source_paths[index:index + chunk_size]
+        subprocess.check_call([env["AR"], "rcs", target_path] + chunk)
+
+
+opts = Variables([], ARGUMENTS)
+opts.Add(EnumVariable("platform", "Target platform", detect_platform(), ["windows", "linux", "macos"]))
+opts.Add(EnumVariable("target", "Build target", "debug", ["debug", "release"]))
+opts.Add(EnumVariable("arch", "Target architecture", "x86_64", ["x86_64", "x86_32", "arm64", "arm32"]))
+opts.Add(PathVariable("sdl_include_dir", "Path to SDL2 headers", os.environ.get("SDL2_INCLUDE_DIR", "C:/msys64/mingw64/include"), PathVariable.PathAccept))
+opts.Add(PathVariable("sdl_lib_dir", "Path to SDL2 libraries", os.environ.get("SDL2_LIB_DIR", "C:/msys64/mingw64/lib"), PathVariable.PathAccept))
+
+if ARGUMENTS.get("platform", detect_platform()) == "windows":
+    env = Environment(tools=["mingw", "gcc", "ar"], variables=opts)
+else:
+    env = Environment(tools=["default"], variables=opts)
+
+Help(opts.GenerateHelpText(env))
+
+project_dir = Dir(".").abspath
+root_dir = Dir("../../..").abspath
+core_dir = os.path.join(root_dir, "pokefirered_core")
+core_include_dir = os.path.join(core_dir, "include")
+core_src_dir = os.path.join(core_dir, "src")
+engine_root_dir = os.path.join(root_dir, "engine")
+engine_core_dir = os.path.join(engine_root_dir, "core")
+engine_interfaces_dir = os.path.join(engine_root_dir, "interfaces")
+firered_core_module_dir = os.path.join(root_dir, "cores", "firered")
+firered_portable_dir = os.path.join(firered_core_module_dir, "portable")
+firered_generated_data_dir = os.path.join(firered_core_module_dir, "generated", "data")
+generated_dir = os.path.join(core_dir, "generated")
+generated_include_dir = os.path.join(generated_dir, "include")
+generated_src_dir = os.path.join(generated_dir, "src")
+build_dir = os.path.join(root_dir, "build")
+
+engine_src_dir = os.path.join(root_dir, "src")
+engine_transformed_dir = os.path.join(root_dir, "src_transformed")
+engine_include_dir = os.path.join(root_dir, "include")
+engine_gba_include_dir = os.path.join(engine_include_dir, "gba")
+
+generator_script = os.path.join(root_dir, "gdextension", "tools", "generate_portable_region_map_overrides.py")
+subprocess.check_call([sys.executable, generator_script, root_dir, generated_dir])
+battle_script_generator = os.path.join(root_dir, "gdextension", "tools", "generate_portable_battle_script_data.py")
+subprocess.check_call([sys.executable, battle_script_generator, root_dir, generated_dir])
+battle_ai_generator = os.path.join(root_dir, "gdextension", "tools", "generate_portable_battle_ai_data.py")
+subprocess.check_call([sys.executable, battle_ai_generator, root_dir, generated_dir])
+battle_anim_generator = os.path.join(root_dir, "gdextension", "tools", "generate_portable_battle_anim_data.py")
+subprocess.check_call([sys.executable, battle_anim_generator, root_dir, generated_dir])
+event_script_generator = os.path.join(root_dir, "gdextension", "tools", "generate_portable_event_script_data.py")
+subprocess.check_call([sys.executable, event_script_generator, root_dir, generated_dir])
+cry_generator = os.path.join(root_dir, "gdextension", "tools", "generate_portable_cry_data.py")
+subprocess.check_call([sys.executable, cry_generator, root_dir, generated_dir])
+item_generator = os.path.join(root_dir, "gdextension", "tools", "generate_portable_item_data.py")
+subprocess.check_call([sys.executable, item_generator, root_dir, generated_dir])
+map_generator = os.path.join(root_dir, "gdextension", "tools", "generate_portable_map_data.py")
+subprocess.check_call([sys.executable, map_generator, root_dir, generated_dir])
+
+
+def merged_engine_sources():
+    originals = {os.path.basename(path): path for path in glob.glob(os.path.join(engine_src_dir, "*.c"))}
+    transformed = {os.path.basename(path): path for path in glob.glob(os.path.join(engine_transformed_dir, "*.c"))}
+    originals.update(transformed)
+    originals.pop("librfu_intr.c", None)
+    originals.pop("isagbprn.c", None)
+    originals.pop("m4a.c", None)
+    originals.pop("m4a_tables.c", None)
+    originals.pop("main.c", None)
+    originals.pop("multiboot.c", None)
+    originals.pop("region_map.c", None)
+    originals.pop("script.c", None)
+    originals.pop("wild_encounter.c", None)
+    return [originals[name] for name in sorted(originals.keys())]
+
+
+engine_sources = merged_engine_sources()
+portable_asm_sources = [
+    os.path.join(firered_portable_dir, "isagbprn_portable.c"),
+    os.path.join(firered_portable_dir, "libgcnmultiboot_portable.c"),
+    os.path.join(firered_portable_dir, "m4a_portable.c"),
+    os.path.join(firered_portable_dir, "main_portable.c"),
+    os.path.join(firered_portable_dir, "multiboot_programs_portable.c"),
+    os.path.join(firered_portable_dir, "multiboot_portable.c"),
+    os.path.join(firered_portable_dir, "script_portable.c"),
+    os.path.join(firered_portable_dir, "librfu_intr_portable.c"),
+]
+core_sources = [
+    os.path.join(engine_core_dir, "core_loader.c"),
+    os.path.join(engine_core_dir, "engine_runtime.c"),
+    os.path.join(engine_core_dir, "engine_video.c"),
+    os.path.join(engine_core_dir, "engine_audio.c"),
+    os.path.join(engine_core_dir, "engine_input.c"),
+    os.path.join(engine_core_dir, "engine_runtime_backend.c"),
+    os.path.join(engine_core_dir, "engine_renderer_backend.c"),
+    os.path.join(engine_core_dir, "engine_memory.c"),
+    os.path.join(engine_core_dir, "engine_audio_backend.c"),
+    os.path.join(engine_core_dir, "engine_input_backend.c"),
+    os.path.join(firered_core_module_dir, "firered_core.c"),
+    os.path.join(core_src_dir, "firered_runtime.c"),
+    os.path.join(core_src_dir, "firered_memory.c"),
+    os.path.join(core_src_dir, "firered_video.c"),
+    os.path.join(core_src_dir, "firered_audio.c"),
+    os.path.join(core_src_dir, "firered_input.c"),
+    os.path.join(engine_core_dir, "engine_platform_portable.c"),
+    os.path.join(firered_portable_dir, "mystery_event_script_portable.c"),
+    os.path.join(firered_portable_dir, "portable_script_pointer_resolver.c"),
+    os.path.join(firered_portable_dir, "rom_header_portable.c"),
+    os.path.join(firered_portable_dir, "region_map_portable.c"),
+    os.path.join(firered_portable_dir, "wild_encounter_portable.c"),
+    os.path.join(firered_generated_data_dir, "battle_scripts_portable_data.c"),
+    os.path.join(firered_generated_data_dir, "battle_ai_scripts_portable_data.c"),
+    os.path.join(firered_generated_data_dir, "battle_anim_scripts_portable_data.c"),
+    os.path.join(firered_generated_data_dir, "cry_tables_portable_data.c"),
+    os.path.join(firered_generated_data_dir, "event_scripts_portable_data.c"),
+    os.path.join(firered_generated_data_dir, "field_effect_scripts_portable_data.c"),
+    os.path.join(firered_generated_data_dir, "map_data_portable.c"),
+]
+
+c_env = env.Clone()
+c_env["CC"] = "gcc"
+c_env.Append(CPPPATH=[project_dir, generated_include_dir, generated_src_dir, engine_include_dir, engine_gba_include_dir, engine_src_dir, core_include_dir, core_src_dir, engine_core_dir, engine_interfaces_dir, firered_core_module_dir])
+c_env.Append(CCFLAGS=[
+    "-std=gnu99",
+    "-Wall",
+    "-Wextra",
+    "-Wno-unused-parameter",
+    "-Wno-unused-variable",
+    "-Wno-unused-function",
+    "-Wno-missing-field-initializers",
+    "-Wno-sign-compare",
+    "-Wno-pointer-sign",
+    "-Wno-int-conversion",
+    "-Wno-implicit-function-declaration",
+    "-Wno-strict-aliasing",
+    "-Wno-type-limits",
+    "-Wno-implicit-fallthrough",
+    "-fPIC",
+    "-Wa,-I,{}".format(root_dir.replace("\\", "/")),
+])
+if env["sdl_include_dir"]:
+    c_env.Append(CPPPATH=[env["sdl_include_dir"]])
+c_env.Append(CPPDEFINES=["PORTABLE", "NO_SAVEFLASH", "FIRERED", "GAME_LANGUAGE=2", "PORTABLE_FAKE_INCBIN", "__INTELLISENSE__"])
+
+if env["platform"] == "windows":
+    c_env.Append(CCFLAGS=["-mms-bitfields", "-m64" if env["arch"] == "x86_64" else "-m32"])
+    c_env.Append(CPPDEFINES=["WIN32", "_WINDOWS"])
+
+if env["target"] == "debug":
+    c_env.Append(CCFLAGS=["-g3", "-O0", "-DDEBUG", "-D_DEBUG", "-fno-omit-frame-pointer"])
+else:
+    c_env.Append(CCFLAGS=["-O2", "-DNDEBUG", "-fomit-frame-pointer"])
+
+if not os.path.exists(build_dir):
+    os.makedirs(build_dir)
+
+core_objects = c_env.Object(engine_sources + core_sources)
+asm_c_env = c_env.Clone()
+asm_c_env.Append(CCFLAGS=["-fno-asm"])
+core_objects += asm_c_env.Object(portable_asm_sources)
+firered_core_lib = c_env.Command(
+    target=os.path.join(build_dir, "libfirered_core.a"),
+    source=core_objects,
+    action=build_static_archive,
+)
+
+shell_program = os.path.join(build_dir, "decomp_engine_sdl")
+libs = ["SDL2"]
+if env["platform"] == "windows":
+    libs = ["mingw32", "SDL2main", "SDL2", "winmm", "ws2_32", "crypt32"]
+
+program = c_env.Program(
+    target=shell_program,
+    source=[os.path.join(project_dir, "main.c"), firered_core_lib],
+    LIBPATH=[env["sdl_lib_dir"]] if env["sdl_lib_dir"] else [],
+    LIBS=libs,
+)
+
+Default(program)
+
+print("SDL shell build root: {}".format(root_dir))

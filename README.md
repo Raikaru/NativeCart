@@ -6,6 +6,7 @@ engine shell from a FireRed-specific game core.
 The current public layout is split into:
 
 - `engine/` - reusable runtime, renderer, shell interfaces, and Godot shell code
+- `engine/shells/sdl/` - standalone SDL shell using the same engine/core APIs
 - `cores/firered/` - FireRed-specific adapter, portable glue, and generated data
 - `gdextension/` - compatibility-facing build entrypoint for the Godot shell
 
@@ -52,6 +53,7 @@ other local-only artifacts that should not be published.
 ## Current Status
 
 - canonical reusable runtime path lives in `engine/core/`
+- SDL and Godot both now exist as shells over the generic engine/core path
 - canonical FireRed-specific portable/generated glue lives in `cores/firered/`
 - compatibility wrappers remain in `pokefirered_core/` and `gdextension/` so the
   current build still works while the public architecture is cleaner

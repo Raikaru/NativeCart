@@ -14,6 +14,10 @@ At minimum, the current build path needs:
 - a Godot 4.x editor/runtime for manual testing
 - a legally obtained FireRed ROM for local testing only
 
+Optional for the SDL shell:
+
+- SDL2 development headers and libraries
+
 ## Recommended Windows Setup
 
 The repository is actively used on Windows with MinGW/MSYS2-style GCC.
@@ -104,6 +108,29 @@ Main outputs:
 - `gdextension/bin/libpokefirered.debug.windows.x86_64.dll`
 - `build/libfirered_core.a`
 - `build/runtime_progress_runner.exe`
+
+## Optional SDL Shell Build
+
+The repository also includes a standalone SDL shell in `engine/shells/sdl/`.
+
+Build it with:
+
+```bash
+cd engine/shells/sdl
+scons -Q platform=windows target=debug -j4
+```
+
+If SDL2 is installed in a custom location, pass:
+
+```bash
+scons sdl_include_dir=/path/to/include sdl_lib_dir=/path/to/SDL2/lib
+```
+
+Run it with:
+
+```bash
+build/decomp_engine_sdl.exe baserom.gba
+```
 
 ## Runtime Test Requirements
 
