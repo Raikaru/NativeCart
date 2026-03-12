@@ -222,9 +222,6 @@ static int engine_obj_window_contains_pixel(int x, int y, uint16_t dispcnt) {
             continue;
         if ((attr0 & 0x0C00u) != 0x0800u)
             continue;
-        if (attr0 & 0x0100u)
-            continue;
-
         y_pos = attr0 & 0xFF;
         x_pos = attr1 & 0x1FF;
         if (y_pos >= 160)
