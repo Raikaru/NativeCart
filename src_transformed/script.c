@@ -112,7 +112,7 @@ extern ScrCmdFunc gScriptCmdTableEnd[];
 #endif
 extern void *gNullScriptPtr;
 
-void InitScriptContext(struct ScriptContext *ctx, void *cmdTable, void *cmdTableEnd)
+void InitScriptContext(struct ScriptContext *ctx, const void *cmdTable, const void *cmdTableEnd)
 {
     s32 i;
 
@@ -316,13 +316,6 @@ const void *ScriptReadPtr(struct ScriptContext *ctx)
 {
     const void *ptr = T2_READ_PTR(ctx->scriptPtr);
     ctx->scriptPtr += 4;
-#ifdef PORTABLE
-    {
-        uintptr_t value = (uintptr_t)ptr;
-        if (value >= 0x81000000u && value <= 0xFFFFFFFFu)
-            return firered_portable_resolve_script_ptr((u32)value);
-    }
-#endif
     return ptr;
 }
 
@@ -515,7 +508,7 @@ void ScriptContext_Enable(void)
 // scripts (except the frame table scripts).
 void RunScriptImmediately(const u8 *ptr)
 {
-    InitScriptContext(&sImmediateScriptContext, &gScriptCmdTable, &gScriptCmdTableEnd);
+    InitScriptContext(&sImmediateScriptContext, gScriptCmdTable, gScriptCmdTableEnd);
     SetupBytecodeScript(&sImmediateScriptContext, ptr);
     while (1)
     {

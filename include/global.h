@@ -120,16 +120,28 @@ void Free(void *pointer);
 // as these below. Because of this, there is a theory (Two Team Theory) that states that these
 // programming projects had more than 1 "programming team" which utilized different macros for
 // each of the files that were worked on.
+#ifdef PORTABLE
+extern const void *firered_portable_resolve_script_ptr(u32 value);
+#endif
+
 #define T1_READ_8(ptr)  ((ptr)[0])
 #define T1_READ_16(ptr) ((ptr)[0] | ((ptr)[1] << 8))
 #define T1_READ_32(ptr) ((ptr)[0] | ((ptr)[1] << 8) | ((ptr)[2] << 16) | ((ptr)[3] << 24))
+#ifdef PORTABLE
+#define T1_READ_PTR(ptr) (u8 *)firered_portable_resolve_script_ptr(T1_READ_32(ptr))
+#else
 #define T1_READ_PTR(ptr) (u8 *) T1_READ_32(ptr)
+#endif
 
 // T2_READ_8 is a duplicate to remain consistent with each group.
 #define T2_READ_8(ptr)  ((ptr)[0])
 #define T2_READ_16(ptr) ((ptr)[0] + ((ptr)[1] << 8))
 #define T2_READ_32(ptr) ((ptr)[0] + ((ptr)[1] << 8) + ((ptr)[2] << 16) + ((ptr)[3] << 24))
+#ifdef PORTABLE
+#define T2_READ_PTR(ptr) firered_portable_resolve_script_ptr(T2_READ_32(ptr))
+#else
 #define T2_READ_PTR(ptr) (void *) T2_READ_32(ptr)
+#endif
 
 // This macro is required to prevent the compiler from optimizing
 // a dpad up/down check in sub_812CAD8 (fame_checker.c).

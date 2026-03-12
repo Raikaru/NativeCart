@@ -364,13 +364,13 @@ static void TaskFreeBufAfterCopyingTileDataToVram(u8 taskId)
 void *MallocAndDecompress(const void *src, u32 *size)
 {
     void *ptr;
-    u8 *sizeAsBytes = (u8 *)size;
     const u8 *srcAsBytes = src;
+    u32 decompressedSize;
 
-    sizeAsBytes[0] = srcAsBytes[1];
-    sizeAsBytes[1] = srcAsBytes[2];
-    sizeAsBytes[2] = srcAsBytes[3];
-    sizeAsBytes[3] = 0;
+    decompressedSize = srcAsBytes[1];
+    decompressedSize |= srcAsBytes[2] << 8;
+    decompressedSize |= srcAsBytes[3] << 16;
+    *size = decompressedSize;
 
     ptr = Alloc(*size);
     if (ptr)
