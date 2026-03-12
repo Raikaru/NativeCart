@@ -213,8 +213,10 @@ void SetTaskFuncWithFollowupFunc(u8 taskId, TaskFunc func, TaskFunc followupFunc
 #ifdef PORTABLE
     sTaskFollowupFuncs[taskId] = followupFunc;
 #endif
+#ifndef PORTABLE
     gTasks[taskId].data[followupFuncIndex] = (s16)((u32)followupFunc);
     gTasks[taskId].data[followupFuncIndex + 1] = (s16)((u32)followupFunc >> 16); // Store followupFunc as two half-words in the data array.
+#endif
     gTasks[taskId].func = func;
 }
 
