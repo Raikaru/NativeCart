@@ -117,6 +117,17 @@ def build_objects(builder_env, sources):
     return objects
 
 
+def release_sensitive_sources(root_dir):
+    stable_prefixes = [
+        os.path.normcase(os.path.join(root_dir, "src")),
+        os.path.normcase(os.path.join(root_dir, "src_transformed")),
+        os.path.normcase(os.path.join(root_dir, "cores", "firered")),
+        os.path.normcase(os.path.join(root_dir, "pokefirered_core")),
+    ]
+
+    return stable_prefixes
+
+
 engine_sources = merged_engine_sources()
 portable_asm_sources = [
     os.path.join(firered_portable_dir, "isagbprn_portable.c"),
@@ -160,6 +171,8 @@ core_sources = [
     os.path.join(firered_generated_data_dir, "map_data_portable.c"),
 ]
 
+release_sensitive_prefixes = release_sensitive_sources(root_dir)
+
 c_env = env.Clone()
 c_env["CC"] = "gcc"
 c_env.Append(CPPPATH=[project_dir, generated_include_dir, generated_src_dir, engine_include_dir, engine_gba_include_dir, engine_src_dir, core_include_dir, core_src_dir, engine_core_dir, engine_interfaces_dir, firered_core_module_dir])
@@ -199,7 +212,21 @@ if not os.path.exists(build_dir):
 if not os.path.exists(sdl_build_dir):
     os.makedirs(sdl_build_dir)
 
-core_objects = build_objects(c_env, engine_sources + core_sources)
+release_safe_env = c_env.Clone()
+if env["target"] == "release":
+    release_safe_env.Append(CCFLAGS=["-O0", "-fno-omit-frame-pointer"])
+
+normal_sources = []
+stability_sources = []
+for source_path in engine_sources + core_sources:
+    normalized = os.path.normcase(source_path)
+    if env["target"] == "release" and any(normalized.startswith(prefix) for prefix in release_sensitive_prefixes):
+        stability_sources.append(source_path)
+    else:
+        normal_sources.append(source_path)
+
+core_objects = build_objects(c_env, normal_sources)
+core_objects += build_objects(release_safe_env, stability_sources)
 asm_c_env = c_env.Clone()
 asm_c_env.Append(CCFLAGS=["-fno-asm"])
 core_objects += build_objects(asm_c_env, portable_asm_sources)

@@ -103,8 +103,13 @@ static u8 sQuestLogInput;
 static u8 sQuestLogInputIsDpad;
 static u8 sMsgIsSignpost;
 
+#ifdef PORTABLE
+extern const u8 gScriptCmdTable[];
+extern const u8 gScriptCmdTableEnd[];
+#else
 extern ScrCmdFunc gScriptCmdTable[];
 extern ScrCmdFunc gScriptCmdTableEnd[];
+#endif
 extern void *gNullScriptPtr;
 
 void InitScriptContext(struct ScriptContext *ctx, void *cmdTable, void *cmdTableEnd)
@@ -311,6 +316,13 @@ const void *ScriptReadPtr(struct ScriptContext *ctx)
 {
     const void *ptr = T2_READ_PTR(ctx->scriptPtr);
     ctx->scriptPtr += 4;
+#ifdef PORTABLE
+    {
+        uintptr_t value = (uintptr_t)ptr;
+        if (value >= 0x81000000u && value <= 0xFFFFFFFFu)
+            return firered_portable_resolve_script_ptr((u32)value);
+    }
+#endif
     return ptr;
 }
 

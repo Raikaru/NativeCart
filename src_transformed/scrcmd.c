@@ -83,6 +83,14 @@ COMMON_DATA u8 gSelectedObjectEvent = 0;
 extern unsigned long firered_runtime_get_completed_frame_external(void);
 extern void firered_runtime_trace_external(const char *message);
 
+static const u8 *ResolveVirtualScriptPointer(u32 value)
+{
+    if (value == 0)
+        return NULL;
+
+    return (const u8 *)firered_portable_resolve_script_ptr(value - (u32)sAddressOffset);
+}
+
 static const u8 *ResolveScriptDataPointer(u32 value)
 {
     if (value == 0)
@@ -212,22 +220,36 @@ bool8 ScrCmd_setvaddress(struct ScriptContext * ctx)
 
 bool8 ScrCmd_vgoto(struct ScriptContext * ctx)
 {
+#ifdef PORTABLE
+    u32 rawPtr = ScriptReadWord(ctx);
+    ScriptJump(ctx, ResolveVirtualScriptPointer(rawPtr));
+#else
     const u8 * scrptr = ScriptReadPtr(ctx);
     ScriptJump(ctx, scrptr - sAddressOffset);
+#endif
     return FALSE;
 }
 
 bool8 ScrCmd_vcall(struct ScriptContext * ctx)
 {
+#ifdef PORTABLE
+    u32 rawPtr = ScriptReadWord(ctx);
+    ScriptCall(ctx, ResolveVirtualScriptPointer(rawPtr));
+#else
     const u8 * scrptr = ScriptReadPtr(ctx);
     ScriptCall(ctx, scrptr - sAddressOffset);
+#endif
     return FALSE;
 }
 
 bool8 ScrCmd_vgoto_if(struct ScriptContext * ctx)
 {
     u8 condition = ScriptReadByte(ctx);
+#ifdef PORTABLE
+    const u8 * scrptr = ResolveVirtualScriptPointer(ScriptReadWord(ctx));
+#else
     const u8 * scrptr = (const u8 *)ScriptReadPtr(ctx) - sAddressOffset;
+#endif
     if (sScriptConditionTable[condition][ctx->comparisonResult] == 1)
         ScriptJump(ctx, scrptr);
     return FALSE;
@@ -236,7 +258,11 @@ bool8 ScrCmd_vgoto_if(struct ScriptContext * ctx)
 bool8 ScrCmd_vcall_if(struct ScriptContext * ctx)
 {
     u8 condition = ScriptReadByte(ctx);
+#ifdef PORTABLE
+    const u8 * scrptr = ResolveVirtualScriptPointer(ScriptReadWord(ctx));
+#else
     const u8 * scrptr = (const u8 *)ScriptReadPtr(ctx) - sAddressOffset;
+#endif
     if (sScriptConditionTable[condition][ctx->comparisonResult] == 1)
         ScriptCall(ctx, scrptr);
     return FALSE;
@@ -1638,7 +1664,11 @@ bool8 ScrCmd_vmessage(struct ScriptContext * ctx)
 {
     u32 msg = ScriptReadWord(ctx);
 
+#ifdef PORTABLE
+    ShowFieldMessage((u8 *)ResolveVirtualScriptPointer(msg));
+#else
     ShowFieldMessage((u8 *)(msg - sAddressOffset));
+#endif
     return FALSE;
 }
 
@@ -1762,7 +1792,11 @@ bool8 ScrCmd_bufferstring(struct ScriptContext * ctx)
 
 bool8 ScrCmd_vbuffermessage(struct ScriptContext * ctx)
 {
+#ifdef PORTABLE
+    const u8 *ptr = ResolveVirtualScriptPointer(ScriptReadWord(ctx));
+#else
     const u8 *ptr = (u8 *)(ScriptReadWord(ctx) - sAddressOffset);
+#endif
 
     StringExpandPlaceholders(gStringVar4, ptr);
     return FALSE;
@@ -1773,7 +1807,11 @@ bool8 ScrCmd_vbufferstring(struct ScriptContext * ctx)
     u8 stringVarIndex = ScriptReadByte(ctx);
     u32 addr = ScriptReadWord(ctx);
 
+#ifdef PORTABLE
+    const u8 *src = ResolveVirtualScriptPointer(addr);
+#else
     const u8 *src = (u8 *)(addr - sAddressOffset);
+#endif
     u8 *dest = sScriptStringVars[stringVarIndex];
     StringCopy(dest, src);
     return FALSE;

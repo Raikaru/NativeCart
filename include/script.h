@@ -16,8 +16,13 @@ struct ScriptContext
     u8 (*nativePtr)(void);
     const u8 *scriptPtr;
     const u8 *stack[20];
+#ifdef PORTABLE
+    const u8 *cmdTable;
+    const u8 *cmdTableEnd;
+#else
     ScrCmdFunc *cmdTable;
     ScrCmdFunc *cmdTableEnd;
+#endif
     u32 data[4];
 };
 

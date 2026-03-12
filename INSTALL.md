@@ -123,6 +123,10 @@ scons -Q platform=windows target=debug -j4
 The SDL shell currently defaults to a debug build for stability.
 If you want a faster optimized build, pass `target=release`.
 
+The current SDL release build intentionally keeps the FireRed/game side on the
+stable unoptimized codegen path to avoid known 64-bit release-only regressions
+while the remaining UB in transformed portable code is still being isolated.
+
 If SDL2 is installed in a custom location, pass:
 
 ```bash

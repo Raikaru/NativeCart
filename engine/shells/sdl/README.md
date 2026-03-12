@@ -45,6 +45,11 @@ If you want to try a faster optimized build:
 scons -Q platform=windows target=release -j4
 ```
 
+For now, the SDL release build keeps the FireRed/game side on the stable
+unoptimized codegen path to avoid known 64-bit optimization-sensitive
+regressions in the transformed portable core, while still using the SDL shell's
+release-facing build configuration.
+
 Optional SCons variables:
 
 - `sdl_include_dir=/path/to/include`
