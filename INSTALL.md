@@ -10,7 +10,7 @@ At minimum, the current build path needs:
 - Python 3.10+
 - SCons 4.x
 - a C/C++ toolchain
-- [godot-cpp](https://github.com/godotengine/godot-cpp) checked out at the repo root
+- [godot-cpp](https://github.com/godotengine/godot-cpp) installed separately as an external dependency
 - a Godot 4.x editor/runtime for manual testing
 - a legally obtained FireRed ROM for local testing only
 
@@ -62,7 +62,9 @@ python3 -m pip install --user scons
 
 ## Clone Required Dependencies
 
-At the repository root, make sure `godot-cpp/` exists.
+`godot-cpp` is not committed to this repository. Install it locally.
+
+Recommended default: clone it at the repository root so the current SCons setup finds it automatically.
 
 ```bash
 git clone https://github.com/godotengine/godot-cpp.git

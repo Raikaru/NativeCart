@@ -44,6 +44,11 @@ other local-only artifacts that should not be published.
 - Architecture notes: [docs/architecture.txt](docs/architecture.txt)
 - Build notes: [docs/build.txt](docs/build.txt)
 
+## External Dependencies
+
+- `godot-cpp` is intentionally not vendored in this repository
+- clone it separately as described in [INSTALL.md](INSTALL.md)
+
 ## Current Status
 
 - canonical reusable runtime path lives in `engine/core/`
@@ -58,4 +63,4 @@ other local-only artifacts that should not be published.
 - build with `cd gdextension && scons -Q platform=windows target=debug -j4`
 - smoke-check with `build/runtime_progress_runner.exe baserom.gba`
 - review `README.md`, `INSTALL.md`, `docs/architecture.txt`, and `docs/build.txt`
-- verify `godot-cpp/` is present or documented as an external dependency
+- verify `godot-cpp/` is installed locally as an external dependency and not tracked in git

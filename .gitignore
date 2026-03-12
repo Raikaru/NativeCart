@@ -6,6 +6,7 @@ baserom*.gba
 build/
 gdextension/bin/
 gdextension/demo/bin/
+godot-cpp/
 godot-cpp/bin/
 gdextension/godot-cpp/
 
