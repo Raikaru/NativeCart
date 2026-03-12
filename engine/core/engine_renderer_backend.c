@@ -826,60 +826,57 @@ static int engine_sample_bg_pixel(int bg, uint16_t bgcnt, uint32_t screen_base, 
     }
 }
 
-static void engine_render_mode0_backgrounds(void) {
+static void engine_render_mode0_backgrounds_for_priority(int priority) {
     uint16_t dispcnt = *engine_reg16(ENGINE_REG_DISPCNT);
-    int priority;
     int bg;
 
-    for (priority = 3; priority >= 0; --priority) {
-        for (bg = 0; bg < 4; ++bg) {
-            uint16_t bgcnt = engine_bgcnt_value(bg);
-            uint32_t screen_base = (uint32_t)(((bgcnt >> 8) & 0x1Fu) * 0x800u);
-            int use_256_colors = (bgcnt & 0x0080u) != 0;
-            int screen_size = (bgcnt >> 14) & 0x3;
-            int screen_width_tiles = 32;
-            int screen_height_tiles = 32;
-            int hofs;
-            int vofs;
-            int screen_x;
-            int screen_y;
+    for (bg = 0; bg < 4; ++bg) {
+        uint16_t bgcnt = engine_bgcnt_value(bg);
+        uint32_t screen_base = (uint32_t)(((bgcnt >> 8) & 0x1Fu) * 0x800u);
+        int use_256_colors = (bgcnt & 0x0080u) != 0;
+        int screen_size = (bgcnt >> 14) & 0x3;
+        int screen_width_tiles = 32;
+        int screen_height_tiles = 32;
+        int hofs;
+        int vofs;
+        int screen_x;
+        int screen_y;
 
-            if (((dispcnt >> (8 + bg)) & 1u) == 0u) {
-                continue;
-            }
-            if ((bgcnt & 0x3u) != (uint16_t)priority) {
-                continue;
-            }
+        if (((dispcnt >> (8 + bg)) & 1u) == 0u) {
+            continue;
+        }
+        if ((bgcnt & 0x3u) != (uint16_t)priority) {
+            continue;
+        }
 
-            if (screen_size == 1) {
-                screen_width_tiles = 64;
-            } else if (screen_size == 2) {
-                screen_height_tiles = 64;
-            } else if (screen_size == 3) {
-                screen_width_tiles = 64;
-                screen_height_tiles = 64;
-            }
+        if (screen_size == 1) {
+            screen_width_tiles = 64;
+        } else if (screen_size == 2) {
+            screen_height_tiles = 64;
+        } else if (screen_size == 3) {
+            screen_width_tiles = 64;
+            screen_height_tiles = 64;
+        }
 
-            hofs = engine_bg_hofs(bg);
-            vofs = engine_bg_vofs(bg);
+        hofs = engine_bg_hofs(bg);
+        vofs = engine_bg_vofs(bg);
 
-            for (screen_y = 0; screen_y < ENGINE_GBA_HEIGHT; ++screen_y) {
-                int line_hofs = engine_bg_offset_for_line(bg, screen_y, 0, hofs);
-                int line_vofs = engine_bg_offset_for_line(bg, screen_y, 1, vofs);
-                int src_y = (screen_y + line_vofs) & (screen_height_tiles * 8 - 1);
+        for (screen_y = 0; screen_y < ENGINE_GBA_HEIGHT; ++screen_y) {
+            int line_hofs = engine_bg_offset_for_line(bg, screen_y, 0, hofs);
+            int line_vofs = engine_bg_offset_for_line(bg, screen_y, 1, vofs);
+            int src_y = (screen_y + line_vofs) & (screen_height_tiles * 8 - 1);
 
-                for (screen_x = 0; screen_x < ENGINE_GBA_WIDTH; ++screen_x) {
-                    int src_x = (screen_x + line_hofs) & (screen_width_tiles * 8 - 1);
-                    uint32_t rgba;
-                    uint8_t window_mask = engine_window_mask_for_pixel(screen_x, screen_y);
+            for (screen_x = 0; screen_x < ENGINE_GBA_WIDTH; ++screen_x) {
+                int src_x = (screen_x + line_hofs) & (screen_width_tiles * 8 - 1);
+                uint32_t rgba;
+                uint8_t window_mask = engine_window_mask_for_pixel(screen_x, screen_y);
 
-                    if ((window_mask & (1u << bg)) == 0) {
-                        continue;
-                    }
+                if ((window_mask & (1u << bg)) == 0) {
+                    continue;
+                }
 
-                    if (engine_sample_bg_pixel(bg, bgcnt, screen_base, screen_size, use_256_colors, src_x, src_y, &rgba)) {
-                        engine_insert_layer_pixel(screen_x, screen_y, rgba, (uint8_t)(ENGINE_LAYER_BG0 + bg), 0);
-                    }
+                if (engine_sample_bg_pixel(bg, bgcnt, screen_base, screen_size, use_256_colors, src_x, src_y, &rgba)) {
+                    engine_insert_layer_pixel(screen_x, screen_y, rgba, (uint8_t)(ENGINE_LAYER_BG0 + bg), 0);
                 }
             }
         }
@@ -962,76 +959,73 @@ static void engine_render_sprite_8bpp(int screen_x, int screen_y, int width, int
     }
 }
 
-static void engine_render_sprites(void) {
+static void engine_render_sprites_for_priority(int priority) {
     EngineOAMEntry *oam = engine_oam();
     uint16_t dispcnt = *engine_reg16(ENGINE_REG_DISPCNT);
     int obj_1d = (dispcnt & ENGINE_DISPCNT_OBJ_1D_MAP) != 0;
-    int priority;
     int i;
 
-    for (priority = 3; priority >= 0; --priority) {
-        for (i = 0; i < ENGINE_MAX_SPRITES; ++i) {
-            EngineOAMEntry sprite = oam[i];
-            uint16_t attr0 = sprite.attr0;
-            uint16_t attr1 = sprite.attr1;
-            uint16_t attr2 = sprite.attr2;
-            int sprite_priority;
-            int x_pos;
-            int y_pos;
-            int shape;
-            int size;
-            int width;
-            int height;
-            int use_256_colors;
-            int hflip;
-            int vflip;
-            uint16_t tile_index;
-            uint16_t palette_bank;
-            uint8_t semi_transparent;
+    for (i = ENGINE_MAX_SPRITES - 1; i >= 0; --i) {
+        EngineOAMEntry sprite = oam[i];
+        uint16_t attr0 = sprite.attr0;
+        uint16_t attr1 = sprite.attr1;
+        uint16_t attr2 = sprite.attr2;
+        int sprite_priority;
+        int x_pos;
+        int y_pos;
+        int shape;
+        int size;
+        int width;
+        int height;
+        int use_256_colors;
+        int hflip;
+        int vflip;
+        uint16_t tile_index;
+        uint16_t palette_bank;
+        uint8_t semi_transparent;
 
-            if (attr0 & 0x0200u) {
-                continue;
-            }
-            if ((attr0 & 0x0C00u) == 0x0800u) {
-                continue;
-            }
+        if (attr0 & 0x0200u) {
+            continue;
+        }
+        if ((attr0 & 0x0C00u) == 0x0800u) {
+            continue;
+        }
 
-            sprite_priority = (attr2 >> 10) & 0x3;
-            if (sprite_priority != priority) {
-                continue;
-            }
+        sprite_priority = (attr2 >> 10) & 0x3;
+        if (sprite_priority != priority) {
+            continue;
+        }
 
-            y_pos = attr0 & 0xFF;
-            x_pos = attr1 & 0x1FF;
-            if (y_pos >= 160) {
-                y_pos -= 256;
-            }
-            if (x_pos >= 240) {
-                x_pos -= 512;
-            }
+        y_pos = attr0 & 0xFF;
+        x_pos = attr1 & 0x1FF;
+        if (y_pos >= 160) {
+            y_pos -= 256;
+        }
+        if (x_pos >= 240) {
+            x_pos -= 512;
+        }
 
-            shape = (attr0 >> 14) & 0x3;
-            size = (attr1 >> 14) & 0x3;
-            width = 0;
-            height = 0;
+        shape = (attr0 >> 14) & 0x3;
+        size = (attr1 >> 14) & 0x3;
+        width = 0;
+        height = 0;
 
-            engine_sprite_dimensions(shape, size, &width, &height);
-            if (width == 0 || height == 0) {
-                continue;
-            }
+        engine_sprite_dimensions(shape, size, &width, &height);
+        if (width == 0 || height == 0) {
+            continue;
+        }
 
-            use_256_colors = (attr0 & 0x2000u) != 0;
-            hflip = (attr1 & 0x1000u) != 0;
-            vflip = (attr1 & 0x2000u) != 0;
-            tile_index = (uint16_t)(attr2 & 0x03FFu);
-            palette_bank = (uint16_t)((attr2 >> 12) & 0x0Fu);
-            semi_transparent = ((attr0 & 0x0C00u) == 0x0400u);
+        use_256_colors = (attr0 & 0x2000u) != 0;
+        hflip = (attr1 & 0x1000u) != 0;
+        vflip = (attr1 & 0x2000u) != 0;
+        tile_index = (uint16_t)(attr2 & 0x03FFu);
+        palette_bank = (uint16_t)((attr2 >> 12) & 0x0Fu);
+        semi_transparent = ((attr0 & 0x0C00u) == 0x0400u);
 
-            if (use_256_colors) {
-                engine_render_sprite_8bpp(x_pos, y_pos, width, height, tile_index, hflip, vflip, obj_1d, semi_transparent);
-            } else {
-                engine_render_sprite_4bpp(x_pos, y_pos, width, height, tile_index, palette_bank, hflip, vflip, obj_1d, semi_transparent);
-            }
+        if (use_256_colors) {
+            engine_render_sprite_8bpp(x_pos, y_pos, width, height, tile_index, hflip, vflip, obj_1d, semi_transparent);
+        } else {
+            engine_render_sprite_4bpp(x_pos, y_pos, width, height, tile_index, palette_bank, hflip, vflip, obj_1d, semi_transparent);
         }
     }
 }
@@ -1208,6 +1202,7 @@ void engine_video_render_frame(void) {
     uint16_t dispcnt = *engine_reg16(ENGINE_REG_DISPCNT);
     uint32_t backdrop;
     int mode;
+    int priority;
     static unsigned long render_count;
 
 #ifdef PORTABLE
@@ -1244,12 +1239,14 @@ void engine_video_render_frame(void) {
     }
 
     mode = dispcnt & 0x7;
-    if (mode == 0 || mode == 1 || mode == 2) {
-        engine_render_mode0_backgrounds();
-    }
+    for (priority = 3; priority >= 0; --priority) {
+        if (mode == 0 || mode == 1 || mode == 2) {
+            engine_render_mode0_backgrounds_for_priority(priority);
+        }
 
-    if (dispcnt & ENGINE_DISPCNT_OBJ_ON) {
-        engine_render_sprites();
+        if (dispcnt & ENGINE_DISPCNT_OBJ_ON) {
+            engine_render_sprites_for_priority(priority);
+        }
     }
 
     engine_compose_framebuffer();
