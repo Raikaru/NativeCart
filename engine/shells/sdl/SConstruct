@@ -60,6 +60,8 @@ generated_dir = os.path.join(core_dir, "generated")
 generated_include_dir = os.path.join(generated_dir, "include")
 generated_src_dir = os.path.join(generated_dir, "src")
 build_dir = os.path.join(root_dir, "build")
+sdl_build_dir = os.path.join(build_dir, "sdl")
+sdl_object_dir = os.path.join(sdl_build_dir, "obj")
 
 engine_src_dir = os.path.join(root_dir, "src")
 engine_transformed_dir = os.path.join(root_dir, "src_transformed")
@@ -98,6 +100,21 @@ def merged_engine_sources():
     originals.pop("script.c", None)
     originals.pop("wild_encounter.c", None)
     return [originals[name] for name in sorted(originals.keys())]
+
+
+def object_target_for(source_path):
+    rel_path = os.path.relpath(source_path, root_dir)
+    base, _ = os.path.splitext(rel_path)
+    return os.path.join(sdl_object_dir, base + ".o")
+
+
+def build_objects(builder_env, sources):
+    objects = []
+
+    for source_path in sources:
+        objects.extend(builder_env.Object(target=object_target_for(source_path), source=source_path))
+
+    return objects
 
 
 engine_sources = merged_engine_sources()
@@ -179,13 +196,15 @@ else:
 
 if not os.path.exists(build_dir):
     os.makedirs(build_dir)
+if not os.path.exists(sdl_build_dir):
+    os.makedirs(sdl_build_dir)
 
-core_objects = c_env.Object(engine_sources + core_sources)
+core_objects = build_objects(c_env, engine_sources + core_sources)
 asm_c_env = c_env.Clone()
 asm_c_env.Append(CCFLAGS=["-fno-asm"])
-core_objects += asm_c_env.Object(portable_asm_sources)
+core_objects += build_objects(asm_c_env, portable_asm_sources)
 firered_core_lib = c_env.Command(
-    target=os.path.join(build_dir, "libfirered_core.a"),
+    target=os.path.join(sdl_build_dir, "libfirered_core_sdl.a"),
     source=core_objects,
     action=build_static_archive,
 )
@@ -197,7 +216,7 @@ if env["platform"] == "windows":
 
 program = c_env.Program(
     target=shell_program,
-    source=[os.path.join(project_dir, "main.c"), firered_core_lib],
+    source=build_objects(c_env, [os.path.join(project_dir, "main.c")]) + [firered_core_lib],
     LIBPATH=[env["sdl_lib_dir"]] if env["sdl_lib_dir"] else [],
     LIBS=libs,
 )

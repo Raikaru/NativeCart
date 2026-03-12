@@ -44,6 +44,9 @@ Optional SCons variables:
 The default Windows paths assume an MSYS2-style SDL2 install where headers live
 under `.../include/SDL2` and libraries live under `.../lib`.
 
+SDL-specific intermediates now live under `build/sdl/` so SDL and Godot builds do
+not wipe each other's archives/objects.
+
 ## Run
 
 ```bash
