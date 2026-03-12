@@ -105,8 +105,8 @@ static uint16_t sdl_shell_collect_input(void)
     const uint8_t *keys = SDL_GetKeyboardState(NULL);
     uint16_t buttons = 0;
 
-    if (keys[SDL_SCANCODE_X]) buttons |= GBA_BUTTON_A;
-    if (keys[SDL_SCANCODE_Z]) buttons |= GBA_BUTTON_B;
+    if (keys[SDL_SCANCODE_Z]) buttons |= GBA_BUTTON_A;
+    if (keys[SDL_SCANCODE_X]) buttons |= GBA_BUTTON_B;
     if (keys[SDL_SCANCODE_BACKSPACE]) buttons |= GBA_BUTTON_SELECT;
     if (keys[SDL_SCANCODE_RETURN]) buttons |= GBA_BUTTON_START;
     if (keys[SDL_SCANCODE_RIGHT]) buttons |= GBA_BUTTON_RIGHT;
@@ -176,7 +176,7 @@ static bool sdl_shell_init_video(SdlShellContext *ctx)
     }
 
     SDL_RenderSetLogicalSize(ctx->renderer, frame.width, frame.height);
-    ctx->texture = SDL_CreateTexture(ctx->renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_STREAMING, frame.width, frame.height);
+    ctx->texture = SDL_CreateTexture(ctx->renderer, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_STREAMING, frame.width, frame.height);
     if (ctx->texture == NULL)
     {
         fprintf(stderr, "SDL_CreateTexture failed: %s\n", SDL_GetError());

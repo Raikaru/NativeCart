@@ -14,8 +14,8 @@ Current scope:
 ## Controls
 
 - arrows = D-pad
-- `Z` = B
-- `X` = A
+- `Z` = A
+- `X` = B
 - `Enter` = Start
 - `Backspace` = Select
 - `A` = L

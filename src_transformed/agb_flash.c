@@ -6,6 +6,13 @@
 #include <stdlib.h>
 #include <string.h>
 
+#ifdef _WIN32
+#include <direct.h>
+#else
+#include <sys/stat.h>
+#include <sys/types.h>
+#endif
+
 #define PORTABLE_FLASH_FILE_NAME "firered_save.sav"
 #define PORTABLE_FLASH_PATH_SIZE 1024
 
@@ -82,6 +89,39 @@ static void PortableFlash_Load(void)
     sPortableFlashLoaded = TRUE;
 }
 
+static void PortableFlash_EnsureParentDirExists(const char *path)
+{
+    char temp[PORTABLE_FLASH_PATH_SIZE];
+    size_t i;
+
+    if (path == NULL || path[0] == '\0')
+        return;
+
+    memset(temp, 0, sizeof(temp));
+    strncpy(temp, path, sizeof(temp) - 1);
+
+    for (i = 0; temp[i] != '\0'; i++)
+    {
+        if (temp[i] != '/' && temp[i] != '\\')
+            continue;
+
+        if (i == 0)
+            continue;
+#ifdef _WIN32
+        if (i == 2 && temp[1] == ':')
+            continue;
+#endif
+
+        temp[i] = '\0';
+#ifdef _WIN32
+        _mkdir(temp);
+#else
+        mkdir(temp, 0755);
+#endif
+        temp[i] = path[i];
+    }
+}
+
 void PortableFlash_Flush(void)
 {
     char path[PORTABLE_FLASH_PATH_SIZE];
@@ -89,6 +129,7 @@ void PortableFlash_Flush(void)
 
     PortableFlash_Load();
     PortableFlash_GetPath(path, sizeof(path));
+    PortableFlash_EnsureParentDirExists(path);
     file = fopen(path, "wb");
     if (file != NULL)
     {
