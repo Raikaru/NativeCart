@@ -5,12 +5,24 @@
 #include "scanline_effect.h"
 
 #include <stdint.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
 
 extern void engine_backend_trace_external(const char *message);
 extern unsigned long engine_backend_get_completed_frame_external(void);
 extern uint16_t gPlttBufferFaded[];
+
+static void engine_renderer_tracef(const char *fmt, ...)
+{
+    char buffer[128];
+    va_list args;
+
+    va_start(args, fmt);
+    vsnprintf(buffer, sizeof(buffer), fmt, args);
+    va_end(args);
+    engine_backend_trace_external(buffer);
+}
 
 #define ENGINE_PALETTE_ENTRIES 512
 #define ENGINE_MAX_SPRITES 128
@@ -33,8 +45,12 @@ typedef struct EngineLayerPixel {
 
 static uint8_t g_framebuffer[ENGINE_GBA_RGBA_SIZE];
 static uint32_t g_palette_cache[ENGINE_PALETTE_ENTRIES];
+static uint16_t g_palette_snapshot[ENGINE_PALETTE_ENTRIES];
 static EngineLayerPixel g_top_layer[ENGINE_GBA_WIDTH * ENGINE_GBA_HEIGHT];
 static EngineLayerPixel g_second_layer[ENGINE_GBA_WIDTH * ENGINE_GBA_HEIGHT];
+static uint8_t g_obj_window_mask_cache[ENGINE_GBA_WIDTH * ENGINE_GBA_HEIGHT];
+static uint8_t g_window_mask_cache[ENGINE_GBA_WIDTH * ENGINE_GBA_HEIGHT];
+static uint8_t g_has_semi_transparent_obj;
 #ifdef PORTABLE
 static unsigned long g_trainer_card_trace_start_frame = (unsigned long)-1;
 static unsigned long g_trainer_card_mask_logged_frame = (unsigned long)-1;
@@ -102,19 +118,34 @@ static void engine_update_palette_cache(void) {
 #else
     uint16_t *palette = engine_palette();
 #endif
+
+    engine_backend_trace_external("palette_cache: enter");
+
+    if (memcmp(g_palette_snapshot, palette, sizeof(g_palette_snapshot)) == 0) {
+        engine_backend_trace_external("palette_cache: exit");
+        return;
+    }
+
+    memcpy(g_palette_snapshot, palette, sizeof(g_palette_snapshot));
+
     for (i = 0; i < ENGINE_PALETTE_ENTRIES; ++i) {
         g_palette_cache[i] = engine_gba_to_rgba(palette[i]);
     }
+
+    engine_backend_trace_external("palette_cache: exit");
 }
 
 static void engine_clear_framebuffer(uint32_t rgba) {
-    int x;
-    int y;
-    for (y = 0; y < ENGINE_GBA_HEIGHT; ++y) {
-        for (x = 0; x < ENGINE_GBA_WIDTH; ++x) {
-            engine_put_color(x, y, rgba);
-        }
+    uint32_t *fb = (uint32_t *)(void *)g_framebuffer;
+    size_t i;
+
+    engine_backend_trace_external("clear_framebuffer: enter");
+
+    for (i = 0; i < ENGINE_GBA_WIDTH * ENGINE_GBA_HEIGHT; ++i) {
+        fb[i] = rgba;
     }
+
+    engine_backend_trace_external("clear_framebuffer: exit");
 }
 
 static uint32_t engine_blend_alpha(uint32_t top, uint32_t bottom, int eva, int evb) {
@@ -165,6 +196,176 @@ static void engine_sprite_dimensions(int shape, int size, int *width, int *heigh
     }
 }
 
+static int engine_sprite_is_affine(uint16_t attr0) {
+    return (attr0 & 0x0100u) != 0;
+}
+
+static int engine_sprite_is_disabled(uint16_t attr0) {
+    return !engine_sprite_is_affine(attr0) && (attr0 & 0x0200u) != 0;
+}
+
+static int engine_sprite_is_double_size(uint16_t attr0) {
+    return (attr0 & 0x0300u) == 0x0300u;
+}
+
+static int engine_sprite_hflip(uint16_t attr0, uint16_t attr1) {
+    if (engine_sprite_is_affine(attr0)) {
+        return 0;
+    }
+
+    return (attr1 & 0x1000u) != 0;
+}
+
+static int engine_sprite_vflip(uint16_t attr0, uint16_t attr1) {
+    if (engine_sprite_is_affine(attr0)) {
+        return 0;
+    }
+
+    return (attr1 & 0x2000u) != 0;
+}
+
+static void engine_sprite_draw_bounds(uint16_t attr0, int x_pos, int y_pos, int width, int height,
+                                      int *draw_x, int *draw_y, int *draw_width, int *draw_height) {
+    *draw_x = x_pos;
+    *draw_y = y_pos;
+    *draw_width = width;
+    *draw_height = height;
+
+    if (engine_sprite_is_affine(attr0) && engine_sprite_is_double_size(attr0)) {
+        *draw_x -= width / 2;
+        *draw_y -= height / 2;
+        *draw_width *= 2;
+        *draw_height *= 2;
+    }
+}
+
+static void engine_load_sprite_affine_matrix(const EngineOAMEntry *oam, uint16_t attr1,
+                                             int32_t *pa, int32_t *pb, int32_t *pc, int32_t *pd) {
+    int matrix_num = (attr1 >> 9) & 0x1F;
+    int base = matrix_num * 4;
+
+    *pa = oam[base + 0].affine_param;
+    *pb = oam[base + 1].affine_param;
+    *pc = oam[base + 2].affine_param;
+    *pd = oam[base + 3].affine_param;
+}
+
+static int engine_sprite_source_coords_for_pixel(const EngineOAMEntry *oam,
+                                                 uint16_t attr0,
+                                                 uint16_t attr1,
+                                                 int x_pos,
+                                                 int y_pos,
+                                                 int width,
+                                                 int height,
+                                                 int screen_x,
+                                                 int screen_y,
+                                                 int *src_x,
+                                                 int *src_y) {
+    int draw_x;
+    int draw_y;
+    int draw_width;
+    int draw_height;
+
+    engine_sprite_draw_bounds(attr0, x_pos, y_pos, width, height, &draw_x, &draw_y, &draw_width, &draw_height);
+    if (screen_x < draw_x || screen_x >= draw_x + draw_width || screen_y < draw_y || screen_y >= draw_y + draw_height) {
+        return 0;
+    }
+
+    if (!engine_sprite_is_affine(attr0)) {
+        int hflip = engine_sprite_hflip(attr0, attr1);
+        int vflip = engine_sprite_vflip(attr0, attr1);
+        int local_x = screen_x - draw_x;
+        int local_y = screen_y - draw_y;
+
+        *src_x = hflip ? (width - 1 - local_x) : local_x;
+        *src_y = vflip ? (height - 1 - local_y) : local_y;
+        return 1;
+    }
+
+    {
+        int32_t pa;
+        int32_t pb;
+        int32_t pc;
+        int32_t pd;
+        int center_x = x_pos + width / 2;
+        int center_y = y_pos + height / 2;
+        int rel_x = screen_x - center_x;
+        int rel_y = screen_y - center_y;
+        int32_t tex_x;
+        int32_t tex_y;
+
+        engine_load_sprite_affine_matrix(oam, attr1, &pa, &pb, &pc, &pd);
+
+        tex_x = pa * rel_x + pb * rel_y + ((int32_t)width << 7);
+        tex_y = pc * rel_x + pd * rel_y + ((int32_t)height << 7);
+        if (tex_x < 0 || tex_y < 0 || tex_x >= ((int32_t)width << 8) || tex_y >= ((int32_t)height << 8)) {
+            return 0;
+        }
+
+        *src_x = (int)(tex_x >> 8);
+        *src_y = (int)(tex_y >> 8);
+        return 1;
+    }
+}
+
+static int engine_sample_sprite_pixel(int obj_1d,
+                                      int use_256_colors,
+                                      uint16_t tile_index,
+                                      uint16_t palette_bank,
+                                      int width,
+                                      int height,
+                                      int src_x,
+                                      int src_y,
+                                      uint32_t *rgba_out) {
+    uint8_t *vram = engine_vram();
+    int tiles_per_row = obj_1d ? (width / 8) : 32;
+    int tile_col = src_x / 8;
+    int tile_row = src_y / 8;
+    int sub_x = src_x % 8;
+    int sub_y = src_y % 8;
+    uint32_t tile_num = (uint32_t)tile_index + (uint32_t)(tile_row * tiles_per_row + tile_col);
+
+    if (use_256_colors) {
+        uint32_t tile_offset = 0x10000u + tile_num * 64u + (uint32_t)(sub_y * 8 + sub_x);
+        uint8_t pixel;
+
+        if (tile_offset >= ENGINE_VRAM_SIZE) {
+            return 0;
+        }
+
+        pixel = vram[tile_offset];
+        if (pixel == 0) {
+            return 0;
+        }
+
+        if (rgba_out != NULL) {
+            *rgba_out = g_palette_cache[256u + pixel];
+        }
+        return 1;
+    }
+
+    {
+        uint32_t tile_offset = 0x10000u + tile_num * 32u + (uint32_t)(sub_y * 4 + (sub_x / 2));
+        uint8_t pair;
+        uint8_t pixel;
+
+        if (tile_offset >= ENGINE_VRAM_SIZE) {
+            return 0;
+        }
+
+        pair = vram[tile_offset];
+        pixel = (sub_x & 1) ? (uint8_t)(pair >> 4) : (uint8_t)(pair & 0x0Fu);
+        if (pixel == 0) {
+            return 0;
+        }
+
+        if (rgba_out != NULL) {
+            *rgba_out = g_palette_cache[256u + palette_bank * 16u + pixel];
+        }
+        return 1;
+    }
+}
+
 static int engine_point_in_window_rect(int x, int y, uint16_t winh, uint16_t winv) {
     int left = (winh >> 8) & 0xFF;
     int right = winh & 0xFF;
@@ -186,11 +387,17 @@ static int engine_point_in_window_rect(int x, int y, uint16_t winh, uint16_t win
     return inside_x && inside_y;
 }
 
-static int engine_obj_window_contains_pixel(int x, int y, uint16_t dispcnt) {
+static void engine_precompute_obj_window_mask(uint16_t dispcnt) {
     EngineOAMEntry *oam = engine_oam();
-    uint8_t *vram = engine_vram();
     int obj_1d = (dispcnt & ENGINE_DISPCNT_OBJ_1D_MAP) != 0;
     int i;
+    int x;
+    int y;
+
+    memset(g_obj_window_mask_cache, 0, sizeof(g_obj_window_mask_cache));
+    if ((dispcnt & ENGINE_DISPCNT_OBJWIN_ON) == 0) {
+        return;
+    }
 
     for (i = 0; i < ENGINE_MAX_SPRITES; ++i) {
         EngineOAMEntry sprite = oam[i];
@@ -203,22 +410,21 @@ static int engine_obj_window_contains_pixel(int x, int y, uint16_t dispcnt) {
         int size;
         int width;
         int height;
-        int use_256_colors;
-        int hflip;
-        int vflip;
-        int local_x;
-        int local_y;
         int src_x;
         int src_y;
-        int tile_col;
-        int tile_row;
-        int sub_x;
-        int sub_y;
-        int tiles_per_row;
-        uint32_t tile_num;
-        uint32_t tile_offset;
+        int draw_x;
+        int draw_y;
+        int draw_width;
+        int draw_height;
+        int start_x;
+        int start_y;
+        int end_x;
+        int end_y;
+        int use_256_colors;
+        uint16_t tile_index;
+        uint16_t palette_bank;
 
-        if (attr0 & 0x0200u)
+        if (engine_sprite_is_disabled(attr0))
             continue;
         if ((attr0 & 0x0C00u) != 0x0800u)
             continue;
@@ -235,42 +441,36 @@ static int engine_obj_window_contains_pixel(int x, int y, uint16_t dispcnt) {
         if (width == 0 || height == 0)
             continue;
 
-        if (x < x_pos || x >= x_pos + width || y < y_pos || y >= y_pos + height)
-            continue;
-
         use_256_colors = (attr0 & 0x2000u) != 0;
-        hflip = (attr1 & 0x1000u) != 0;
-        vflip = (attr1 & 0x2000u) != 0;
-        local_x = x - x_pos;
-        local_y = y - y_pos;
-        src_x = hflip ? (width - 1 - local_x) : local_x;
-        src_y = vflip ? (height - 1 - local_y) : local_y;
-        tile_col = src_x / 8;
-        tile_row = src_y / 8;
-        sub_x = src_x % 8;
-        sub_y = src_y % 8;
-        tiles_per_row = obj_1d ? (width / 8) : 32;
-        tile_num = (uint32_t)(attr2 & 0x03FFu) + (uint32_t)(tile_row * tiles_per_row + tile_col);
+        tile_index = (uint16_t)(attr2 & 0x03FFu);
+        palette_bank = (uint16_t)((attr2 >> 12) & 0x0Fu);
 
-        if (use_256_colors) {
-            tile_offset = 0x10000u + tile_num * 64u + (uint32_t)(sub_y * 8 + sub_x);
-            if (tile_offset < ENGINE_VRAM_SIZE && vram[tile_offset] != 0)
-                return 1;
-        } else {
-            uint8_t pair;
-            uint8_t pixel;
+        engine_sprite_draw_bounds(attr0, x_pos, y_pos, width, height, &draw_x, &draw_y, &draw_width, &draw_height);
+        start_x = (draw_x < 0) ? 0 : draw_x;
+        start_y = (draw_y < 0) ? 0 : draw_y;
+        end_x = draw_x + draw_width;
+        end_y = draw_y + draw_height;
+        if (end_x > ENGINE_GBA_WIDTH)
+            end_x = ENGINE_GBA_WIDTH;
+        if (end_y > ENGINE_GBA_HEIGHT)
+            end_y = ENGINE_GBA_HEIGHT;
 
-            tile_offset = 0x10000u + tile_num * 32u + (uint32_t)(sub_y * 4 + (sub_x / 2));
-            if (tile_offset >= ENGINE_VRAM_SIZE)
-                continue;
-            pair = vram[tile_offset];
-            pixel = (sub_x & 1) ? (uint8_t)(pair >> 4) : (uint8_t)(pair & 0x0Fu);
-            if (pixel != 0)
-                return 1;
+        for (y = start_y; y < end_y; ++y) {
+            for (x = start_x; x < end_x; ++x) {
+                size_t index;
+
+                if (!engine_sprite_source_coords_for_pixel(oam, attr0, attr1, x_pos, y_pos, width, height, x, y, &src_x, &src_y)) {
+                    continue;
+                }
+                if (!engine_sample_sprite_pixel(obj_1d, use_256_colors, tile_index, palette_bank, width, height, src_x, src_y, NULL)) {
+                    continue;
+                }
+
+                index = (size_t)y * ENGINE_GBA_WIDTH + (size_t)x;
+                g_obj_window_mask_cache[index] = 1;
+            }
         }
     }
-
-    return 0;
 }
 
 #ifdef PORTABLE
@@ -346,14 +546,14 @@ static void engine_trace_trainer_card_window_mask(int x, int y,
 }
 #endif
 
-static uint8_t engine_window_mask_for_pixel(int x, int y) {
-    uint16_t dispcnt = *engine_reg16(ENGINE_REG_DISPCNT);
-    uint16_t win0h = *engine_reg16(ENGINE_REG_WIN0H);
-    uint16_t win1h = *engine_reg16(ENGINE_REG_WIN1H);
-    uint16_t win0v = *engine_reg16(ENGINE_REG_WIN0V);
-    uint16_t win1v = *engine_reg16(ENGINE_REG_WIN1V);
-    uint16_t winin = *engine_reg16(ENGINE_REG_WININ);
-    uint16_t winout = *engine_reg16(ENGINE_REG_WINOUT);
+static uint8_t engine_compute_window_mask_for_pixel(int x, int y,
+                                                    uint16_t dispcnt,
+                                                    uint16_t win0h,
+                                                    uint16_t win1h,
+                                                    uint16_t win0v,
+                                                    uint16_t win1v,
+                                                    uint16_t winin,
+                                                    uint16_t winout) {
     int win0_enabled = (dispcnt & ENGINE_DISPCNT_WIN0_ON) != 0;
     int win1_enabled = (dispcnt & ENGINE_DISPCNT_WIN1_ON) != 0;
     int objwin_enabled = (dispcnt & ENGINE_DISPCNT_OBJWIN_ON) != 0;
@@ -381,7 +581,7 @@ static uint8_t engine_window_mask_for_pixel(int x, int y) {
         return mask;
     }
 
-    if (objwin_enabled && engine_obj_window_contains_pixel(x, y, dispcnt)) {
+    if (objwin_enabled && g_obj_window_mask_cache[(size_t)y * ENGINE_GBA_WIDTH + (size_t)x]) {
         uint8_t mask = (uint8_t)((winout >> 8) & 0x3Fu);
 #ifdef PORTABLE
         engine_trace_trainer_card_window_mask(x, y, dispcnt, win0h, win1h, win0v, win1v, winin, winout, "OBJWIN", mask);
@@ -551,9 +751,28 @@ static void engine_compose_framebuffer(void) {
     int x;
     int y;
 
+    engine_backend_trace_external("compose: enter");
+
     if (eva > 16) eva = 16;
     if (evb > 16) evb = 16;
     if (evy > 16) evy = 16;
+
+    if (effect == 0 && !g_has_semi_transparent_obj) {
+        for (y = 0; y < ENGINE_GBA_HEIGHT; ++y) {
+            for (x = 0; x < ENGINE_GBA_WIDTH; ++x) {
+                size_t index = (size_t)y * ENGINE_GBA_WIDTH + (size_t)x;
+                EngineLayerPixel top = g_top_layer[index];
+
+                if (top.kind == ENGINE_LAYER_BACKDROP && (g_window_mask_cache[index] & 0x20u) == 0) {
+                    engine_put_color(x, y, 0xFF000000u);
+                } else {
+                    engine_put_color(x, y, top.color);
+                }
+            }
+        }
+        engine_backend_trace_external("compose: exit");
+        return;
+    }
 
     for (y = 0; y < ENGINE_GBA_HEIGHT; ++y) {
         for (x = 0; x < ENGINE_GBA_WIDTH; ++x) {
@@ -561,12 +780,18 @@ static void engine_compose_framebuffer(void) {
             EngineLayerPixel top = g_top_layer[index];
             EngineLayerPixel second = g_second_layer[index];
             uint32_t color = top.color;
-            uint8_t window_mask = engine_window_mask_for_pixel(x, y);
+            uint8_t window_mask = g_window_mask_cache[index];
             int special_enabled = (window_mask & 0x20u) != 0;
             uint8_t top_bit = engine_target_bit_for_kind(top.kind);
             uint8_t second_bit = engine_target_bit_for_kind(second.kind);
             int top_target1 = (bldcnt & top_bit) != 0;
             int second_target2 = ((bldcnt >> 8) & second_bit) != 0;
+
+            if (top.kind == ENGINE_LAYER_BACKDROP && (window_mask & 0x20u) == 0) {
+                color = 0xFF000000u;
+                engine_put_color(x, y, color);
+                continue;
+            }
 
             if (special_enabled) {
                 if (top.semi_transparent && top.kind == ENGINE_LAYER_OBJ) {
@@ -588,6 +813,8 @@ static void engine_compose_framebuffer(void) {
             engine_put_color(x, y, color);
         }
     }
+
+    engine_backend_trace_external("compose: exit");
 }
 
 static void engine_render_4bpp_tile(int bg, int screen_x, int screen_y, uint16_t tile_index, uint16_t palette_bank, int hflip, int vflip) {
@@ -698,6 +925,51 @@ static int engine_bg_offset_for_line(int bg, int line, int vertical, int fallbac
     }
 
     return fallback;
+}
+
+static void engine_fill_bg_offset_cache(int bg, int fallback_hofs, int fallback_vofs,
+                                        int *line_hofs_cache, int *line_vofs_cache) {
+    const uint16_t *buffer = engine_active_scanline_buffer();
+    uintptr_t dest = (uintptr_t)gScanlineEffect.dmaDest;
+    uintptr_t hofs_reg = ENGINE_REG_BG0HOFS + (uintptr_t)(bg * 4);
+    uintptr_t vofs_reg = ENGINE_REG_BG0VOFS + (uintptr_t)(bg * 4);
+    int line;
+
+    if (buffer == NULL) {
+        for (line = 0; line < ENGINE_GBA_HEIGHT; ++line) {
+            line_hofs_cache[line] = fallback_hofs;
+            line_vofs_cache[line] = fallback_vofs;
+        }
+        return;
+    }
+
+    if (gScanlineEffect.dmaControl == SCANLINE_EFFECT_DMACNT_16BIT) {
+        if (dest == hofs_reg) {
+            for (line = 0; line < ENGINE_GBA_HEIGHT; ++line) {
+                line_hofs_cache[line] = (int)(int16_t)buffer[line];
+                line_vofs_cache[line] = fallback_vofs;
+            }
+            return;
+        }
+        if (dest == vofs_reg) {
+            for (line = 0; line < ENGINE_GBA_HEIGHT; ++line) {
+                line_hofs_cache[line] = fallback_hofs;
+                line_vofs_cache[line] = (int)(int16_t)buffer[line];
+            }
+            return;
+        }
+    } else if (gScanlineEffect.dmaControl == SCANLINE_EFFECT_DMACNT_32BIT && dest == hofs_reg) {
+        for (line = 0; line < ENGINE_GBA_HEIGHT; ++line) {
+            line_hofs_cache[line] = (int)(int16_t)buffer[line * 2];
+            line_vofs_cache[line] = (int)(int16_t)buffer[line * 2 + 1];
+        }
+        return;
+    }
+
+    for (line = 0; line < ENGINE_GBA_HEIGHT; ++line) {
+        line_hofs_cache[line] = fallback_hofs;
+        line_vofs_cache[line] = fallback_vofs;
+    }
 }
 
 static int engine_sample_bg_pixel(int bg, uint16_t bgcnt, uint32_t screen_base, int screen_size, int use_256_colors, int src_x, int src_y, uint32_t *rgba_out) {
@@ -827,6 +1099,8 @@ static void engine_render_mode0_backgrounds_for_priority(int priority) {
     uint16_t dispcnt = *engine_reg16(ENGINE_REG_DISPCNT);
     int bg;
 
+    engine_renderer_tracef("render_bg: priority=%d enter", priority);
+
     for (bg = 0; bg < 4; ++bg) {
         uint16_t bgcnt = engine_bgcnt_value(bg);
         uint32_t screen_base = (uint32_t)(((bgcnt >> 8) & 0x1Fu) * 0x800u);
@@ -838,6 +1112,8 @@ static void engine_render_mode0_backgrounds_for_priority(int priority) {
         int vofs;
         int screen_x;
         int screen_y;
+        int line_hofs_cache[ENGINE_GBA_HEIGHT];
+        int line_vofs_cache[ENGINE_GBA_HEIGHT];
 
         if (((dispcnt >> (8 + bg)) & 1u) == 0u) {
             continue;
@@ -857,16 +1133,18 @@ static void engine_render_mode0_backgrounds_for_priority(int priority) {
 
         hofs = engine_bg_hofs(bg);
         vofs = engine_bg_vofs(bg);
+        engine_fill_bg_offset_cache(bg, hofs, vofs, line_hofs_cache, line_vofs_cache);
 
         for (screen_y = 0; screen_y < ENGINE_GBA_HEIGHT; ++screen_y) {
-            int line_hofs = engine_bg_offset_for_line(bg, screen_y, 0, hofs);
-            int line_vofs = engine_bg_offset_for_line(bg, screen_y, 1, vofs);
+            int line_hofs = line_hofs_cache[screen_y];
+            int line_vofs = line_vofs_cache[screen_y];
             int src_y = (screen_y + line_vofs) & (screen_height_tiles * 8 - 1);
 
             for (screen_x = 0; screen_x < ENGINE_GBA_WIDTH; ++screen_x) {
                 int src_x = (screen_x + line_hofs) & (screen_width_tiles * 8 - 1);
                 uint32_t rgba;
-                uint8_t window_mask = engine_window_mask_for_pixel(screen_x, screen_y);
+                size_t index = (size_t)screen_y * ENGINE_GBA_WIDTH + (size_t)screen_x;
+                uint8_t window_mask = g_window_mask_cache[index];
 
                 if ((window_mask & (1u << bg)) == 0) {
                     continue;
@@ -878,79 +1156,96 @@ static void engine_render_mode0_backgrounds_for_priority(int priority) {
             }
         }
     }
+
+    engine_renderer_tracef("render_bg: priority=%d exit", priority);
 }
 
-static void engine_render_sprite_4bpp(int screen_x, int screen_y, int width, int height, uint16_t tile_index, uint16_t palette_bank, int hflip, int vflip, int obj_1d, uint8_t semi_transparent) {
-    uint8_t *vram = engine_vram();
-    int tiles_per_row = obj_1d ? (width / 8) : 32;
+static void engine_precompute_window_masks(void) {
+    uint16_t dispcnt = *engine_reg16(ENGINE_REG_DISPCNT);
+    uint16_t win0h = *engine_reg16(ENGINE_REG_WIN0H);
+    uint16_t win1h = *engine_reg16(ENGINE_REG_WIN1H);
+    uint16_t win0v = *engine_reg16(ENGINE_REG_WIN0V);
+    uint16_t win1v = *engine_reg16(ENGINE_REG_WIN1V);
+    uint16_t winin = *engine_reg16(ENGINE_REG_WININ);
+    uint16_t winout = *engine_reg16(ENGINE_REG_WINOUT);
     int x;
     int y;
 
-    for (y = 0; y < height; ++y) {
-        int src_y = vflip ? (height - 1 - y) : y;
-        int tile_row = src_y / 8;
-        int sub_y = src_y % 8;
-        for (x = 0; x < width; ++x) {
-            int src_x = hflip ? (width - 1 - x) : x;
-            int tile_col = src_x / 8;
-            int sub_x = src_x % 8;
-            uint32_t tile_num = (uint32_t)tile_index + (uint32_t)(tile_row * tiles_per_row + tile_col);
-            uint32_t tile_offset = 0x10000u + tile_num * 32u + (uint32_t)(sub_y * 4 + (sub_x / 2));
-            uint8_t pair;
-            uint8_t pixel;
+    engine_renderer_tracef("precompute_windows: DISPCNT=%04X", dispcnt);
 
-            if (tile_offset >= ENGINE_VRAM_SIZE) {
-                continue;
-            }
+    engine_precompute_obj_window_mask(dispcnt);
 
-            pair = vram[tile_offset];
-            pixel = (sub_x & 1) ? (uint8_t)(pair >> 4) : (uint8_t)(pair & 0x0Fu);
-            if (pixel != 0) {
-                int draw_x = screen_x + x;
-                int draw_y = screen_y + y;
-                if (draw_x >= 0 && draw_x < ENGINE_GBA_WIDTH && draw_y >= 0 && draw_y < ENGINE_GBA_HEIGHT) {
-                    uint8_t window_mask = engine_window_mask_for_pixel(draw_x, draw_y);
-                    if (window_mask & 0x10u) {
-                        engine_insert_layer_pixel(draw_x, draw_y, g_palette_cache[256u + palette_bank * 16u + pixel], ENGINE_LAYER_OBJ, semi_transparent);
-                    }
-                }
-            }
+    if ((dispcnt & (ENGINE_DISPCNT_WIN0_ON | ENGINE_DISPCNT_WIN1_ON | ENGINE_DISPCNT_OBJWIN_ON)) == 0) {
+        memset(g_window_mask_cache, 0x3F, sizeof(g_window_mask_cache));
+        engine_backend_trace_external("precompute_windows: done");
+        return;
+    }
+
+    for (y = 0; y < ENGINE_GBA_HEIGHT; ++y) {
+        for (x = 0; x < ENGINE_GBA_WIDTH; ++x) {
+            size_t index = (size_t)y * ENGINE_GBA_WIDTH + (size_t)x;
+            g_window_mask_cache[index] = engine_compute_window_mask_for_pixel(x, y, dispcnt, win0h, win1h, win0v, win1v, winin, winout);
         }
     }
+
+    engine_backend_trace_external("precompute_windows: done");
 }
 
-static void engine_render_sprite_8bpp(int screen_x, int screen_y, int width, int height, uint16_t tile_index, int hflip, int vflip, int obj_1d, uint8_t semi_transparent) {
-    uint8_t *vram = engine_vram();
-    int tiles_per_row = obj_1d ? (width / 8) : 32;
-    int x;
-    int y;
+static void engine_render_sprite(const EngineOAMEntry *oam,
+                                 uint16_t attr0,
+                                 uint16_t attr1,
+                                 uint16_t attr2,
+                                 int obj_1d,
+                                 int x_pos,
+                                 int y_pos,
+                                 int width,
+                                 int height,
+                                 uint8_t semi_transparent) {
+    int draw_x;
+    int draw_y;
+    int draw_width;
+    int draw_height;
+    int start_x;
+    int start_y;
+    int end_x;
+    int end_y;
+    int use_256_colors = (attr0 & 0x2000u) != 0;
+    uint16_t tile_index = (uint16_t)(attr2 & 0x03FFu);
+    uint16_t palette_bank = (uint16_t)((attr2 >> 12) & 0x0Fu);
+    int screen_x;
+    int screen_y;
 
-    for (y = 0; y < height; ++y) {
-        int src_y = vflip ? (height - 1 - y) : y;
-        int tile_row = src_y / 8;
-        int sub_y = src_y % 8;
-        for (x = 0; x < width; ++x) {
-            int src_x = hflip ? (width - 1 - x) : x;
-            int tile_col = src_x / 8;
-            int sub_x = src_x % 8;
-            uint32_t tile_num = (uint32_t)tile_index + (uint32_t)(tile_row * tiles_per_row + tile_col);
-            uint32_t tile_offset = 0x10000u + tile_num * 64u + (uint32_t)(sub_y * 8 + sub_x);
-            uint8_t pixel;
+    engine_sprite_draw_bounds(attr0, x_pos, y_pos, width, height, &draw_x, &draw_y, &draw_width, &draw_height);
+    start_x = (draw_x < 0) ? 0 : draw_x;
+    start_y = (draw_y < 0) ? 0 : draw_y;
+    end_x = draw_x + draw_width;
+    end_y = draw_y + draw_height;
+    if (end_x > ENGINE_GBA_WIDTH) {
+        end_x = ENGINE_GBA_WIDTH;
+    }
+    if (end_y > ENGINE_GBA_HEIGHT) {
+        end_y = ENGINE_GBA_HEIGHT;
+    }
 
-            if (tile_offset >= ENGINE_VRAM_SIZE) {
+    for (screen_y = start_y; screen_y < end_y; ++screen_y) {
+        for (screen_x = start_x; screen_x < end_x; ++screen_x) {
+            int src_x;
+            int src_y;
+            uint32_t rgba;
+            size_t index;
+            uint8_t window_mask;
+
+            if (!engine_sprite_source_coords_for_pixel(oam, attr0, attr1, x_pos, y_pos, width, height, screen_x, screen_y, &src_x, &src_y)) {
+                continue;
+            }
+            if (!engine_sample_sprite_pixel(obj_1d, use_256_colors, tile_index, palette_bank, width, height, src_x, src_y, &rgba)) {
                 continue;
             }
 
-            pixel = vram[tile_offset];
-            if (pixel != 0) {
-                int draw_x = screen_x + x;
-                int draw_y = screen_y + y;
-                if (draw_x >= 0 && draw_x < ENGINE_GBA_WIDTH && draw_y >= 0 && draw_y < ENGINE_GBA_HEIGHT) {
-                    uint8_t window_mask = engine_window_mask_for_pixel(draw_x, draw_y);
-                    if (window_mask & 0x10u) {
-                        engine_insert_layer_pixel(draw_x, draw_y, g_palette_cache[256u + pixel], ENGINE_LAYER_OBJ, semi_transparent);
-                    }
-                }
+            index = (size_t)screen_y * ENGINE_GBA_WIDTH + (size_t)screen_x;
+            window_mask = g_window_mask_cache[index];
+            if (window_mask & 0x10u) {
+                engine_insert_layer_pixel(screen_x, screen_y, rgba, ENGINE_LAYER_OBJ, semi_transparent);
             }
         }
     }
@@ -961,6 +1256,8 @@ static void engine_render_sprites_for_priority(int priority) {
     uint16_t dispcnt = *engine_reg16(ENGINE_REG_DISPCNT);
     int obj_1d = (dispcnt & ENGINE_DISPCNT_OBJ_1D_MAP) != 0;
     int i;
+
+    engine_renderer_tracef("render_sprites: priority=%d enter", priority);
 
     for (i = ENGINE_MAX_SPRITES - 1; i >= 0; --i) {
         EngineOAMEntry sprite = oam[i];
@@ -974,14 +1271,9 @@ static void engine_render_sprites_for_priority(int priority) {
         int size;
         int width;
         int height;
-        int use_256_colors;
-        int hflip;
-        int vflip;
-        uint16_t tile_index;
-        uint16_t palette_bank;
         uint8_t semi_transparent;
 
-        if (attr0 & 0x0200u) {
+        if (engine_sprite_is_disabled(attr0)) {
             continue;
         }
         if ((attr0 & 0x0C00u) == 0x0800u) {
@@ -1012,19 +1304,15 @@ static void engine_render_sprites_for_priority(int priority) {
             continue;
         }
 
-        use_256_colors = (attr0 & 0x2000u) != 0;
-        hflip = (attr1 & 0x1000u) != 0;
-        vflip = (attr1 & 0x2000u) != 0;
-        tile_index = (uint16_t)(attr2 & 0x03FFu);
-        palette_bank = (uint16_t)((attr2 >> 12) & 0x0Fu);
         semi_transparent = ((attr0 & 0x0C00u) == 0x0400u);
-
-        if (use_256_colors) {
-            engine_render_sprite_8bpp(x_pos, y_pos, width, height, tile_index, hflip, vflip, obj_1d, semi_transparent);
-        } else {
-            engine_render_sprite_4bpp(x_pos, y_pos, width, height, tile_index, palette_bank, hflip, vflip, obj_1d, semi_transparent);
+        if (semi_transparent) {
+            g_has_semi_transparent_obj = 1;
         }
+
+        engine_render_sprite(oam, attr0, attr1, attr2, obj_1d, x_pos, y_pos, width, height, semi_transparent);
     }
+
+    engine_renderer_tracef("render_sprites: priority=%d exit", priority);
 }
 
 static void engine_dump_sprite_pipeline_once(void) {
@@ -1191,8 +1479,12 @@ static void engine_dump_trainer_card_render_once(uint16_t dispcnt) {
 void engine_video_reset(void) {
     memset(g_framebuffer, 0, sizeof(g_framebuffer));
     memset(g_palette_cache, 0, sizeof(g_palette_cache));
+    memset(g_palette_snapshot, 0, sizeof(g_palette_snapshot));
     memset(g_top_layer, 0, sizeof(g_top_layer));
     memset(g_second_layer, 0, sizeof(g_second_layer));
+    memset(g_obj_window_mask_cache, 0, sizeof(g_obj_window_mask_cache));
+    memset(g_window_mask_cache, 0, sizeof(g_window_mask_cache));
+    g_has_semi_transparent_obj = 0;
 }
 
 void engine_video_render_frame(void) {
@@ -1226,13 +1518,24 @@ void engine_video_render_frame(void) {
     engine_clear_framebuffer(backdrop);
     memset(g_top_layer, 0, sizeof(g_top_layer));
     memset(g_second_layer, 0, sizeof(g_second_layer));
+    g_has_semi_transparent_obj = 0;
+    engine_precompute_window_masks();
     {
         size_t i;
+        EngineLayerPixel fill;
+
+        engine_backend_trace_external("backdrop_init: enter");
+
+        fill.color = backdrop;
+        fill.kind = ENGINE_LAYER_BACKDROP;
+        fill.valid = 1;
+        fill.semi_transparent = 0;
+
         for (i = 0; i < ENGINE_GBA_WIDTH * ENGINE_GBA_HEIGHT; ++i) {
-            g_top_layer[i].color = backdrop;
-            g_top_layer[i].kind = ENGINE_LAYER_BACKDROP;
-            g_top_layer[i].valid = 1;
+            g_top_layer[i] = fill;
         }
+
+        engine_backend_trace_external("backdrop_init: exit");
     }
 
     mode = dispcnt & 0x7;
