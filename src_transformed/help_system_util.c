@@ -33,17 +33,17 @@ static EWRAM_DATA u8 sInHelpSystem = 0;
 static EWRAM_DATA struct HelpSystemVideoState sVideoState = {0};
 EWRAM_DATA struct HelpSystemListMenu gHelpSystemListMenu = {0};
 EWRAM_DATA struct ListMenuItem gHelpSystemListMenuItems[52] = {0};
-#define sTiles ((const u16 *)NULL)
-#define sPals ((const u16 *)NULL)
+#ifdef PORTABLE
+#include "help_system_portable_assets.h"
+#define sTiles sHelpSystemTiles_Portable
+#define sPals  sHelpSystemPals_Portable
+#else
+static const u16 sTiles[] = INCBIN_U16("graphics/help_system/bg_tiles.4bpp");
+static const u16 sPals[] = INCBIN_U16("graphics/help_system/bg_tiles.gbapal");
+#endif
 
 u8 RunHelpSystemCallback(void)
 {
-#ifdef PORTABLE
-    // Help system graphics data (sTiles/sPals) is not present in the portable
-    // build, so attempting to open the help system via L/R would NULL-deref and
-    // crash.  Silently suppress the whole feature in portable mode.
-    return 0;
-#endif
     s32 i;
 
     switch (sVideoState.state)
