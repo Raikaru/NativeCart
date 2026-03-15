@@ -2291,7 +2291,8 @@ static void ExpandBattleTextBuffPlaceholders(const u8 *src, u8 *dst)
             srcId += 3;
             break;
         case B_BUFF_TYPE: // type name
-            StringAppend(dst, gTypeNames[src[srcId + 1]]);
+            if (src[srcId + 1] < NUMBER_OF_MON_TYPES)
+                StringAppend(dst, gTypeNames[src[srcId + 1]]);
             srcId += 2;
             break;
         case B_BUFF_MON_NICK_WITH_PREFIX: // poke nick with prefix

@@ -118,6 +118,32 @@ static void EndDrawPartyStatusSummary(void);
 
 static void (*const sPlayerBufferCommands[CONTROLLER_CMDS_COUNT])(void) =
 {
+static u16 GetSafeChooseMoveId(const struct ChooseMoveStruct *moveInfo, u8 cursorPosition)
+{
+    u16 move = moveInfo->moves[cursorPosition];
+
+    if (move >= MOVES_COUNT)
+        return MOVE_NONE;
+
+    return move;
+}
+
+static u8 GetSafeBattleMoveTarget(u16 move)
+{
+    if (move < MOVES_COUNT)
+        return gBattleMoves[move].target;
+
+    return MOVE_TARGET_SELECTED;
+}
+
+static const u8 *GetSafeBattleMoveTypeName(u16 move)
+{
+    if (move < MOVES_COUNT && gBattleMoves[move].type < NUMBER_OF_MON_TYPES)
+        return gTypeNames[gBattleMoves[move].type];
+
+    return gText_ThreeHyphens;
+}
+
     [CONTROLLER_GETMONDATA]               = PlayerHandleGetMonData,
     [CONTROLLER_GETRAWMONDATA]            = PlayerHandleGetRawMonData,
     [CONTROLLER_SETMONDATA]               = PlayerHandleSetMonData,
@@ -387,7 +413,7 @@ static void HandleInputChooseTarget(void)
             case B_POSITION_PLAYER_RIGHT:
                 if (gActiveBattler != gMultiUsePlayerCursor)
                     ++i;
-                else if (gBattleMoves[GetMonData(&gPlayerParty[gBattlerPartyIndexes[gActiveBattler]], MON_DATA_MOVE1 + gMoveSelectionCursor[gActiveBattler])].target & MOVE_TARGET_USER_OR_SELECTED)
+                else if (GetSafeBattleMoveTarget(GetMonData(&gPlayerParty[gBattlerPartyIndexes[gActiveBattler]], MON_DATA_MOVE1 + gMoveSelectionCursor[gActiveBattler])) & MOVE_TARGET_USER_OR_SELECTED)
                     ++i;
                 break;
             case B_POSITION_OPPONENT_LEFT:
@@ -427,7 +453,7 @@ static void HandleInputChooseTarget(void)
             case B_POSITION_PLAYER_RIGHT:
                 if (gActiveBattler != gMultiUsePlayerCursor)
                     ++i;
-                else if (gBattleMoves[GetMonData(&gPlayerParty[gBattlerPartyIndexes[gActiveBattler]], MON_DATA_MOVE1 + gMoveSelectionCursor[gActiveBattler])].target & MOVE_TARGET_USER_OR_SELECTED)
+                else if (GetSafeBattleMoveTarget(GetMonData(&gPlayerParty[gBattlerPartyIndexes[gActiveBattler]], MON_DATA_MOVE1 + gMoveSelectionCursor[gActiveBattler])) & MOVE_TARGET_USER_OR_SELECTED)
                     ++i;
                 break;
             case B_POSITION_OPPONENT_LEFT:
@@ -453,8 +479,9 @@ void HandleInputChooseMove(void)
     {
         u8 moveTarget;
 
+        u16 move = GetSafeChooseMoveId(moveInfo, gMoveSelectionCursor[gActiveBattler]);
         PlaySE(SE_SELECT);
-        if (moveInfo->moves[gMoveSelectionCursor[gActiveBattler]] == MOVE_CURSE)
+        if (move == MOVE_CURSE)
         {
             if (moveInfo->monType1 != TYPE_GHOST && moveInfo->monType2 != TYPE_GHOST)
                 moveTarget = MOVE_TARGET_USER;
@@ -463,7 +490,7 @@ void HandleInputChooseMove(void)
         }
         else
         {
-            moveTarget = gBattleMoves[moveInfo->moves[gMoveSelectionCursor[gActiveBattler]]].target;
+            moveTarget = GetSafeBattleMoveTarget(move);
         }
 
         if (moveTarget & MOVE_TARGET_USER)
@@ -1384,9 +1411,14 @@ static void MoveSelectionDisplayMoveNames(void)
     {
         MoveSelectionDestroyCursorAt(i);
         StringCopy(gDisplayedStringBattle, gText_MoveInterfaceDynamicColors);
-        StringAppend(gDisplayedStringBattle, gMoveNames[moveInfo->moves[i]]);
+        u16 move = GetSafeChooseMoveId(moveInfo, i);
+
+        if (move == MOVE_NONE)
+            StringAppend(gDisplayedStringBattle, gText_ThreeHyphens);
+        else
+            StringAppend(gDisplayedStringBattle, gMoveNames[move]);
         BattlePutTextOnWindow(gDisplayedStringBattle, i + 3);
-        if (moveInfo->moves[i] != MOVE_NONE)
+        if (move != MOVE_NONE)
             ++gNumberOfMovesToChoose;
     }
 }
@@ -1418,11 +1450,15 @@ static void MoveSelectionDisplayMoveType(void)
     struct ChooseMoveStruct *moveInfo = (struct ChooseMoveStruct *)(&gBattleBufferA[gActiveBattler][4]);
 
     txtPtr = StringCopy(gDisplayedStringBattle, gText_MoveInterfaceType);
+    u16 move = GetSafeChooseMoveId(moveInfo, gMoveSelectionCursor[gActiveBattler]);
     *txtPtr++ = EXT_CTRL_CODE_BEGIN;
     *txtPtr++ = 6;
     *txtPtr++ = 1;
     txtPtr = StringCopy(txtPtr, gText_MoveInterfaceDynamicColors);
-    StringCopy(txtPtr, gTypeNames[gBattleMoves[moveInfo->moves[gMoveSelectionCursor[gActiveBattler]]].type]);
+    if (move == MOVE_NONE)
+        StringCopy(txtPtr, gText_ThreeHyphens);
+    else
+        StringCopy(txtPtr, GetSafeBattleMoveTypeName(move));
     BattlePutTextOnWindow(gDisplayedStringBattle, B_WIN_MOVE_TYPE);
 }
 
@@ -1859,14 +1895,31 @@ static u32 CopyPlayerMonData(u8 monId, u8 *dst)
 void PlayerHandleGetRawMonData(void)
 {
     struct BattlePokemon battleMon;
-    u8 *src = (u8 *)&gPlayerParty[gBattlerPartyIndexes[gActiveBattler]] + gBattleBufferA[gActiveBattler][1];
-    u8 *dst = (u8 *)&battleMon + gBattleBufferA[gActiveBattler][1];
+    u8 offset = gBattleBufferA[gActiveBattler][1];
+    u8 size = gBattleBufferA[gActiveBattler][2];
+    u8 maxSrcSize = sizeof(struct Pokemon);
+    u8 maxDstSize = sizeof(battleMon);
+    u8 *src = (u8 *)&gPlayerParty[gBattlerPartyIndexes[gActiveBattler]];
+    u8 *dst = (u8 *)&battleMon;
     u8 i;
 
-    for (i = 0; i < gBattleBufferA[gActiveBattler][2]; ++i)
+    if (offset >= maxSrcSize || offset >= maxDstSize)
+        size = 0;
+    else
+    {
+        if (size > maxSrcSize - offset)
+            size = maxSrcSize - offset;
+        if (size > maxDstSize - offset)
+            size = maxDstSize - offset;
+    }
+
+    src += offset;
+    dst += offset;
+
+    for (i = 0; i < size; ++i)
         dst[i] = src[i];
 
-    BtlController_EmitDataTransfer(BUFFER_B, gBattleBufferA[gActiveBattler][2], dst);
+    BtlController_EmitDataTransfer(BUFFER_B, size, dst);
     PlayerBufferExecCompleted();
 }
 
@@ -2111,10 +2164,20 @@ static void SetPlayerMonData(u8 monId)
 
 static void PlayerHandleSetRawMonData(void)
 {
-    u8 *dst = (u8 *)&gPlayerParty[gBattlerPartyIndexes[gActiveBattler]] + gBattleBufferA[gActiveBattler][1];
+    u8 offset = gBattleBufferA[gActiveBattler][1];
+    u8 size = gBattleBufferA[gActiveBattler][2];
+    u8 maxDstSize = sizeof(struct Pokemon);
+    u8 *dst = (u8 *)&gPlayerParty[gBattlerPartyIndexes[gActiveBattler]];
     u8 i;
 
-    for (i = 0; i < gBattleBufferA[gActiveBattler][2]; ++i)
+    if (offset >= maxDstSize)
+        size = 0;
+    else if (size > maxDstSize - offset)
+        size = maxDstSize - offset;
+
+    dst += offset;
+
+    for (i = 0; i < size; ++i)
         dst[i] = gBattleBufferA[gActiveBattler][3 + i];
     PlayerBufferExecCompleted();
 }
@@ -2938,7 +3001,7 @@ static void PreviewDeterminativeMoveTargets(void)
     {
         u8 moveTarget;
         struct ChooseMoveStruct *moveInfo = (struct ChooseMoveStruct *)(&gBattleBufferA[gActiveBattler][4]);
-        u16 move = moveInfo->moves[gMoveSelectionCursor[gActiveBattler]];
+        u16 move = GetSafeChooseMoveId(moveInfo, gMoveSelectionCursor[gActiveBattler]);
 
         if (move == MOVE_CURSE)
         {
@@ -2949,7 +3012,7 @@ static void PreviewDeterminativeMoveTargets(void)
         }
         else
         {
-            moveTarget = gBattleMoves[moveInfo->moves[gMoveSelectionCursor[gActiveBattler]]].target;
+            moveTarget = GetSafeBattleMoveTarget(move);
         }
         switch (moveTarget)
         {
