@@ -38,6 +38,12 @@ EWRAM_DATA struct ListMenuItem gHelpSystemListMenuItems[52] = {0};
 
 u8 RunHelpSystemCallback(void)
 {
+#ifdef PORTABLE
+    // Help system graphics data (sTiles/sPals) is not present in the portable
+    // build, so attempting to open the help system via L/R would NULL-deref and
+    // crash.  Silently suppress the whole feature in portable mode.
+    return 0;
+#endif
     s32 i;
 
     switch (sVideoState.state)
