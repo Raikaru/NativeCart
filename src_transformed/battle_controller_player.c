@@ -18,6 +18,8 @@
 #include "battle_message.h"
 #include "battle_script_commands.h"
 #include "reshow_battle_screen.h"
+
+extern bool8 BattleLinkTransferIsReady(void);
 #include "constants/battle_anim.h"
 #include "constants/items.h"
 #include "constants/moves.h"
@@ -116,8 +118,6 @@ static void Task_CreateLevelUpVerticalStripes(u8 taskId);
 static void StartSendOutAnim(u8 battlerId, bool8 dontClearSubstituteBit);
 static void EndDrawPartyStatusSummary(void);
 
-static void (*const sPlayerBufferCommands[CONTROLLER_CMDS_COUNT])(void) =
-{
 static u16 GetSafeChooseMoveId(const struct ChooseMoveStruct *moveInfo, u8 cursorPosition)
 {
     u16 move = moveInfo->moves[cursorPosition];
@@ -144,6 +144,8 @@ static const u8 *GetSafeBattleMoveTypeName(u16 move)
     return gText_ThreeHyphens;
 }
 
+static void (*const sPlayerBufferCommands[CONTROLLER_CMDS_COUNT])(void) =
+{
     [CONTROLLER_GETMONDATA]               = PlayerHandleGetMonData,
     [CONTROLLER_GETRAWMONDATA]            = PlayerHandleGetRawMonData,
     [CONTROLLER_SETMONDATA]               = PlayerHandleSetMonData,
@@ -221,7 +223,7 @@ void SetControllerToPlayer(void)
 static void PlayerBufferExecCompleted(void)
 {
     gBattlerControllerFuncs[gActiveBattler] = PlayerBufferRunCommand;
-    if (gBattleTypeFlags & BATTLE_TYPE_LINK)
+    if (BattleLinkTransferIsReady())
     {
         u8 playerId = GetMultiplayerId();
 
@@ -477,9 +479,9 @@ void HandleInputChooseMove(void)
     PreviewDeterminativeMoveTargets();
     if (JOY_NEW(A_BUTTON))
     {
+        u16 move = GetSafeChooseMoveId(moveInfo, gMoveSelectionCursor[gActiveBattler]);
         u8 moveTarget;
 
-        u16 move = GetSafeChooseMoveId(moveInfo, gMoveSelectionCursor[gActiveBattler]);
         PlaySE(SE_SELECT);
         if (move == MOVE_CURSE)
         {
@@ -1409,10 +1411,10 @@ static void MoveSelectionDisplayMoveNames(void)
 
     for (i = 0; i < MAX_MON_MOVES; ++i)
     {
-        MoveSelectionDestroyCursorAt(i);
-        StringCopy(gDisplayedStringBattle, gText_MoveInterfaceDynamicColors);
         u16 move = GetSafeChooseMoveId(moveInfo, i);
 
+        MoveSelectionDestroyCursorAt(i);
+        StringCopy(gDisplayedStringBattle, gText_MoveInterfaceDynamicColors);
         if (move == MOVE_NONE)
             StringAppend(gDisplayedStringBattle, gText_ThreeHyphens);
         else
@@ -1448,9 +1450,9 @@ static void MoveSelectionDisplayMoveType(void)
 {
     u8 *txtPtr;
     struct ChooseMoveStruct *moveInfo = (struct ChooseMoveStruct *)(&gBattleBufferA[gActiveBattler][4]);
+    u16 move = GetSafeChooseMoveId(moveInfo, gMoveSelectionCursor[gActiveBattler]);
 
     txtPtr = StringCopy(gDisplayedStringBattle, gText_MoveInterfaceType);
-    u16 move = GetSafeChooseMoveId(moveInfo, gMoveSelectionCursor[gActiveBattler]);
     *txtPtr++ = EXT_CTRL_CODE_BEGIN;
     *txtPtr++ = 6;
     *txtPtr++ = 1;

@@ -682,7 +682,11 @@ static void Task_PlayCryWhenReleasedFromBall(u8 taskId)
     u8 wantedCry = gTasks[taskId].tCryTaskWantedCry;
     s8 pan = gTasks[taskId].tCryTaskPan;
     u16 species = gTasks[taskId].tCryTaskSpecies;
+#ifdef PORTABLE
+    struct Pokemon *mon = (struct Pokemon *)(uintptr_t)GetWordTaskArg(taskId, 3);
+#else
     struct Pokemon *mon = (void *)(u32)((gTasks[taskId].tCryTaskMonPtr1 << 16) | (u16)(gTasks[taskId].tCryTaskMonPtr2));
+#endif
 
     switch (gTasks[taskId].tCryTaskState)
     {
@@ -816,8 +820,12 @@ static void SpriteCB_ReleaseMonFromBall(struct Sprite *sprite)
         gTasks[taskId].tCryTaskSpecies = species;
         gTasks[taskId].tCryTaskPan = pan;
         gTasks[taskId].tCryTaskWantedCry = wantedCryCase;
+#ifdef PORTABLE
+        SetWordTaskArg(taskId, 3, (uintptr_t)mon);
+#else
         gTasks[taskId].tCryTaskMonPtr1 = (u32)(mon) >> 16;
         gTasks[taskId].tCryTaskMonPtr2 = (u32)(mon);
+#endif
         gTasks[taskId].tCryTaskState = 0;
     }
 
@@ -1331,4 +1339,3 @@ static u16 GetBattlerPokeballItemId(u8 battlerId)
     else
         return GetMonData(&gEnemyParty[gBattlerPartyIndexes[battlerId]], MON_DATA_POKEBALL);
 }
-

@@ -26,6 +26,8 @@
 
 static EWRAM_DATA u16 sSpecialVar_0x8004_Copy = 0;
 
+#define BATTLE_TOWER_BAN_BUFFER_SIZE 32
+
 #define TakeBravoTrainerBattleTowerOffTheAir()
 #define ewram160FB (*((u8 *)&gBattleStruct->field_DA))
 
@@ -38,6 +40,7 @@ static void SetBattleTowerRecordChecksum(struct BattleTowerRecord * record);
 static void ClearBattleTowerRecord(struct BattleTowerRecord * record);
 static void PopulateBravoTrainerBattleTowerLostData(void);
 static u16 GetCurrentBattleTowerWinStreak(u8 levelType);
+static void AppendBattleTowerBanText(const u8 *src);
 static void SetEReaderTrainerChecksum(struct BattleTowerEReaderTrainer * eReaderTrainer);
 static void PrintEReaderTrainerFarewellMessage(void);
 
@@ -718,25 +721,43 @@ static u8 AppendBattleTowerBannedSpeciesName(u16 species, u8 count)
     if (GetSetPokedexFlag(SpeciesToNationalPokedexNum(species), FLAG_GET_CAUGHT))
     {
         if (count == 0)
-            StringAppend(gStringVar1, gText_BattleTowerBan_Space);
+            AppendBattleTowerBanText(gText_BattleTowerBan_Space);
         count++;
-        StringAppend(gStringVar1, gSpeciesNames[species]);
+        AppendBattleTowerBanText(gSpeciesNames[species]);
         switch (count)
         {
         case 2:
-            StringAppend(gStringVar1, gText_BattleTowerBan_Newline2);
+            AppendBattleTowerBanText(gText_BattleTowerBan_Newline2);
             break;
         case 5:
         case 8:
         case 11:
-            StringAppend(gStringVar1, gText_BattleTowerBan_Newline1);
+            AppendBattleTowerBanText(gText_BattleTowerBan_Newline1);
             break;
         default:
-            StringAppend(gStringVar1, gText_BattleTowerBan_Space);
+            AppendBattleTowerBanText(gText_BattleTowerBan_Space);
             break;
         }
     }
     return count;
+}
+
+static void AppendBattleTowerBanText(const u8 *src)
+{
+    u16 dstLen = StringLength(gStringVar1);
+    u16 srcLen = StringLength(src);
+    u16 remaining;
+    u8 *dst;
+
+    if (dstLen >= BATTLE_TOWER_BAN_BUFFER_SIZE - 1)
+        return;
+
+    remaining = BATTLE_TOWER_BAN_BUFFER_SIZE - dstLen - 1;
+    if (srcLen > remaining)
+        srcLen = remaining;
+
+    dst = StringAppendN(gStringVar1, src, srcLen);
+    *dst = EOS;
 }
 
 static void CheckMonBattleTowerBanlist(u16 species, u16 heldItem, u16 hp, u8 battleTowerLevelType, u8 monLevel, u16 *validPartySpecies, u16 *validPartyHeldItems, u8 *numValid)
@@ -816,9 +837,11 @@ void CheckPartyBattleTowerBanlist(void)
         i = StringLength(gStringVar1);
         gStringVar1[i - 1] = EOS;
         if (counter < 3)
-            StringAppend(gStringVar1, gText_BattleTowerBan_Is1);
+            /* PORTABLE: max 122 bytes, buffer is 32 - bounded append required. */
+            AppendBattleTowerBanText(gText_BattleTowerBan_Is1);
         else
-            StringAppend(gStringVar1, gText_BattleTowerBan_Is2);
+            /* PORTABLE: max 122 bytes, buffer is 32 - bounded append required. */
+            AppendBattleTowerBanText(gText_BattleTowerBan_Is2);
     }
     else
     {
