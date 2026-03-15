@@ -242,6 +242,8 @@ static const BattleAICmdFunc sBattleAICmdTable[] =
     Cmd_if_target_not_taunted,            // 0x5D
 };
 
+#define BATTLE_AI_CMD_COUNT (sizeof(sBattleAICmdTable) / sizeof(sBattleAICmdTable[0]))
+
 static const u16 sDiscouragedPowerfulMoveEffects[] =
 {
     EFFECT_EXPLOSION,
@@ -432,6 +434,14 @@ static void BattleAI_DoAIProcessing(void)
         case AIState_Processing:
             if (AI_THINKING_STRUCT->moveConsidered != 0)
             {
+                if (*sAIScriptPtr >= BATTLE_AI_CMD_COUNT)
+                {
+                    AI_THINKING_STRUCT->score[AI_THINKING_STRUCT->movesetIndex] = 0;
+                    AI_THINKING_STRUCT->aiAction |= AI_ACTION_DONE;
+                    AI_THINKING_STRUCT->aiState = AIState_FinishedProcessing;
+                    break;
+                }
+
                 sBattleAICmdTable[*sAIScriptPtr](); // Run AI command.
             }
             else
