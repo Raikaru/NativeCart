@@ -149,6 +149,22 @@ u8 *StringCopy_PlayerName(u8 *dest, const u8 *src)
 
 u8 *StringCopy(u8 *dest, const u8 *src)
 {
+#ifdef PORTABLE
+    /* ASCII heuristic: if the first byte is a plain ASCII character (< 0x80),
+       treat the source as a NUL-terminated C string so we don't read past the
+       NUL sentinel and overflow the destination buffer. */
+    if (*src != EOS && (u8)*src < 0x80)
+    {
+        while (*src != '\0' && *src != EOS)
+        {
+            *dest = *src;
+            dest++;
+            src++;
+        }
+        *dest = EOS;
+        return dest;
+    }
+#endif
     while (*src != EOS)
     {
         *dest = *src;
@@ -162,6 +178,17 @@ u8 *StringCopy(u8 *dest, const u8 *src)
 
 u8 *StringAppend(u8 *dest, const u8 *src)
 {
+#ifdef PORTABLE
+    /* If dest starts with ASCII content, scan to NUL or EOS. */
+    if (*dest != EOS && (u8)*dest < 0x80)
+    {
+        while (*dest != '\0' && *dest != EOS)
+            dest++;
+        if (*dest == '\0')
+            *dest = EOS;
+    }
+    else
+#endif
     while (*dest != EOS)
         dest++;
 
