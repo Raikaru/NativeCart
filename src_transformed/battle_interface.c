@@ -769,7 +769,12 @@ static void UpdateLvlInHealthbox(u8 healthboxSpriteId, u8 lvl)
 {
     u32 windowId, spriteTileNum;
     u8 *windowTileData;
+#ifdef PORTABLE
+    /* {LV_2} → 0xF9 0x05 (CHAR_EXTRA_SYMBOL + CHAR_LV_2), then decimal at text+2 */
+    u8 text[16] = { CHAR_EXTRA_SYMBOL, CHAR_LV_2, EOS };
+#else
     u8 text[16] = _("{LV_2}");
+#endif
     u32 xPos;
     u8 *objVram;
 
@@ -830,7 +835,13 @@ void UpdateHpTextInHealthbox(u8 healthboxSpriteId, s16 value, u8 maxOrCurrent)
     {
         u8 battler;
 
+#ifdef PORTABLE
+        /* {COLOR 01}{HIGHLIGHT 02} → 6 binary bytes; decimal written at text+6 */
+        u8 text[20] = { EXT_CTRL_CODE_BEGIN, EXT_CTRL_CODE_COLOR,     0x01,
+                        EXT_CTRL_CODE_BEGIN, EXT_CTRL_CODE_HIGHLIGHT,  0x02, EOS };
+#else
         u8 text[20] = __("{COLOR 01}{HIGHLIGHT 02}");
+#endif
         battler = gSprites[healthboxSpriteId].sBattlerId;
         if (IsDoubleBattle() == TRUE || GetBattlerSide(battler) == B_SIDE_OPPONENT)
             UpdateHpTextInHealthboxInDoubles(healthboxSpriteId, value, maxOrCurrent);
@@ -868,7 +879,11 @@ void UpdateHpTextInHealthbox(u8 healthboxSpriteId, s16 value, u8 maxOrCurrent)
     }
 }
 
+#ifdef PORTABLE
+static const u8 sText_Slash[] = { 0xBA, EOS }; /* GBA '/' = 0xBA */
+#else
 static const u8 sText_Slash[] = _("/");
+#endif
 
 static void UpdateHpTextInHealthboxInDoubles(u8 healthboxSpriteId, s16 value, u8 maxOrCurrent)
 {
@@ -877,7 +892,13 @@ static void UpdateHpTextInHealthboxInDoubles(u8 healthboxSpriteId, s16 value, u8
 
     u8 battlerId;
 
+#ifdef PORTABLE
+    /* {COLOR 01}{HIGHLIGHT 00} → 6 binary bytes; decimal written at text+6 */
+    u8 text[20] = { EXT_CTRL_CODE_BEGIN, EXT_CTRL_CODE_COLOR,     0x01,
+                    EXT_CTRL_CODE_BEGIN, EXT_CTRL_CODE_HIGHLIGHT,  0x00, EOS };
+#else
     u8 text[20] = __("{COLOR 01}{HIGHLIGHT 00}");
+#endif
     battlerId = gSprites[healthboxSpriteId].sBattlerId;
 
     if (gBattleSpritesDataPtr->battlerData[battlerId].hpNumbersNoBars)
@@ -937,7 +958,12 @@ static void UpdateHpTextInHealthboxInDoubles(u8 healthboxSpriteId, s16 value, u8
 // Prints mon's nature, catch and flee rate. Probably used to test pokeblock-related features.
 static void PrintSafariMonInfo(u8 healthboxSpriteId, struct Pokemon *mon)
 {
+#ifdef PORTABLE
+    u8 text[20] = { EXT_CTRL_CODE_BEGIN, EXT_CTRL_CODE_COLOR,     0x01,
+                    EXT_CTRL_CODE_BEGIN, EXT_CTRL_CODE_HIGHLIGHT,  0x02, EOS };
+#else
     u8 text[20] = __("{COLOR 01}{HIGHLIGHT 02}");
+#endif
     s32 j, spriteTileNum;
     u8 *barFontGfx;
     u8 i, var, nature, healthBarSpriteId;
@@ -1492,7 +1518,13 @@ static void SpriteCB_PartySummaryBall_OnSwitchout(struct Sprite *sprite)
 #undef sEnterSpeed
 #undef sExitSpeed
 
+#ifdef PORTABLE
+/* In the portable build _() is identity, so {HIGHLIGHT 02} would remain as
+   ASCII.  Emit the binary EXT_CTRL_CODE sequence directly instead. */
+static const u8 sText_HealthboxNickname[] = { EXT_CTRL_CODE_BEGIN, EXT_CTRL_CODE_HIGHLIGHT, 0x02, EOS };
+#else
 static const u8 sText_HealthboxNickname[] = _("{HIGHLIGHT 02}");
+#endif
 
 void UpdateNickInHealthbox(u8 healthboxSpriteId, struct Pokemon *mon)
 {
