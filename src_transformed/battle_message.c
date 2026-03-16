@@ -78,7 +78,6 @@ static u8 portable_ascii_to_gba(u8 c)
 
 #ifdef PORTABLE
 #include <string.h>
-#include <stdlib.h>
 
 /*
  * Map the identifier names used inside {…} in GBA string literals to their
@@ -197,7 +196,10 @@ static u32 portable_preprocess_battle_str(const u8 *src, u8 *dst, u32 dstSize)
                     /* {PAUSE N} -> EXT_CTRL_CODE_BEGIN + EXT_CTRL_CODE_PAUSE + N */
                     if (!matched && strncmp(ident, "PAUSE ", 6) == 0)
                     {
-                        u8 pause_val = (u8)atoi(ident + 6);
+                        const char *p = ident + 6;
+                        u8 pause_val = 0;
+                        while (*p >= '0' && *p <= '9')
+                            pause_val = (u8)(pause_val * 10 + (*p++ - '0'));
                         if (d + 3 < dstSize)
                         {
                             dst[d++] = EXT_CTRL_CODE_BEGIN;
