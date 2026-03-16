@@ -220,6 +220,221 @@ static u32 portable_preprocess_battle_str(const u8 *src, u8 *dst, u32 dstSize)
         dst[d] = '\0';
     return d;
 }
+
+/*
+ * portable_render_preprocess – convert a mixed ASCII / binary battle string
+ * into a fully GBA-binary-encoded string ready for AddTextPrinter.
+ *
+ * Rules:
+ *   • ASCII letter/digit/punctuation bytes (< 0x80) → portable_ascii_to_gba()
+ *   • '\n' (0x0A) → CHAR_NEWLINE (0xFE)
+ *   • '{' token → emit the corresponding EXT_CTRL_CODE binary sequence:
+ *       {PALETTE N}                   → 0xFC 0x05 N
+ *       {COLOR_HIGHLIGHT_SHADOW X Y Z}→ 0xFC 0x04 X Y Z
+ *       {COLOR N}                     → 0xFC 0x01 N
+ *       {HIGHLIGHT N}                 → 0xFC 0x02 N
+ *       {SHADOW N}                    → 0xFC 0x03 N
+ *       {FONT N}                      → 0xFC 0x06 N
+ *       {WAIT_SE}                     → 0xFC 0x0A
+ *       {PAUSE_UNTIL_PRESS}           → 0xFC 0x09
+ *       {PAUSE N}                     → 0xFC 0x08 N
+ *   • EXT_CTRL_CODE_BEGIN (0xFC) already in binary → copy the code byte and
+ *     its parameters verbatim (so callers that embed raw control codes work)
+ *   • bytes ≥ 0x80 other than 0xFE/0xFF → pass through (already GBA-encoded)
+ *   • 0x00 (NUL) or 0xFF (EOS) → stop; output is terminated with EOS (0xFF)
+ */
+static u32 portable_render_preprocess(const u8 *src, u8 *dst, u32 dstSize)
+{
+    /* Number of parameter bytes that follow each EXT_CTRL_CODE byte.
+       Index is the EXT_CTRL_CODE value (0x00-0x18). */
+    static const u8 sExtParamCount[] = {
+        0, /* 0x00 unused     */
+        1, /* 0x01 COLOR      */
+        1, /* 0x02 HIGHLIGHT  */
+        1, /* 0x03 SHADOW     */
+        3, /* 0x04 COLOR_HIGHLIGHT_SHADOW */
+        1, /* 0x05 PALETTE    */
+        1, /* 0x06 FONT       */
+        0, /* 0x07 RESET_FONT */
+        1, /* 0x08 PAUSE      */
+        0, /* 0x09 PAUSE_UNTIL_PRESS */
+        0, /* 0x0A WAIT_SE    */
+        2, /* 0x0B PLAY_BGM   */
+        0, /* 0x0C ESCAPE     */
+        1, /* 0x0D SHIFT_RIGHT*/
+        1, /* 0x0E SHIFT_DOWN */
+        1, /* 0x0F FILL_WINDOW*/
+        2, /* 0x10 PLAY_SE    */
+        1, /* 0x11 CLEAR      */
+        1, /* 0x12 SKIP       */
+        1, /* 0x13 CLEAR_TO   */
+        1, /* 0x14 MIN_LETTER_SPACING */
+        0, /* 0x15 JPN        */
+        0, /* 0x16 ENG        */
+        0, /* 0x17 PAUSE_MUSIC*/
+        0, /* 0x18 RESUME_MUSIC*/
+    };
+
+    u32 d = 0;
+
+    /* Helper macro: emit one byte if room */
+#define EMIT(b) do { if (d < dstSize - 1) dst[d++] = (u8)(b); } while (0)
+
+    while (*src != '\0' && *src != EOS)
+    {
+        u8 c = *src;
+
+        if (c == EXT_CTRL_CODE_BEGIN) /* 0xFC – already-binary control code */
+        {
+            u8 code, nparams, p;
+            EMIT(c);
+            src++;
+            if (*src == '\0' || *src == EOS)
+                break;
+            code = *src;
+            EMIT(code);
+            src++;
+            nparams = (code < sizeof(sExtParamCount)) ? sExtParamCount[code] : 0;
+            for (p = 0; p < nparams && *src != '\0' && *src != EOS; p++)
+            {
+                EMIT(*src);
+                src++;
+            }
+        }
+        else if (c == '{') /* ASCII control token */
+        {
+            const u8 *end = src + 1;
+            while (*end && *end != '}') end++;
+            if (*end == '}')
+            {
+                u32 len = (u32)(end - (src + 1));
+                char ident[72];
+                bool8 matched = FALSE;
+                if (len < sizeof(ident))
+                {
+                    /* Helper: parse unsigned decimal starting at p, advance *pp */
+                    #define PARSE_DEC(p_, out_) do {                        \
+                        u8 _v = 0;                                           \
+                        while (*(p_) >= '0' && *(p_) <= '9')                \
+                            _v = (u8)(_v * 10 + (*(p_)++ - '0'));           \
+                        (out_) = _v;                                         \
+                    } while (0)
+
+                    memcpy(ident, src + 1, len);
+                    ident[len] = '\0';
+
+                    if (!matched && strncmp(ident, "PALETTE ", 8) == 0)
+                    {
+                        const char *p = ident + 8;
+                        u8 v; PARSE_DEC(p, v);
+                        EMIT(EXT_CTRL_CODE_BEGIN);
+                        EMIT(EXT_CTRL_CODE_PALETTE);
+                        EMIT(v);
+                        src = end + 1; matched = TRUE;
+                    }
+                    if (!matched && strncmp(ident, "COLOR_HIGHLIGHT_SHADOW ", 23) == 0)
+                    {
+                        const char *p = ident + 23;
+                        u8 x, y, z;
+                        PARSE_DEC(p, x); if (*p == ' ') p++;
+                        PARSE_DEC(p, y); if (*p == ' ') p++;
+                        PARSE_DEC(p, z);
+                        EMIT(EXT_CTRL_CODE_BEGIN);
+                        EMIT(EXT_CTRL_CODE_COLOR_HIGHLIGHT_SHADOW);
+                        EMIT(x); EMIT(y); EMIT(z);
+                        src = end + 1; matched = TRUE;
+                    }
+                    if (!matched && strncmp(ident, "COLOR ", 6) == 0)
+                    {
+                        const char *p = ident + 6;
+                        u8 v; PARSE_DEC(p, v);
+                        EMIT(EXT_CTRL_CODE_BEGIN);
+                        EMIT(EXT_CTRL_CODE_COLOR);
+                        EMIT(v);
+                        src = end + 1; matched = TRUE;
+                    }
+                    if (!matched && strncmp(ident, "HIGHLIGHT ", 10) == 0)
+                    {
+                        const char *p = ident + 10;
+                        u8 v; PARSE_DEC(p, v);
+                        EMIT(EXT_CTRL_CODE_BEGIN);
+                        EMIT(EXT_CTRL_CODE_HIGHLIGHT);
+                        EMIT(v);
+                        src = end + 1; matched = TRUE;
+                    }
+                    if (!matched && strncmp(ident, "SHADOW ", 7) == 0)
+                    {
+                        const char *p = ident + 7;
+                        u8 v; PARSE_DEC(p, v);
+                        EMIT(EXT_CTRL_CODE_BEGIN);
+                        EMIT(EXT_CTRL_CODE_SHADOW);
+                        EMIT(v);
+                        src = end + 1; matched = TRUE;
+                    }
+                    if (!matched && strncmp(ident, "FONT ", 5) == 0)
+                    {
+                        const char *p = ident + 5;
+                        u8 v; PARSE_DEC(p, v);
+                        EMIT(EXT_CTRL_CODE_BEGIN);
+                        EMIT(EXT_CTRL_CODE_FONT);
+                        EMIT(v);
+                        src = end + 1; matched = TRUE;
+                    }
+                    if (!matched && strcmp(ident, "WAIT_SE") == 0)
+                    {
+                        EMIT(EXT_CTRL_CODE_BEGIN);
+                        EMIT(EXT_CTRL_CODE_WAIT_SE);
+                        src = end + 1; matched = TRUE;
+                    }
+                    if (!matched && strcmp(ident, "PAUSE_UNTIL_PRESS") == 0)
+                    {
+                        EMIT(EXT_CTRL_CODE_BEGIN);
+                        EMIT(EXT_CTRL_CODE_PAUSE_UNTIL_PRESS);
+                        src = end + 1; matched = TRUE;
+                    }
+                    if (!matched && strncmp(ident, "PAUSE ", 6) == 0)
+                    {
+                        const char *p = ident + 6;
+                        u8 v; PARSE_DEC(p, v);
+                        EMIT(EXT_CTRL_CODE_BEGIN);
+                        EMIT(EXT_CTRL_CODE_PAUSE);
+                        EMIT(v);
+                        src = end + 1; matched = TRUE;
+                    }
+
+                    #undef PARSE_DEC
+
+                    if (matched)
+                        continue;
+                }
+            }
+            /* No match or no closing '}' – treat '{' as a literal character */
+            EMIT(portable_ascii_to_gba(c));
+            src++;
+        }
+        else if (c == '\n') /* ASCII newline → GBA CHAR_NEWLINE */
+        {
+            EMIT(CHAR_NEWLINE);
+            src++;
+        }
+        else if (c < 0x80) /* regular ASCII printable/non-printable */
+        {
+            EMIT(portable_ascii_to_gba(c));
+            src++;
+        }
+        else /* byte >= 0x80 already GBA-encoded – pass through */
+        {
+            EMIT(c);
+            src++;
+        }
+    }
+
+#undef EMIT
+
+    if (d < dstSize)
+        dst[d] = EOS;
+    return d;
+}
 #endif /* PORTABLE */
 
 static const u8 *GetSafeAbilityName(u16 ability)
@@ -2996,6 +3211,18 @@ static const u8 sNpcTextColorToFont[] =
 //   x40: Use NPC context-defined font
 //   x80: Inhibit window clear
 void BattlePutTextOnWindow(const u8 *text, u8 windowId) {
+#ifdef PORTABLE
+    /* If the string starts with a plain ASCII byte, it came from a _()-wrapped
+       constant or was assembled via StringCopy/StringAppend from ASCII sources.
+       Convert it to fully GBA-encoded binary (with proper control codes) before
+       handing it to the text renderer. */
+    if (*text != EOS && (u8)*text < 0x80)
+    {
+        static u8 sRenderBuf[600];
+        portable_render_preprocess(text, sRenderBuf, sizeof(sRenderBuf));
+        text = sRenderBuf;
+    }
+#endif
     bool32 copyToVram;
     struct TextPrinterTemplate printerTemplate;
     u8 speed;
