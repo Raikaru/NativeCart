@@ -76,6 +76,150 @@ static u8 portable_ascii_to_gba(u8 c)
 }
 #endif /* PORTABLE */
 
+#ifdef PORTABLE
+#include <string.h>
+#include <stdlib.h>
+
+/*
+ * Map the identifier names used inside {…} in GBA string literals to their
+ * PLACEHOLDER_BEGIN (0xFD) sub-codes so that ASCII battle strings can be
+ * pre-processed into the binary format expected by BattleStringExpandPlaceholders.
+ */
+struct PortableBattleTxtCode {
+    const char *name;
+    u8 code;
+};
+
+static const struct PortableBattleTxtCode sPortableBattleTxtCodes[] = {
+    {"B_BUFF1",                       B_TXT_BUFF1},
+    {"B_BUFF2",                       B_TXT_BUFF2},
+    {"B_BUFF3",                       B_TXT_BUFF3},
+    {"B_COPY_VAR_1",                  B_TXT_COPY_VAR_1},
+    {"B_COPY_VAR_2",                  B_TXT_COPY_VAR_2},
+    {"B_COPY_VAR_3",                  B_TXT_COPY_VAR_3},
+    {"B_PLAYER_MON1_NAME",            B_TXT_PLAYER_MON1_NAME},
+    {"B_OPPONENT_MON1_NAME",          B_TXT_OPPONENT_MON1_NAME},
+    {"B_PLAYER_MON2_NAME",            B_TXT_PLAYER_MON2_NAME},
+    {"B_OPPONENT_MON2_NAME",          B_TXT_OPPONENT_MON2_NAME},
+    {"B_LINK_PLAYER_MON1_NAME",       B_TXT_LINK_PLAYER_MON1_NAME},
+    {"B_LINK_OPPONENT_MON1_NAME",     B_TXT_LINK_OPPONENT_MON1_NAME},
+    {"B_LINK_PLAYER_MON2_NAME",       B_TXT_LINK_PLAYER_MON2_NAME},
+    {"B_LINK_OPPONENT_MON2_NAME",     B_TXT_LINK_OPPONENT_MON2_NAME},
+    {"B_ATK_NAME_WITH_PREFIX_MON1",   B_TXT_ATK_NAME_WITH_PREFIX_MON1},
+    {"B_ATK_PARTNER_NAME",            B_TXT_ATK_PARTNER_NAME},
+    {"B_ATK_NAME_WITH_PREFIX",        B_TXT_ATK_NAME_WITH_PREFIX},
+    {"B_DEF_NAME_WITH_PREFIX",        B_TXT_DEF_NAME_WITH_PREFIX},
+    {"B_EFF_NAME_WITH_PREFIX",        B_TXT_EFF_NAME_WITH_PREFIX},
+    {"B_ACTIVE_NAME_WITH_PREFIX",     B_TXT_ACTIVE_NAME_WITH_PREFIX},
+    {"B_SCR_ACTIVE_NAME_WITH_PREFIX", B_TXT_SCR_ACTIVE_NAME_WITH_PREFIX},
+    {"B_CURRENT_MOVE",                B_TXT_CURRENT_MOVE},
+    {"B_LAST_MOVE",                   B_TXT_LAST_MOVE},
+    {"B_LAST_ITEM",                   B_TXT_LAST_ITEM},
+    {"B_LAST_ABILITY",                B_TXT_LAST_ABILITY},
+    {"B_ATK_ABILITY",                 B_TXT_ATK_ABILITY},
+    {"B_DEF_ABILITY",                 B_TXT_DEF_ABILITY},
+    {"B_SCR_ACTIVE_ABILITY",          B_TXT_SCR_ACTIVE_ABILITY},
+    {"B_EFF_ABILITY",                 B_TXT_EFF_ABILITY},
+    {"B_TRAINER1_CLASS",              B_TXT_TRAINER1_CLASS},
+    {"B_TRAINER1_NAME",               B_TXT_TRAINER1_NAME},
+    {"B_LINK_PLAYER_NAME",            B_TXT_LINK_PLAYER_NAME},
+    {"B_LINK_PARTNER_NAME",           B_TXT_LINK_PARTNER_NAME},
+    {"B_LINK_OPPONENT1_NAME",         B_TXT_LINK_OPPONENT1_NAME},
+    {"B_LINK_OPPONENT2_NAME",         B_TXT_LINK_OPPONENT2_NAME},
+    {"B_LINK_SCR_TRAINER_NAME",       B_TXT_LINK_SCR_TRAINER_NAME},
+    {"B_PLAYER_NAME",                 B_TXT_PLAYER_NAME},
+    {"B_TRAINER1_LOSE_TEXT",          B_TXT_TRAINER1_LOSE_TEXT},
+    {"B_TRAINER1_WIN_TEXT",           B_TXT_TRAINER1_WIN_TEXT},
+    {"B_PC_CREATOR_NAME",             B_TXT_PC_CREATOR_NAME},
+    {"B_ATK_PREFIX1",                 B_TXT_ATK_PREFIX1},
+    {"B_DEF_PREFIX1",                 B_TXT_DEF_PREFIX1},
+    {"B_ATK_PREFIX2",                 B_TXT_ATK_PREFIX2},
+    {"B_DEF_PREFIX2",                 B_TXT_DEF_PREFIX2},
+    {"B_ATK_PREFIX3",                 B_TXT_ATK_PREFIX3},
+    {"B_DEF_PREFIX3",                 B_TXT_DEF_PREFIX3},
+    {"B_TRAINER2_LOSE_TEXT",          B_TXT_TRAINER2_LOSE_TEXT},
+    {"B_TRAINER2_WIN_TEXT",           B_TXT_TRAINER2_WIN_TEXT},
+};
+#define PORTABLE_BTXT_COUNT (sizeof(sPortableBattleTxtCodes) / sizeof(sPortableBattleTxtCodes[0]))
+
+/*
+ * Pre-process an ASCII battle string so that {B_xxx} tokens are replaced with
+ * their binary GBA equivalents (\xFD <code>), and common control tokens are
+ * expanded.  The result is NUL-terminated.
+ *
+ * This is needed because in the portable SDL build _() is an identity macro,
+ * so string literals never pass through the GBA charmap preprocessor.
+ */
+static u32 portable_preprocess_battle_str(const u8 *src, u8 *dst, u32 dstSize)
+{
+    u32 d = 0;
+    while (*src != '\0' && d + 2 < dstSize)
+    {
+        if (*src == '{')
+        {
+            const u8 *end = src + 1;
+            while (*end && *end != '}') end++;
+            if (*end == '}')
+            {
+                u32 len = (u32)(end - (src + 1));
+                char ident[64];
+                bool8 matched = FALSE;
+                if (len < sizeof(ident))
+                {
+                    u32 k;
+                    memcpy(ident, src + 1, len);
+                    ident[len] = '\0';
+                    /* B_TXT_* placeholder codes */
+                    for (k = 0; k < PORTABLE_BTXT_COUNT && !matched; k++)
+                    {
+                        if (strcmp(ident, sPortableBattleTxtCodes[k].name) == 0)
+                        {
+                            if (d + 2 < dstSize)
+                            {
+                                dst[d++] = PLACEHOLDER_BEGIN;
+                                dst[d++] = sPortableBattleTxtCodes[k].code;
+                            }
+                            src = end + 1;
+                            matched = TRUE;
+                        }
+                    }
+                    /* {WAIT_SE} -> EXT_CTRL_CODE_BEGIN + EXT_CTRL_CODE_WAIT_SE */
+                    if (!matched && strcmp(ident, "WAIT_SE") == 0)
+                    {
+                        if (d + 2 < dstSize)
+                        {
+                            dst[d++] = EXT_CTRL_CODE_BEGIN;
+                            dst[d++] = EXT_CTRL_CODE_WAIT_SE;
+                        }
+                        src = end + 1;
+                        matched = TRUE;
+                    }
+                    /* {PAUSE N} -> EXT_CTRL_CODE_BEGIN + EXT_CTRL_CODE_PAUSE + N */
+                    if (!matched && strncmp(ident, "PAUSE ", 6) == 0)
+                    {
+                        u8 pause_val = (u8)atoi(ident + 6);
+                        if (d + 3 < dstSize)
+                        {
+                            dst[d++] = EXT_CTRL_CODE_BEGIN;
+                            dst[d++] = EXT_CTRL_CODE_PAUSE;
+                            dst[d++] = pause_val;
+                        }
+                        src = end + 1;
+                        matched = TRUE;
+                    }
+                    if (matched)
+                        continue;
+                }
+            }
+        }
+        dst[d++] = *src++;
+    }
+    if (d < dstSize)
+        dst[d] = '\0';
+    return d;
+}
+#endif /* PORTABLE */
+
 static const u8 *GetSafeAbilityName(u16 ability)
 {
     if (ability < ABILITIES_COUNT)
@@ -1857,6 +2001,31 @@ static const u8 *TryGetStatusString(u8 *src)
     return NULL;
 }
 
+/*
+ * In PORTABLE builds, prefix strings are ASCII C literals (NUL-terminated)
+ * that need ASCII-to-GBA conversion before output; the standard copy loop
+ * uses EOS (0xFF) as its sentinel and would overrun an ASCII string.
+ * PORTABLE_COPY_ASCII_PREFIX handles both termination conditions and applies
+ * the character encoding conversion.
+ */
+#ifdef PORTABLE
+#define PORTABLE_COPY_ASCII_PREFIX(toCpy_, dst_, dstId_, dstCap_)           \
+    while (*(toCpy_) != EOS && *(toCpy_) != '\0')                           \
+    {                                                                        \
+        if ((dstId_) + 1 < (dstCap_))                                       \
+            (dst_)[(dstId_)++] = portable_ascii_to_gba(*(toCpy_));          \
+        (toCpy_)++;                                                          \
+    }
+#else
+#define PORTABLE_COPY_ASCII_PREFIX(toCpy_, dst_, dstId_, dstCap_)           \
+    while (*(toCpy_) != EOS)                                                 \
+    {                                                                        \
+        if ((dstId_) + 1 < (dstCap_))                                       \
+            (dst_)[(dstId_)++] = *(toCpy_);                                 \
+        (toCpy_)++;                                                          \
+    }
+#endif
+
 #define HANDLE_NICKNAME_STRING_CASE(battlerId, monIndex)                \
     if (GetBattlerSide(battlerId) != B_SIDE_PLAYER)                     \
     {                                                                   \
@@ -1864,12 +2033,7 @@ static const u8 *TryGetStatusString(u8 *src)
             toCpy = sText_FoePkmnPrefix;                                \
         else                                                            \
             toCpy = sText_WildPkmnPrefix;                               \
-        while (*toCpy != EOS)                                           \
-        {                                                               \
-            if (dstId + 1 < dstCapacity)                                \
-                dst[dstId++] = *toCpy;                                  \
-            toCpy++;                                                    \
-        }                                                               \
+        PORTABLE_COPY_ASCII_PREFIX(toCpy, dst, dstId, dstCapacity)     \
         GetMonData(&gEnemyParty[monIndex], MON_DATA_NICKNAME, text);    \
     }                                                                   \
     else                                                                \
@@ -1896,6 +2060,20 @@ u32 BattleStringExpandPlaceholders(const u8 *src, u8 *dst)
     multiplayerId = GetMultiplayerId();
 
 #ifdef PORTABLE
+    /*
+     * ASCII source strings (from C literals via the identity _() macro) need
+     * their {B_xxx} tokens converted to binary GBA placeholder bytes before
+     * the expansion loop can substitute them.  Binary strings from save data
+     * (first byte >= 0x80 or EOS) are already in the right format.
+     */
+    {
+        static u8 sPreprocessedSrc[1200];
+        if (*src != EOS && *src < 0x80)
+        {
+            portable_preprocess_battle_str(src, sPreprocessedSrc, sizeof(sPreprocessedSrc));
+            src = sPreprocessedSrc;
+        }
+    }
     while (*src != EOS && *src != '\0')
 #else
     while (*src != EOS)
@@ -2252,12 +2430,7 @@ u32 BattleStringExpandPlaceholders(const u8 *src, u8 *dst)
 
             if (toCpy == NULL)
                 toCpy = gString_Dummy;
-            while (*toCpy != EOS)
-            {
-                if (dstId + 1 < dstCapacity)
-                    dst[dstId++] = *toCpy;
-                toCpy++;
-            }
+            PORTABLE_COPY_ASCII_PREFIX(toCpy, dst, dstId, dstCapacity)
             if (*src == B_TXT_TRAINER1_LOSE_TEXT || *src == B_TXT_TRAINER1_WIN_TEXT
              || *src == B_TXT_TRAINER2_LOSE_TEXT || *src == B_TXT_TRAINER2_WIN_TEXT)
             {
