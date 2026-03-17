@@ -623,6 +623,20 @@ static void (*const sEndTurnFuncsTable[])(void) =
     [B_OUTCOME_NO_SAFARI_BALLS]   = HandleEndTurn_FinishBattle,
 };
 
+#ifdef PORTABLE
+/* In the PORTABLE build _() is identity: Japanese UTF-8 strings contain no
+   0xFF byte, so StringCopy's EOS loop runs off the end and overflows the
+   16-byte gBattleTextBuff1, corrupting adjacent EWRAM and causing random
+   crashes on Shed Skin, Synchronize, etc.  Use hard-coded GBA binary
+   abbreviations instead (letters A-Z map to 0xBB-0xD4, EOS = 0xFF). */
+const u8 gStatusConditionString_PoisonJpn[]    = { 0xCA, 0xCD, 0xC8, 0xFF }; /* PSN */
+const u8 gStatusConditionString_SleepJpn[]     = { 0xCD, 0xC6, 0xCA, 0xFF }; /* SLP */
+const u8 gStatusConditionString_ParalysisJpn[] = { 0xCA, 0xBB, 0xCC, 0xFF }; /* PAR */
+const u8 gStatusConditionString_BurnJpn[]      = { 0xBC, 0xCC, 0xC8, 0xFF }; /* BRN */
+const u8 gStatusConditionString_IceJpn[]       = { 0xC0, 0xCC, 0xD4, 0xFF }; /* FRZ */
+const u8 gStatusConditionString_ConfusionJpn[] = { 0xBD, 0xC8, 0xC0, 0xFF }; /* CNF */
+const u8 gStatusConditionString_LoveJpn[]      = { 0xC3, 0xC8, 0xC0, 0xFF }; /* INF */
+#else
 const u8 gStatusConditionString_PoisonJpn[] = _("どく$$$$$");
 const u8 gStatusConditionString_SleepJpn[] = _("ねむり$$$$");
 const u8 gStatusConditionString_ParalysisJpn[] = _("まひ$$$$$");
@@ -630,6 +644,7 @@ const u8 gStatusConditionString_BurnJpn[] = _("やけど$$$$");
 const u8 gStatusConditionString_IceJpn[] = _("こおり$$$$");
 const u8 gStatusConditionString_ConfusionJpn[] = _("こんらん$$$");
 const u8 gStatusConditionString_LoveJpn[] = _("メロメロ$$$");
+#endif
 
 const u8 *const gStatusConditionStringsTable[][2] =
 {
