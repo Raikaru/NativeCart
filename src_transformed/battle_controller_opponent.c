@@ -189,7 +189,13 @@ static void OpponentBufferRunCommand(void)
     if (gBattleControllerExecFlags & gBitTable[gActiveBattler])
     {
         if (gBattleBufferA[gActiveBattler][0] < NELEMS(sOpponentBufferCommands))
+        {
+#ifdef PORTABLE
+            printf("OpponentBufferRunCommand: cmd=0x%02X\n", gBattleBufferA[gActiveBattler][0]);
+            fflush(stdout);
+#endif
             sOpponentBufferCommands[gBattleBufferA[gActiveBattler][0]]();
+        }
         else
             OpponentBufferExecCompleted();
     }
