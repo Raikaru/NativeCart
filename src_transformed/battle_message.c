@@ -401,6 +401,15 @@ static u32 portable_render_preprocess(const u8 *src, u8 *dst, u32 dstSize)
                         EMIT(v);
                         src = end + 1; matched = TRUE;
                     }
+                    if (!matched && strncmp(ident, "CLEAR_TO ", 9) == 0)
+                    {
+                        const char *p = ident + 9;
+                        u8 v; PARSE_DEC(p, v);
+                        EMIT(EXT_CTRL_CODE_BEGIN);
+                        EMIT(EXT_CTRL_CODE_CLEAR_TO);
+                        EMIT(v);
+                        src = end + 1; matched = TRUE;
+                    }
 
                     #undef PARSE_DEC
 
