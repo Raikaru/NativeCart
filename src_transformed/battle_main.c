@@ -2416,7 +2416,7 @@ static void BattleMainCB1(void)
     for (gActiveBattler = 0; gActiveBattler < gBattlersCount; gActiveBattler++)
     {
 #ifdef PORTABLE
-        printf("BattleMainCB1: pre-controller i=%d\n", gActiveBattler);
+        printf("BattleMainCB1: pre-controller i=%d func=%p\n", gActiveBattler, (void *)gBattlerControllerFuncs[gActiveBattler]);
         fflush(stdout);
 #endif
         gBattlerControllerFuncs[gActiveBattler]();
