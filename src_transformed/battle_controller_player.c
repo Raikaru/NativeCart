@@ -241,7 +241,13 @@ static void PlayerBufferRunCommand(void)
     if (gBattleControllerExecFlags & gBitTable[gActiveBattler])
     {
         if (gBattleBufferA[gActiveBattler][0] < NELEMS(sPlayerBufferCommands))
+        {
+#ifdef PORTABLE
+            printf("PlayerBufferRunCommand: cmd=0x%02X\n", gBattleBufferA[gActiveBattler][0]);
+            fflush(stdout);
+#endif
             sPlayerBufferCommands[gBattleBufferA[gActiveBattler][0]]();
+        }
         else
             PlayerBufferExecCompleted();
     }
