@@ -431,6 +431,12 @@ static void BattleAI_DoAIProcessing(void)
             break;
         case AIState_SettingUp:
             sAIScriptPtr = gBattleAI_ScriptsTable[AI_THINKING_STRUCT->aiLogicId];
+#ifdef PORTABLE
+            printf("BattleAI_DoAIProcessing: SettingUp logicId=%u moveIdx=%u ptr=%p tableEntry=%p\n",
+                   AI_THINKING_STRUCT->aiLogicId, AI_THINKING_STRUCT->movesetIndex,
+                   (void *)sAIScriptPtr, (void *)gBattleAI_ScriptsTable[AI_THINKING_STRUCT->aiLogicId]);
+            fflush(stdout);
+#endif
 
             if (gBattleMons[gBattlerAttacker].pp[AI_THINKING_STRUCT->movesetIndex] == 0)
             {
