@@ -5,6 +5,9 @@
 #include "item.h"
 #include "random.h"
 #include "battle_ai_script_commands.h"
+#ifdef PORTABLE
+#include <stdio.h>
+#endif
 #include "constants/abilities.h"
 #include "constants/battle_ai.h"
 #include "constants/battle_move_effects.h"
@@ -293,6 +296,10 @@ void BattleAI_SetupAIData(void)
     s32 i;
     u8 *data = (u8 *)AI_THINKING_STRUCT;
     u8 moveLimitations;
+#ifdef PORTABLE
+    printf("BattleAI_SetupAIData: enter battler=%u\n", gActiveBattler);
+    fflush(stdout);
+#endif
 
     // Clear AI data.
     for (i = 0; i < sizeof(struct AI_ThinkingStruct); i++)
@@ -369,6 +376,10 @@ u8 BattleAI_ChooseMoveOrAction(void)
     u8 numOfBestMoves;
     s32 i;
 
+#ifdef PORTABLE
+    printf("BattleAI_ChooseMoveOrAction: enter battler=%u aiFlags=0x%X\n", gActiveBattler, AI_THINKING_STRUCT->aiFlags);
+    fflush(stdout);
+#endif
     RecordLastUsedMoveByTarget();
     while (AI_THINKING_STRUCT->aiFlags != 0)
     {
@@ -434,6 +445,20 @@ static void BattleAI_DoAIProcessing(void)
         case AIState_Processing:
             if (AI_THINKING_STRUCT->moveConsidered != 0)
             {
+#ifdef PORTABLE
+                if (sAIScriptPtr == NULL)
+                {
+                    printf("BattleAI_DoAIProcessing: sAIScriptPtr is NULL! logicId=%u moveIdx=%u\n",
+                           AI_THINKING_STRUCT->aiLogicId, AI_THINKING_STRUCT->movesetIndex);
+                    fflush(stdout);
+                }
+                else
+                {
+                    printf("BattleAI_DoAIProcessing: cmd=0x%02X logicId=%u moveIdx=%u ptr=%p\n",
+                           *sAIScriptPtr, AI_THINKING_STRUCT->aiLogicId, AI_THINKING_STRUCT->movesetIndex, (void *)sAIScriptPtr);
+                    fflush(stdout);
+                }
+#endif
                 if (*sAIScriptPtr >= BATTLE_AI_CMD_COUNT)
                 {
                     AI_THINKING_STRUCT->score[AI_THINKING_STRUCT->movesetIndex] = 0;
