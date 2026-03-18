@@ -13,6 +13,7 @@ IDENT_RE = re.compile(r"\b[A-Za-z_][A-Za-z0-9_]*\b")
 POINTER_TABLE_LABELS = {
     "gBattleAI_ScriptsTable",
 }
+TERMINATING_MACROS = frozenset({"end", "goto", "flee", "watch"})
 POINTER_PREFIXES = (
     "AI_",
     "g",
@@ -127,6 +128,8 @@ def expand_line(line, macros):
 
 def load_labels(path, macros):
     labels = {}
+    label_order = []
+    last_macro = {}  # label -> last non-directive macro name invoked in that label
     current = None
     with open(path, 'r', encoding='utf-8') as handle:
         for raw_line in handle:
@@ -140,6 +143,7 @@ def load_labels(path, macros):
             if match:
                 current = match.group(1)
                 labels[current] = []
+                label_order.append(current)
                 continue
             inline_match = INLINE_LABEL_RE.match(line)
             if inline_match:
@@ -147,13 +151,38 @@ def load_labels(path, macros):
                 if current is None:
                     current = name
                     labels[current] = []
+                    label_order.append(current)
                 else:
                     labels[current].append(("label", name))
                 continue
             if current is None:
                 continue
+            # Track the last macro (non-directive) call for fallthrough detection
+            token = stripped.split(None, 1)[0]
+            if not stripped.startswith('.'):
+                last_macro[current] = token
             labels[current].extend(expand_line(line, macros))
-    return labels
+    return labels, label_order, last_macro
+
+
+def add_fallthroughs(labels, label_order, last_macro):
+    """Append an explicit goto to labels that fall through to the next label."""
+    for i, label in enumerate(label_order):
+        if label in POINTER_TABLE_LABELS:
+            continue
+        macro = last_macro.get(label)
+        # Only add goto if the label has macro calls and ends without a terminator
+        if macro is None or macro in TERMINATING_MACROS:
+            continue
+        # Find the next non-pointer-table label in source order
+        j = i + 1
+        while j < len(label_order) and label_order[j] in POINTER_TABLE_LABELS:
+            j += 1
+        if j >= len(label_order):
+            continue
+        next_label = label_order[j]
+        labels[label].append('.byte 0x59')
+        labels[label].append(f'.4byte {next_label}')
 
 
 def is_pointer_expr(expr):
@@ -335,7 +364,8 @@ def main(argv):
     root_dir = os.path.abspath(argv[1])
     generated_dir = os.path.abspath(argv[2])
     macros = load_macros(os.path.join(root_dir, 'asm', 'macros', 'battle_ai_script.inc'))
-    labels = load_labels(os.path.join(root_dir, 'data', 'battle_ai_scripts.s'), macros)
+    labels, label_order, last_macro = load_labels(os.path.join(root_dir, 'data', 'battle_ai_scripts.s'), macros)
+    add_fallthroughs(labels, label_order, last_macro)
     out_path = os.path.join(generated_dir, 'src', 'data', 'battle_ai_scripts_portable_data.c')
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
     with open(out_path, 'w', encoding='utf-8', newline='\n') as handle:
