@@ -575,6 +575,12 @@ const u8 AI_CheckBadMove[] __attribute__((aligned(4))) = {
     U32_B1((FIRERED_BATTLE_AI_PTR_TOKEN_BASE + 0u)),
     U32_B2((FIRERED_BATTLE_AI_PTR_TOKEN_BASE + 0u)),
     U32_B3((FIRERED_BATTLE_AI_PTR_TOKEN_BASE + 0u)),
+    // goto AI_CBM_CheckIfNegatesType (fallthrough from original assembly, token index 491)
+    ((u8)(0x59)),
+    U32_B0((FIRERED_BATTLE_AI_PTR_TOKEN_BASE + 491u)),
+    U32_B1((FIRERED_BATTLE_AI_PTR_TOKEN_BASE + 491u)),
+    U32_B2((FIRERED_BATTLE_AI_PTR_TOKEN_BASE + 491u)),
+    U32_B3((FIRERED_BATTLE_AI_PTR_TOKEN_BASE + 491u)),
 };
 
 const u8 AI_CBM_CheckIfNegatesType[] __attribute__((aligned(4))) = {
@@ -10909,6 +10915,7 @@ const void *const gFireredPortableBattleAiPtrs[] = {
     ((const void *)(uintptr_t)AI_Roaming_Flee),
     ((const void *)(uintptr_t)AI_Safari_Flee),
     ((const void *)(uintptr_t)AI_FirstBattle_Flee),
+    ((const void *)(uintptr_t)AI_CBM_CheckIfNegatesType), // index 491: fallthrough target from AI_CheckBadMove
 };
 const u32 gFireredPortableBattleAiPtrCount = (u32)(sizeof(gFireredPortableBattleAiPtrs) / sizeof(gFireredPortableBattleAiPtrs[0]));
 
