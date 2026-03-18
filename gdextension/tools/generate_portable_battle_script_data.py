@@ -17,6 +17,7 @@ POINTER_TABLE_LABELS = {
     "gBattlescriptsForUsingItem",
     "gBattlescriptsForSafariActions",
 }
+TERMINATING_MACROS = frozenset({"end", "end2", "end3", "goto", "return"})
 POINTER_PREFIXES = (
     "BattleScript_",
     "EventScript_",
@@ -138,6 +139,8 @@ def expand_line(line, macros):
 
 def load_labels(path, macros):
     labels = {}
+    label_order = []
+    last_macro = {}
     current = None
     with open(path, 'r', encoding='utf-8') as handle:
         for raw_line in handle:
@@ -151,6 +154,7 @@ def load_labels(path, macros):
             if match:
                 current = match.group(1)
                 labels[current] = []
+                label_order.append(current)
                 continue
             inline_match = INLINE_LABEL_RE.match(line)
             if inline_match:
@@ -158,13 +162,35 @@ def load_labels(path, macros):
                 if current is None:
                     current = name
                     labels[current] = []
+                    label_order.append(current)
                 else:
                     labels[current].append(("label", name))
                 continue
             if current is None:
                 continue
+            token = stripped.split(None, 1)[0]
+            if not stripped.startswith('.'):
+                last_macro[current] = token
             labels[current].extend(expand_line(line, macros))
-    return labels
+    return labels, label_order, last_macro
+
+
+def add_fallthroughs(labels, label_order, last_macro):
+    """Append explicit goto to labels that fall through to the next label."""
+    for i, label in enumerate(label_order):
+        if label in POINTER_TABLE_LABELS:
+            continue
+        macro = last_macro.get(label)
+        if macro is None or macro in TERMINATING_MACROS:
+            continue
+        j = i + 1
+        while j < len(label_order) and label_order[j] in POINTER_TABLE_LABELS:
+            j += 1
+        if j >= len(label_order):
+            continue
+        next_label = label_order[j]
+        labels[label].append('.byte 0x28')
+        labels[label].append(f'.4byte {next_label}')
 
 
 def is_pointer_expr(expr):
@@ -367,8 +393,11 @@ def main(argv):
     generated_dir = os.path.abspath(argv[2])
     macros = load_macros(os.path.join(root_dir, 'asm', 'macros', 'battle_script.inc'))
     labels = {}
-    labels.update(load_labels(os.path.join(root_dir, 'data', 'battle_scripts_1.s'), macros))
-    labels.update(load_labels(os.path.join(root_dir, 'data', 'battle_scripts_2.s'), macros))
+    for src_file in ('battle_scripts_1.s', 'battle_scripts_2.s'):
+        file_labels, file_order, file_last_macro = load_labels(
+            os.path.join(root_dir, 'data', src_file), macros)
+        add_fallthroughs(file_labels, file_order, file_last_macro)
+        labels.update(file_labels)
     out_path = os.path.join(generated_dir, 'src', 'data', 'battle_scripts_portable_data.c')
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
     with open(out_path, 'w', encoding='utf-8', newline='\n') as handle:
