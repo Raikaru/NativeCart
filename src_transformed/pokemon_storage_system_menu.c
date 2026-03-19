@@ -62,14 +62,15 @@ static void ChooseBoxMenu_PrintBoxNameAndCount(void);
 static void ChooseBoxMenu_PrintTextToSprite(const u8 *a0, u16 x, u16 y);
 static void SpriteCB_ChooseBoxArrow(struct Sprite *sprite);
 
-static const u16 sChooseBoxMenu_Pal[];
-static const u8 sChooseBoxMenuCenter_Gfx[];
-static const u8 sChooseBoxMenuCorners_Gfx[];
+// Unused, since LoadChooseBoxMenuGfx is always called with `loadPal` as false.
+#define sChooseBoxMenu_Pal ((const u16 *)NULL)
+#define sChooseBoxMenuCenter_Gfx ((const u8 *)NULL)
+#define sChooseBoxMenuCorners_Gfx ((const u8 *)NULL)
 
-struct {
+static const struct {
     const u8 *text;
     const u8 *desc;
-} static const sMainMenuTexts[OPTIONS_COUNT] = {
+} sMainMenuTexts[OPTIONS_COUNT] = {
     [OPTION_WITHDRAW]   = {gText_WithdrawPokemon, gText_WithdrawMonDescription},
     [OPTION_DEPOSIT]    = {gText_DepositPokemon,  gText_DepositMonDescription},
     [OPTION_MOVE_MONS]  = {gText_MovePokemon,     gText_MoveMonDescription},
@@ -759,8 +760,3 @@ static void SpriteCB_ChooseBoxArrow(struct Sprite *sprite)
         }
     }
 }
-
-// Unused, since LoadChooseBoxMenuGfx is always called with `loadPal` as false
-#define sChooseBoxMenu_Pal ((const u16 *)NULL)
-#define sChooseBoxMenuCenter_Gfx ((const u8 *)NULL)
-#define sChooseBoxMenuCorners_Gfx ((const u8 *)NULL)

@@ -1709,12 +1709,12 @@ static u8 HandleInput_OnButtons(void)
 
 u8 HandleInput(void)
 {
-    struct
+    static const struct
     {
         u8 (*func)(void);
         s8 area;
     }
-    static const inputFuncs[] = {
+    inputFuncs[] = {
         {HandleInput_InBox,     CURSOR_AREA_IN_BOX},
         {HandleInput_InParty,   CURSOR_AREA_IN_PARTY},
         {HandleInput_BoxTitle,  CURSOR_AREA_BOX_TITLE},

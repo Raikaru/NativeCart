@@ -46,11 +46,11 @@ static u16 CalculateChecksum(void *data, u16 size);
     min(sizeof(structure) - chunkNum * SECTOR_DATA_SIZE, SECTOR_DATA_SIZE) : 0 \
 }
 
-struct
+static const struct
 {
     u16 offset;
     u16 size;
-} static const sSaveSlotLayout[NUM_SECTORS_PER_SLOT] =
+} sSaveSlotLayout[NUM_SECTORS_PER_SLOT] =
 {
     SAVEBLOCK_CHUNK(struct SaveBlock2, 0), // SECTOR_ID_SAVEBLOCK2
 

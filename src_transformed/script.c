@@ -59,13 +59,17 @@ static bool8 ShouldTraceOakScript(const u8 *script)
 static const u8 *ResolveMapScriptPointer(const u8 *script)
 {
     uintptr_t value;
+    uint32_t rawValue;
 
     if (script == NULL)
         return NULL;
 
     value = (uintptr_t)script;
-    if (value <= 0xFFFFFFFFu)
-        return (const u8 *)firered_portable_resolve_script_ptr((u32)value);
+    if (value <= UINT32_MAX)
+    {
+        rawValue = (uint32_t)value;
+        return (const u8 *)firered_portable_resolve_script_ptr(rawValue);
+    }
 
     return script;
 }

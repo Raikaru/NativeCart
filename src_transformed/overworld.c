@@ -56,19 +56,24 @@
 #include "constants/sound.h"
 
 #ifdef PORTABLE
+#include <stdio.h>
 extern void firered_runtime_trace_external(const char *message);
 extern void CB2_InitBattle(void);
 
 static const void *ResolveRomPointer(const void *ptr)
 {
     uintptr_t value;
+    uint32_t rawValue;
 
     if (ptr == NULL)
         return NULL;
 
     value = (uintptr_t)ptr;
     if (value <= 0xFFFFFFFFu)
-        return firered_portable_resolve_script_ptr((u32)value);
+    {
+        rawValue = (uint32_t)value;
+        return firered_portable_resolve_script_ptr(rawValue);
+    }
 
     return ptr;
 }
@@ -569,12 +574,12 @@ static bool32 IsDummyWarp(struct WarpData *warp)
         return TRUE;
 }
 
-struct MapHeader const *const Overworld_GetMapHeaderByGroupAndId(u16 mapGroup, u16 mapNum)
+const struct MapHeader *Overworld_GetMapHeaderByGroupAndId(u16 mapGroup, u16 mapNum)
 {
     return gMapGroups[mapGroup][mapNum];
 }
 
-struct MapHeader const *const GetDestinationWarpMapHeader(void)
+const struct MapHeader *GetDestinationWarpMapHeader(void)
 {
     return Overworld_GetMapHeaderByGroupAndId(sWarpDestination.mapGroup, sWarpDestination.mapNum);
 }
@@ -860,11 +865,8 @@ static void LoadMapFromWarp(bool32 unused)
 
 static void QL_LoadMapNormal(void)
 {
-    bool8 isOutdoors;
-
     LoadCurrentMapData();
     LoadObjEventTemplatesFromHeader();
-    isOutdoors = IsMapTypeOutdoors(gMapHeader.mapType);
     TrySetMapSaveWarpStatus();
     SetSavedWeatherFromCurrMapHeader();
     ChooseAmbientCrySpecies();
@@ -1531,7 +1533,8 @@ static void DoCB1_Overworld_QuestLogPlayback(void)
     FieldInput_HandleCancelSignpost(&fieldInput);
     if (!ArePlayerFieldControlsLocked())
     {
-        if (ProcessPlayerFieldInput(&fieldInput) == TRUE)
+        int processed = ProcessPlayerFieldInput(&fieldInput);
+        if (processed == TRUE)
         {
             LockPlayerFieldControls();
             DismissMapNamePopup();

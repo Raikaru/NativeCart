@@ -42,7 +42,7 @@ static const struct WindowTemplate sWindowTemplates[] = {
 };
 
 static const u8 sTextColor[3] = {1, 2, 3};
-static const u8 sString_Dummy[] = _("");
+static const u8 sString_Dummy[] = { EOS };
 
 bool8 MailboxPC_InitBuffers(u8 num)
 {
