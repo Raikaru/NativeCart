@@ -133,5 +133,7 @@ const uint8_t *engine_video_get_framebuffer(void);
 
 void engine_audio_reset(void);
 int16_t *engine_audio_get_samples(size_t *count);
+void engine_audio_submit_pcm(const int16_t *samples, size_t count);
+void engine_audio_submit_gba_directsound(const int8_t *fifo_a, const int8_t *fifo_b, size_t sample_count);
 
 #endif
