@@ -58,14 +58,14 @@ const u8 gText_UnionRoomChatKeyboard_56789Lower[] = _("56789");
 const u8 gText_UnionRoomChatKeyboard_PunctuationLower[] = _(".,!? ");
 const u8 gText_UnionRoomChatKeyboard_SymbolsLower[] = _("-/&… ");
 
-const u8 gText_EmptyTextInput1[] = _("");
-const u8 gText_EmptyTextInput2[] = _("");
-const u8 gText_EmptyTextInput3[] = _("");
-const u8 gText_EmptyTextInput4[] = _("");
-const u8 gText_EmptyTextInput5[] = _("");
-const u8 gText_EmptyTextInput6[] = _("");
-const u8 gText_EmptyTextInput7[] = _("");
-const u8 gText_EmptyTextInput8[] = _("");
+const u8 gText_EmptyTextInput1[] = { EOS };
+const u8 gText_EmptyTextInput2[] = { EOS };
+const u8 gText_EmptyTextInput3[] = { EOS };
+const u8 gText_EmptyTextInput4[] = { EOS };
+const u8 gText_EmptyTextInput5[] = { EOS };
+const u8 gText_EmptyTextInput6[] = { EOS };
+const u8 gText_EmptyTextInput7[] = { EOS };
+const u8 gText_EmptyTextInput8[] = { EOS };
 
 // Union Room Chat keyboard emojis
 const u8 gText_UnionRoomChatKeyboard_Emoji1[] = _("{EMOJI_MISCHIEVOUS}{EMOJI_HAPPY}{EMOJI_ANGRY}{EMOJI_SURPRISED}{EMOJI_BIGANGER}");

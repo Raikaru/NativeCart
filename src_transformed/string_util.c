@@ -46,6 +46,12 @@ static bool8 IsRivalNamePointerValid(const u8 *ptr)
 }
 #endif
 
+#ifdef PORTABLE
+#define STRING_IS_TERMINATOR(ch) ((ch) == EOS || (ch) == '\0')
+#else
+#define STRING_IS_TERMINATOR(ch) ((ch) == EOS)
+#endif
+
 EWRAM_DATA u8 gStringVar1[32] = {};
 EWRAM_DATA u8 gStringVar2[20] = {};
 EWRAM_DATA u8 gStringVar3[20] = {};
@@ -165,7 +171,7 @@ u8 *StringCopy(u8 *dest, const u8 *src)
         return dest;
     }
 #endif
-    while (*src != EOS)
+    while (!STRING_IS_TERMINATOR(*src))
     {
         *dest = *src;
         dest++;
@@ -189,7 +195,7 @@ u8 *StringAppend(u8 *dest, const u8 *src)
     }
     else
 #endif
-    while (*dest != EOS)
+    while (!STRING_IS_TERMINATOR(*dest))
         dest++;
 
     return StringCopy(dest, src);
@@ -207,7 +213,7 @@ u8 *StringCopyN(u8 *dest, const u8 *src, u8 n)
 
 u8 *StringAppendN(u8 *dest, const u8 *src, u8 n)
 {
-    while (*dest != EOS)
+    while (!STRING_IS_TERMINATOR(*dest))
         dest++;
 
     return StringCopyN(dest, src, n);
@@ -217,7 +223,7 @@ u16 StringLength(const u8 *str)
 {
     u16 length = 0;
 
-    while (str[length] != EOS)
+    while (!STRING_IS_TERMINATOR(str[length]))
         length++;
 
     return length;
@@ -227,7 +233,7 @@ s32 StringCompare(const u8 *str1, const u8 *str2)
 {
     while (*str1 == *str2)
     {
-        if (*str1 == EOS)
+        if (STRING_IS_TERMINATOR(*str1))
             return 0;
         str1++;
         str2++;

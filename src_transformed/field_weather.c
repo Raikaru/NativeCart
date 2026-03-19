@@ -10,6 +10,9 @@
 #include "constants/field_weather.h"
 #include "constants/weather.h"
 #include "constants/songs.h"
+#include <stdio.h>
+
+extern void engine_backend_trace_external(const char *msg);
 
 #define DROUGHT_COLOR_INDEX(color) ((((color) >> 1) & 0xF) | (((color) >> 2) & 0xF0) | (((color) >> 3) & 0xF00))
 
@@ -218,6 +221,10 @@ static void Task_WeatherInit(u8 taskId)
 
 static void Task_WeatherMain(u8 taskId)
 {
+    char _wtrace[128];
+
+    (void)taskId;
+
     if (gWeatherPtr->currWeather != gWeatherPtr->nextWeather)
     {
         if (!sWeatherFuncs[gWeatherPtr->currWeather].finish()
@@ -236,7 +243,15 @@ static void Task_WeatherMain(u8 taskId)
         sWeatherFuncs[gWeatherPtr->currWeather].main();
     }
 
+    snprintf(_wtrace, sizeof(_wtrace),
+        "WeatherMain: palState=%d curr=%d next=%d ptr=%p",
+        (int)gWeatherPtr->palProcessingState,
+        (int)gWeatherPtr->currWeather,
+        (int)gWeatherPtr->nextWeather,
+        (void *)gWeatherPtr);
+    engine_backend_trace_external(_wtrace);
     sWeatherPalStateFuncs[gWeatherPtr->palProcessingState]();
+    engine_backend_trace_external("WeatherMain: palStateFuncs returned");
 }
 
 
@@ -459,6 +474,12 @@ static void ApplyGammaShift(u8 startPalIndex, u8 numPalettes, s8 gammaIndex)
             if (sPaletteGammaTypes[curPalIndex] == GAMMA_NONE)
             {
                 // No palette change.
+                {
+                    char buffer[128];
+                    snprintf(buffer, sizeof(buffer), "ApplyGammaShift: CpuFastCopy numPalettes=%d palOffset=%d len=%llu",
+                        numPalettes, palOffset, (unsigned long long)PLTT_SIZE_4BPP);
+                    engine_backend_trace_external(buffer);
+                }
                 CpuFastCopy(&gPlttBufferUnfaded[palOffset], &gPlttBufferFaded[palOffset], PLTT_SIZE_4BPP);
                 palOffset += 16;
             }
@@ -493,6 +514,13 @@ static void ApplyGammaShift(u8 startPalIndex, u8 numPalettes, s8 gammaIndex)
     else
     {
         // No palette blending.
+        {
+            char buffer[128];
+            unsigned long long copyLen = (unsigned long long)numPalettes * (unsigned long long)PLTT_SIZE_4BPP;
+            snprintf(buffer, sizeof(buffer), "ApplyGammaShift: CpuFastCopy numPalettes=%d palOffset=%d len=%llu",
+                numPalettes, PLTT_ID(startPalIndex), copyLen);
+            engine_backend_trace_external(buffer);
+        }
         CpuFastCopy(&gPlttBufferUnfaded[PLTT_ID(startPalIndex)], &gPlttBufferFaded[PLTT_ID(startPalIndex)], numPalettes * PLTT_SIZE_4BPP);
     }
 }

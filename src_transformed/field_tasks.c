@@ -14,6 +14,9 @@
 #include "constants/field_tasks.h"
 #include "constants/metatile_labels.h"
 #include "constants/songs.h"
+#include <stdio.h>
+
+extern void engine_backend_trace_external(const char *msg);
 
 /*  This file handles some persistent tasks that run in the overworld.
  *  - Task_RunTimeBasedEvents: Triggers ambient cries. In RSE, this also periodically updates local time and RTC events.
@@ -66,7 +69,14 @@ static const u8 sIcefallCaveIceCoords[][2] =
 static void Task_RunPerStepCallback(u8 taskId)
 {
     int idx = gTasks[taskId].tCallbackId;
+    char _trace[128];
+
+    snprintf(_trace, sizeof(_trace),
+        "PerStepCB: taskId=%d idx=%d func=%p",
+        (int)taskId, idx, (void *)sPerStepCallbacks[idx]);
+    engine_backend_trace_external(_trace);
     sPerStepCallbacks[idx](taskId);
+    engine_backend_trace_external("PerStepCB: returned");
 }
 
 #define tAmbientCryState data[1]

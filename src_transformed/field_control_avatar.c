@@ -65,13 +65,17 @@ static void TraceWarpCheck(const char *fmt, ...)
 static const u8 *ResolveMapEventScriptPointer(const u8 *script)
 {
     uintptr_t value;
+    uint32_t rawValue;
 
     if (script == NULL)
         return NULL;
 
     value = (uintptr_t)script;
-    if (value <= 0xFFFFFFFFu)
-        return (const u8 *)firered_portable_resolve_script_ptr((u32)value);
+    if (value <= UINT32_MAX)
+    {
+        rawValue = (uint32_t)value;
+        return (const u8 *)firered_portable_resolve_script_ptr(rawValue);
+    }
 
     return script;
 }
@@ -328,7 +332,11 @@ int ProcessPlayerFieldInput(struct FieldInput *input)
         }
     }
 
-    if (input->pressedAButton && TryStartInteractionScript(&position, metatileBehavior, playerDirection) == TRUE)
+    // Quest log playback replays its own summarized event stream. Letting a recorded
+    // A press start a live field interaction script can wedge playback or desync it.
+    if (!QL_IS_PLAYBACK_STATE
+     && input->pressedAButton
+     && TryStartInteractionScript(&position, metatileBehavior, playerDirection) == TRUE)
     {
         gFieldInputRecord.pressedAButton = TRUE;
         return TRUE;
