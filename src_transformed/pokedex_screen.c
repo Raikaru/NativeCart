@@ -252,7 +252,7 @@ const u16 sBlitTiles_WideEllipse[] = INCBIN_U16("graphics/pokedex/blit_wide_elli
 
 #include "data/pokemon/pokedex_orders.h"
 
-static const u8 gExpandedPlaceholder_PokedexDescription[] = _("");
+static const u8 gExpandedPlaceholder_PokedexDescription[] = { EOS };
 
 #include "data/pokemon/pokedex_text.h"
 #include "data/pokemon/pokedex_entries.h"

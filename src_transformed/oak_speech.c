@@ -1266,7 +1266,7 @@ static void Task_OakSpeech_Init(u8 taskId)
 
 #define OakSpeechPrintMessage(str, speed) ({                                                                                                                 \
     DrawDialogueFrame(WIN_INTRO_TEXTBOX, FALSE);                                                                                                             \
-    if (str != gStringVar4)                                                                                                                                  \
+    if ((const u8 *)(str) != gStringVar4)                                                                                                                    \
     {                                                                                                                                                        \
         StringExpandPlaceholders(gStringVar4, str);                                                                                                          \
         AddTextPrinterParameterized2(WIN_INTRO_TEXTBOX, FONT_MALE, gStringVar4, speed, NULL, TEXT_COLOR_DARK_GRAY, TEXT_COLOR_WHITE, TEXT_COLOR_LIGHT_GRAY); \

@@ -209,7 +209,7 @@ struct BattleMsgData
 };
 
 void BufferStringBattle(u16 stringID);
-u32 BattleStringExpandPlaceholdersToDisplayedString(const u8 *src);
+void BattleStringExpandPlaceholdersToDisplayedString(const u8 *src);
 u32 BattleStringExpandPlaceholders(const u8 *src, u8 *dst);
 void BattleHandleAddTextPrinter(const u8 *text, u8 arg1);
 void SetPpNumbersPaletteInMoveSelection(void);

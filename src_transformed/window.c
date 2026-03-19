@@ -12,8 +12,14 @@ EWRAM_DATA struct Window gWindows[WINDOWS_MAX] = {0};
 
 static u8 GetNumActiveWindowsOnBg(u8 bgId);
 static void CopyWindowTemplate(struct WindowTemplate *dest, const struct WindowTemplate *src);
+static u32 GetWindowTileDataSize(const struct WindowTemplate *template);
 
 static const struct WindowTemplate sDummyWindowTemplate = {0xFF, 0, 0, 0, 0, 0, 0};
+
+static u32 GetWindowTileDataSize(const struct WindowTemplate *template)
+{
+    return 0x20u * template->width * template->height;
+}
 
 static void nullsub_8(void)
 {
@@ -80,7 +86,7 @@ bool16 InitWindows(const struct WindowTemplate *templates)
             }
         }
 
-        allocatedTilemapBuffer = Alloc((u16)(0x20 * (templates[i].width * templates[i].height)));
+        allocatedTilemapBuffer = Alloc(GetWindowTileDataSize(&templates[i]));
 
         if (allocatedTilemapBuffer == NULL)
         {
@@ -155,7 +161,7 @@ u16 AddWindow(const struct WindowTemplate *template)
         }
     }
 
-    allocatedTilemapBuffer = Alloc((u16)(0x20 * (template->width * template->height)));
+    allocatedTilemapBuffer = Alloc(GetWindowTileDataSize(template));
 
     if (allocatedTilemapBuffer == NULL)
     {

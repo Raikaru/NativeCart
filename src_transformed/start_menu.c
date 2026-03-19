@@ -60,6 +60,12 @@ enum SaveCBReturn
 };
 
 static EWRAM_DATA bool8 (*sStartMenuCallback)(void) = NULL;
+#ifdef PORTABLE
+static bool8 (*sStartMenuCallback_Portable)(void) = NULL;
+#define sStartMenuActiveCallback sStartMenuCallback_Portable
+#else
+#define sStartMenuActiveCallback sStartMenuCallback
+#endif
 static EWRAM_DATA u8 sStartMenuCursorPos = 0;
 static EWRAM_DATA u8 sNumStartMenuItems = 0;
 static EWRAM_DATA u8 sStartMenuOrder[MAX_STARTMENU_ITEMS] = {};
@@ -382,11 +388,11 @@ void Task_StartMenuHandleInput(u8 taskId)
     case 0:
         if (InUnionRoom() == TRUE)
             SetUsingUnionRoomStartMenu();
-        sStartMenuCallback = StartCB_HandleInput;
+        sStartMenuActiveCallback = StartCB_HandleInput;
         data[0]++;
         break;
     case 1:
-        if (sStartMenuCallback() == TRUE)
+        if (sStartMenuActiveCallback() == TRUE)
             DestroyTask(taskId);
         break;
     }
@@ -429,7 +435,7 @@ static bool8 StartCB_HandleInput(void)
         PlaySE(SE_SELECT);
         if (!StartMenuPokedexSanityCheck())
             return FALSE;
-        sStartMenuCallback = sStartMenuActionTable[sStartMenuOrder[sStartMenuCursorPos]].func.u8_void;
+        sStartMenuActiveCallback = sStartMenuActionTable[sStartMenuOrder[sStartMenuCursorPos]].func.u8_void;
         StartMenu_FadeScreenIfLeavingOverworld();
         return FALSE;
     }
@@ -445,9 +451,9 @@ static bool8 StartCB_HandleInput(void)
 
 static void StartMenu_FadeScreenIfLeavingOverworld(void)
 {
-    if (sStartMenuCallback != StartMenuSaveCallback
-     && sStartMenuCallback != StartMenuExitCallback
-     && sStartMenuCallback != StartMenuSafariZoneRetireCallback)
+    if (sStartMenuActiveCallback != StartMenuSaveCallback
+     && sStartMenuActiveCallback != StartMenuExitCallback
+     && sStartMenuActiveCallback != StartMenuSafariZoneRetireCallback)
     {
         StopPokemonLeagueLightingEffectTask();
         FadeScreen(FADE_TO_BLACK, 0);
@@ -516,7 +522,7 @@ static bool8 StartMenuPlayerCallback(void)
 
 static bool8 StartMenuSaveCallback(void)
 {
-    sStartMenuCallback = StartCB_Save1;
+    sStartMenuActiveCallback = StartCB_Save1;
     return FALSE;
 }
 
@@ -569,7 +575,7 @@ static bool8 StartCB_Save1(void)
     BackupHelpContext();
     SetHelpContext(HELPCONTEXT_SAVE);
     StartMenu_PrepareForSave();
-    sStartMenuCallback = StartCB_Save2;
+    sStartMenuActiveCallback = StartCB_Save2;
     return FALSE;
 }
 
@@ -589,7 +595,7 @@ static bool8 StartCB_Save2(void)
         ClearDialogWindowAndFrameToTransparent(0, FALSE);
         DrawStartMenuInOneGo();
         RestoreHelpContext();
-        sStartMenuCallback = StartCB_HandleInput;
+        sStartMenuActiveCallback = StartCB_HandleInput;
         break;
     case SAVECB_RETURN_ERROR:
         ClearDialogWindowAndFrameToTransparent(0, TRUE);

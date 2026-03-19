@@ -72,6 +72,7 @@ static void *LoadPortableMonAssetFile(const char *relativePath)
     char fullPath[512];
     size_t bytesRead;
     long size;
+    u32 allocSize;
     u32 i;
 
     for (i = 0; i < ARRAY_COUNT(sPortableMonAssetPrefixes); i++)
@@ -97,9 +98,15 @@ static void *LoadPortableMonAssetFile(const char *relativePath)
         fclose(file);
         return NULL;
     }
+    if ((unsigned long)size > (unsigned long)UINT32_MAX)
+    {
+        fclose(file);
+        return NULL;
+    }
 
     rewind(file);
-    data = Alloc((u32)size);
+    allocSize = (u32)size;
+    data = Alloc(allocSize);
     if (data == NULL)
     {
         fclose(file);
@@ -2516,7 +2523,6 @@ s32 CalculateBaseDamage(struct BattlePokemon *attacker, struct BattlePokemon *de
     u16 attack, defense;
     u16 spAttack, spDefense;
     u8 defenderHoldEffect;
-    u8 defenderHoldEffectParam;
     u8 attackerHoldEffect;
     u8 attackerHoldEffectParam;
 
@@ -2551,12 +2557,10 @@ s32 CalculateBaseDamage(struct BattlePokemon *attacker, struct BattlePokemon *de
     if (defender->item == ITEM_ENIGMA_BERRY)
     {
         defenderHoldEffect = gEnigmaBerries[battlerIdDef].holdEffect;
-        defenderHoldEffectParam = gEnigmaBerries[battlerIdDef].holdEffectParam;
     }
     else
     {
         defenderHoldEffect = ItemId_GetHoldEffect(defender->item);
-        defenderHoldEffectParam = ItemId_GetHoldEffectParam(defender->item);
     }
 
     if (attacker->ability == ABILITY_HUGE_POWER || attacker->ability == ABILITY_PURE_POWER)
@@ -3092,7 +3096,10 @@ u32 GetMonData3(struct Pokemon *mon, s32 field, u8 *data)
     return ret;
 }
 
-u32 GetMonData2(struct Pokemon *mon, s32 field) __attribute__((alias("GetMonData3")));
+u32 GetMonData2(struct Pokemon *mon, s32 field)
+{
+    return GetMonData3(mon, field, NULL);
+}
 
 /* GameFreak called GetBoxMonData with either 2 or 3 arguments, for type
  * safety we have a GetBoxMonData macro (in include/pokemon.h) which
@@ -3454,7 +3461,10 @@ u32 GetBoxMonData3(struct BoxPokemon *boxMon, s32 field, u8 *data)
     return retVal;
 }
 
-u32 GetBoxMonData2(struct BoxPokemon *boxMon, s32 field) __attribute__((alias("GetBoxMonData3")));
+u32 GetBoxMonData2(struct BoxPokemon *boxMon, s32 field)
+{
+    return GetBoxMonData3(boxMon, field, NULL);
+}
 
 #define SET8(lhs) (lhs) = *data
 #define SET16(lhs) (lhs) = data[0] + (data[1] << 8)
@@ -4661,25 +4671,12 @@ bool8 PokemonItemUseNoEffect(struct Pokemon *mon, u16 item, u8 partyIndex, u8 mo
     u8 idx = ITEM_EFFECT_ARG_START;
     u32 i;
     s32 sp18 = 0;
-    u8 holdEffect;
     u8 battlerId = MAX_BATTLERS_COUNT;
     u16 heldItem;
     u8 curEffect;
     u32 curMoveId;
 
-    // Get item hold effect
     heldItem = GetMonData(mon, MON_DATA_HELD_ITEM, NULL);
-    if (heldItem == ITEM_ENIGMA_BERRY)
-    {
-        if (gMain.inBattle)
-            holdEffect = gEnigmaBerries[gBattlerInMenuId].holdEffect;
-        else
-            holdEffect = gSaveBlock1Ptr->enigmaBerry.holdEffect;
-    }
-    else
-    {
-        holdEffect = ItemId_GetHoldEffect(heldItem);
-    }
 
     // Get battler id (if relevant)
     gPotentialItemEffectBattler = gBattlerInMenuId;
@@ -5736,8 +5733,7 @@ u16 GetMonEVCount(struct Pokemon *mon)
 // whether it's used.
 void RandomlyGivePartyPokerus(struct Pokemon *party)
 {
-    u8 foo;
-    &foo;
+    (void)party;
 }
 
 u8 CheckPartyPokerus(struct Pokemon *party, u8 selection)
@@ -5800,14 +5796,11 @@ u8 CheckPartyHasHadPokerus(struct Pokemon *party, u8 selection)
 // See note on RandomlyGivePartyPokerus above.
 static void UpdatePartyPokerusTime(void)
 {
-    u8 foo;
-    &foo;
 }
 
 void PartySpreadPokerus(struct Pokemon *party)
 {
-    u8 foo;
-    &foo;
+    (void)party;
 }
 
 static void SetMonExpWithMaxLevelCheck(struct Pokemon *mon, int species, u8 unused, u32 data)

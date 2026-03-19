@@ -15,6 +15,8 @@
 #include "constants/songs.h"
 #include "constants/battle_anim.h"
 
+extern bool8 BattleLinkTransferIsReady(void);
+
 static void SafariHandleGetMonData(void);
 static void SafariHandleGetRawMonData(void);
 static void SafariHandleSetMonData(void);
@@ -282,7 +284,7 @@ static void CompleteOnFinishedBattleAnimation(void)
 static void SafariBufferExecCompleted(void)
 {
     gBattlerControllerFuncs[gActiveBattler] = SafariBufferRunCommand;
-    if (gBattleTypeFlags & BATTLE_TYPE_LINK)
+    if (BattleLinkTransferIsReady())
     {
         u8 playerId = GetMultiplayerId();
 

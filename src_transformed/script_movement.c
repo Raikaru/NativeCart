@@ -245,14 +245,24 @@ static void ScriptMovement_TakeStep(u8 taskId, u8 moveScrId, u8 objEventId, cons
         return;
     }
 
+    {
+        char _ms[128];
+        snprintf(_ms, sizeof(_ms),
+            "MoveScript: dispatch slot=%d obj=%d action=%02X",
+            moveScrId, objEventId, movementScript[0]);
+        engine_backend_trace_external(_ms);
+    }
+
     nextMoveActionId = *movementScript;
 #ifdef PORTABLE
     TraceMovementScript("MoveScript: action slot=%u obj=%u action=%02X", moveScrId, objEventId, nextMoveActionId);
 #endif
     if (nextMoveActionId == MOVEMENT_ACTION_STEP_END)
     {
+        engine_backend_trace_external("MoveScript: action FE handler enter");
         SetMovementScriptFinished(taskId, moveScrId);
         FreezeObjectEvent(&gObjectEvents[objEventId]);
+        engine_backend_trace_external("MoveScript: action FE handler exit");
 #ifdef PORTABLE
         TraceMovementScript("MoveScript: end task=%u slot=%u obj=%u", taskId, moveScrId, objEventId);
 #endif
@@ -274,4 +284,6 @@ static void ScriptMovement_TakeStep(u8 taskId, u8 moveScrId, u8 objEventId, cons
         }
 #endif
     }
+
+    engine_backend_trace_external("MoveScript: dispatch returned");
 }

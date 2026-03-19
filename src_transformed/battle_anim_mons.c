@@ -27,6 +27,12 @@ static void AnimWeatherBallUp_Step(struct Sprite *sprite);
 
 static EWRAM_DATA union AffineAnimCmd *sAnimTaskAffineAnim = NULL;
 static EWRAM_DATA u32 sUnused = 0;
+static SpriteCallback sStoredSpriteCallbacks[MAX_SPRITES] = {0};
+
+static u8 GetSpriteStorageId(struct Sprite *sprite)
+{
+    return (u8)(sprite - gSprites);
+}
 
 static const struct UCoords8 sBattlerCoords[][MAX_BATTLERS_COUNT] =
 {
@@ -376,15 +382,25 @@ u8 GetAnimBattlerSpriteId(u8 animBattler)
 
 void StoreSpriteCallbackInData6(struct Sprite *sprite, SpriteCallback callback)
 {
-    sprite->data[6] = (u32)(callback) & 0xFFFF;
-    sprite->data[7] = (u32)(callback) >> 16;
+    u8 spriteId = GetSpriteStorageId(sprite);
+
+    if (spriteId < MAX_SPRITES)
+        sStoredSpriteCallbacks[spriteId] = callback;
 }
 
 static void SetCallbackToStoredInData6(struct Sprite *sprite)
 {
-    u32 callback = (u16)sprite->data[6] | (sprite->data[7] << 16);
-    
-    sprite->callback = (SpriteCallback)callback;
+    u8 spriteId = GetSpriteStorageId(sprite);
+
+    if (spriteId < MAX_SPRITES && sStoredSpriteCallbacks[spriteId] != NULL)
+    {
+        sprite->callback = sStoredSpriteCallbacks[spriteId];
+        sStoredSpriteCallbacks[spriteId] = NULL;
+    }
+    else
+    {
+        sprite->callback = SpriteCallbackDummy;
+    }
 }
 
 // Sprite data for TranslateSpriteInCircle/Ellipse and related
@@ -1683,13 +1699,13 @@ void PrepareAffineAnimInTaskData(struct Task *task, u8 spriteId, const union Aff
     task->data[10] = 0x100;
     task->data[11] = 0x100;
     task->data[12] = 0;
-    StorePointerInVars(&task->data[13], &task->data[14], affineAnimCmds);
+    SetWordTaskArg((u8)(task - gTasks), 13, (uintptr_t)affineAnimCmds);
     PrepareBattlerSpriteForRotScale(spriteId, ST_OAM_OBJ_NORMAL);
 }
 
 bool8 RunAffineAnimFromTaskData(struct Task *task)
 {
-    sAnimTaskAffineAnim = LoadPointerFromVars(task->data[13], task->data[14]) + (task->data[7] << 3);
+    sAnimTaskAffineAnim = (union AffineAnimCmd *)GetWordTaskArg((u8)(task - gTasks), 13) + (task->data[7] << 3);
     switch (sAnimTaskAffineAnim->type)
     {
     default:
@@ -1815,17 +1831,6 @@ static u16 GetBattlerYDeltaFromSpriteId(u8 spriteId)
         }
     }
     return MON_PIC_HEIGHT;
-}
-
-void StorePointerInVars(s16 *lo, s16 *hi, const void *ptr)
-{
-    *lo = ((intptr_t)ptr) & 0xffff;
-    *hi = (((intptr_t)ptr) >> 16) & 0xffff;
-}
-
-void *LoadPointerFromVars(s16 lo, s16 hi)
-{
-    return (void *)((u16)lo | ((u16)hi << 16));
 }
 
 void BattleAnimHelper_SetSpriteSquashParams(struct Task *task, u8 spriteId, s16 xScaleStart, s16 yScaleStart, s16 xScaleEnd, s16 yScaleEnd, u16 duration)

@@ -42,6 +42,29 @@ static const u8 sWindowVerticalScrollSpeeds[] = {
     [OPTIONS_TEXT_SPEED_FAST] = 4,
 };
 
+#ifdef PORTABLE
+static bool8 PortableTryDecodeLegacyEscape(const u8 *src, u16 *outChar)
+{
+    if (src[0] != '\\')
+        return FALSE;
+
+    switch (src[1])
+    {
+    case 'l':
+        *outChar = CHAR_PROMPT_SCROLL;
+        return TRUE;
+    case 'p':
+        *outChar = CHAR_PROMPT_CLEAR;
+        return TRUE;
+    case 'n':
+        *outChar = CHAR_NEWLINE;
+        return TRUE;
+    default:
+        return FALSE;
+    }
+}
+#endif
+
 static const struct GlyphWidthFunc sGlyphWidthFuncs[] = {
     { FONT_SMALL,         GetGlyphWidth_Small },
     { FONT_NORMAL_COPY_1, GetGlyphWidth_NormalCopy1 },
@@ -76,12 +99,12 @@ static const struct SpriteTemplate sSpriteTemplate_TextCursor =
     .callback = SpriteCB_TextCursor,
 };
 
-struct
+static const struct
 {
     u16 tileOffset;
     u8 width;
     u8 height;
-} static const sKeypadIcons[] =
+} sKeypadIcons[] =
 {
     [CHAR_A_BUTTON]       = {  0x0,  8, 12 },
     [CHAR_B_BUTTON]       = {  0x1,  8, 12 },
@@ -678,6 +701,13 @@ u16 RenderText(struct TextPrinter *textPrinter)
 
         currChar = *textPrinter->printerTemplate.currentChar;
         textPrinter->printerTemplate.currentChar++;
+#ifdef PORTABLE
+        if (currChar == '\\'
+         && PortableTryDecodeLegacyEscape(textPrinter->printerTemplate.currentChar - 1, &currChar))
+        {
+            textPrinter->printerTemplate.currentChar++;
+        }
+#endif
 
         switch (currChar)
         {
@@ -958,6 +988,10 @@ static s32 GetStringWidthFixedWidthFont(const u8 *str, u8 fontId, u8 letterSpaci
     do
     {
         temp = strLocal[strPos++];
+#ifdef PORTABLE
+        if (temp == '\\' && PortableTryDecodeLegacyEscape(&strLocal[strPos - 1], (u16 *)&temp))
+            strPos++;
+#endif
         switch (temp)
         {
         case CHAR_NEWLINE:
@@ -1067,7 +1101,14 @@ s32 GetStringWidth(u8 fontId, const u8 *str, s16 letterSpacing)
 
     while (*str != EOS)
     {
-        switch (*str)
+        u16 currChar = *str;
+
+#ifdef PORTABLE
+        if (currChar == '\\' && PortableTryDecodeLegacyEscape(str, &currChar))
+            ++str;
+#endif
+
+        switch (currChar)
         {
         case CHAR_NEWLINE:
             if (lineWidth > width)
@@ -1159,7 +1200,7 @@ s32 GetStringWidth(u8 fontId, const u8 *str, s16 letterSpacing)
             break;
         case CHAR_KEYPAD_ICON:
         case CHAR_EXTRA_SYMBOL:
-            if (*str == CHAR_EXTRA_SYMBOL)
+            if (currChar == CHAR_EXTRA_SYMBOL)
                 glyphWidth = func(*++str | 0x100, isJapanese);
             else
                 glyphWidth = GetKeypadIconWidth(*++str);
@@ -1176,7 +1217,7 @@ s32 GetStringWidth(u8 fontId, const u8 *str, s16 letterSpacing)
             lineWidth += glyphWidth;
             break;
         default:
-            glyphWidth = func(*str, isJapanese);
+            glyphWidth = func(currChar, isJapanese);
             if (minGlyphWidth > 0)
             {
                 if (glyphWidth < minGlyphWidth)
@@ -1209,6 +1250,8 @@ u8 RenderTextHandleBold(u8 *pixels, u8 fontId, u8 *str, int a3, int a4, int a5, 
     u8 colorBackup[3];
     u8 fgColor;
     u8 bgColor;
+
+    (void)fontId;
 
     SaveTextColors(&colorBackup[0], &colorBackup[1], &colorBackup[2]);
 

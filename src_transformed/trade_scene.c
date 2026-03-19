@@ -69,7 +69,7 @@ struct InGameTrade {
     /*0x38*/ u16 requestedSpecies;
 };
 
-struct {
+static EWRAM_DATA struct {
     /*0x00*/ struct Pokemon tempMon; // Used as a temp variable when swapping Pokémon
     /*0x64*/ u32 timer;
     /*0x68*/ u32 monPersonalities[2];
@@ -115,7 +115,7 @@ struct {
     /*0x10A*/ u8 win0top;
     /*0x10B*/ u8 win0right;
     /*0x10C*/ u8 win0bottom;
-} static EWRAM_DATA * sTradeAnim = NULL;
+} *sTradeAnim = NULL;
 
 static void SpriteCB_LinkMonGlow(struct Sprite *sprite);
 static void SpriteCB_LinkMonGlowWireless(struct Sprite *sprite);

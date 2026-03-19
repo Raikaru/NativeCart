@@ -1,4 +1,5 @@
 #include <stdarg.h>
+#include <stdint.h>
 #include <stdio.h>
 #include "config.h"
 #include "gba/gba.h"
@@ -54,7 +55,7 @@ void AGBPrintInit(void)
 static void AGBPutcInternal(const char cChr)
 {
     volatile struct AGBPrintStruct *pPrint = (struct AGBPrintStruct *)AGB_PRINT_STRUCT_ADDR;
-    u16 *pPrintBuf = (u16 *)(0x8000000 + (pPrint->m_nBank << 16));
+    u16 *pPrintBuf = (u16 *)(uintptr_t)(0x08000000u + ((uintptr_t)pPrint->m_nBank << 16));
     u16 *pProtect = (u16 *)AGB_PRINT_PROTECT_ADDR;
     u16 nData = pPrintBuf[pPrint->m_nPut / 2];
     *pProtect = 0x20;
@@ -178,7 +179,14 @@ void AGBAssert(const char *pFile, int nLine, const char *pExpression, int nStopP
 #if (LOG_HANDLER == LOG_HANDLER_NOCASH_PRINT)
 void NoCashGBAPrint(const char *pBuf)
 {
-    *(volatile u32 *)NOCASHGBAPRINTADDR2 = (u32)pBuf;
+    uintptr_t ptr = (uintptr_t)pBuf;
+    u32 ptr32;
+
+    if (ptr > UINT32_MAX)
+        return;
+
+    ptr32 = (u32)ptr;
+    *(volatile u32 *)(uintptr_t)NOCASHGBAPRINTADDR2 = ptr32;
 }
 
 void NoCashGBAPrintf(const char *pBuf, ...)

@@ -66,12 +66,21 @@
 // unit size (2 or 4 bytes) and then combined with the DMA control flags using a
 // bitwise OR operation.
 
+#ifdef PORTABLE
+#define DMA_CLEAR(dmaNum, dest, size, bit) \
+{                                          \
+    u##bit *_dest = (u##bit *)(dest);      \
+    u32 _size = size;                      \
+    DmaFill##bit(dmaNum, 0, _dest, _size); \
+}
+#else
 #define DMA_CLEAR(dmaNum, dest, size, bit)  \
 {                                           \
     vu##bit *_dest = (vu##bit *)(dest);     \
     u32 _size = size;                       \
     DmaFill##bit(dmaNum, 0, _dest, _size);  \
 }
+#endif
 
 #define DmaClear16(dmaNum, dest, size) DMA_CLEAR(dmaNum, dest, size, 16)
 #define DmaClear32(dmaNum, dest, size) DMA_CLEAR(dmaNum, dest, size, 32)

@@ -71,7 +71,6 @@ static void TraceBattleMain(const char *fmt, ...)
     vsnprintf(buffer, sizeof(buffer), fmt, args);
     va_end(args);
     firered_runtime_trace_external(buffer);
-    fflush(stdout);
     sBattleMainTraceCount++;
 }
 #endif
@@ -1588,13 +1587,18 @@ void BattleMainCB2(void)
     RunTextPrinters();
 #ifdef PORTABLE
     firered_runtime_trace_external("BattleMainDirect: post-RunTextPrinters");
+    firered_runtime_trace_external("BattleMain: pre-UpdatePaletteFade A");
     firered_runtime_trace_external("BattleMainDirect: pre-UpdatePaletteFade");
+    firered_runtime_trace_external("BattleMain: pre-UpdatePaletteFade B");
     TraceBattleMain("BattleMain: BattleMainCB2 post-RunTextPrinters");
+    firered_runtime_trace_external("BattleMain: pre-UpdatePaletteFade C");
     TraceBattleMain("BattleMain: BattleMainCB2 pre-UpdatePaletteFade");
+    firered_runtime_trace_external("BattleMain: pre-UpdatePaletteFade D");
 #endif
     UpdatePaletteFade();
 #ifdef PORTABLE
     firered_runtime_trace_external("BattleMainDirect: post-UpdatePaletteFade");
+    firered_runtime_trace_external("BattleMain: post-UpdatePaletteFade");
     firered_runtime_trace_external("BattleMainDirect: pre-RunTasks");
     TraceBattleMain("BattleMain: BattleMainCB2 post-UpdatePaletteFade");
     TraceBattleMain("BattleMain: BattleMainCB2 pre-RunTasks");
@@ -2402,15 +2406,12 @@ void BeginBattleIntro(void)
 static void BattleMainCB1(void)
 {
 #ifdef PORTABLE
-    printf("BattleMainCB1: entry\n");
-    fflush(stdout);
-    printf("BattleMainCB1: pre-mainFunc\n");
-    fflush(stdout);
+    firered_runtime_trace_external("BattleMainCB1: entry");
+    firered_runtime_trace_external("BattleMainCB1: pre-mainFunc");
 #endif
     gBattleMainFunc();
 #ifdef PORTABLE
-    printf("BattleMainCB1: post-mainFunc\n");
-    fflush(stdout);
+    firered_runtime_trace_external("BattleMainCB1: post-mainFunc");
 #endif
 
     for (gActiveBattler = 0; gActiveBattler < gBattlersCount; gActiveBattler++)
@@ -2421,13 +2422,15 @@ static void BattleMainCB1(void)
 #endif
         gBattlerControllerFuncs[gActiveBattler]();
 #ifdef PORTABLE
-        printf("BattleMainCB1: post-controller i=%d\n", gActiveBattler);
-        fflush(stdout);
+        {
+            char buffer[96];
+            snprintf(buffer, sizeof(buffer), "BattleMainCB1: post-controller i=%d", gActiveBattler);
+            firered_runtime_trace_external(buffer);
+        }
 #endif
     }
 #ifdef PORTABLE
-    printf("BattleMainCB1: exit\n");
-    fflush(stdout);
+    firered_runtime_trace_external("BattleMainCB1: exit");
 #endif
 }
 

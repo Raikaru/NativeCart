@@ -18,6 +18,8 @@
 #include "reshow_battle_screen.h"
 #include "teachy_tv.h"
 #include "constants/songs.h"
+
+extern bool8 BattleLinkTransferIsReady(void);
 #include "constants/moves.h"
 #include "constants/pokemon.h"
 
@@ -688,7 +690,7 @@ static void CompleteOnFinishedStatusAnimation(void)
 static void PokedudeBufferExecCompleted(void)
 {
     gBattlerControllerFuncs[gActiveBattler] = PokedudeBufferRunCommand;
-    if (gBattleTypeFlags & BATTLE_TYPE_LINK)
+    if (BattleLinkTransferIsReady())
     {
         u8 playerId = GetMultiplayerId();
 

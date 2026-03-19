@@ -49,13 +49,17 @@ static void TraceHeldMove(const char *fmt, ...)
 static const u8 *ResolveMapEventScriptPointer(const u8 *script)
 {
     uintptr_t value;
+    uint32_t rawValue;
 
     if (script == NULL)
         return NULL;
 
     value = (uintptr_t)script;
-    if (value <= 0xFFFFFFFFu)
-        return (const u8 *)firered_portable_resolve_script_ptr((u32)value);
+    if (value <= UINT32_MAX)
+    {
+        rawValue = (uint32_t)value;
+        return (const u8 *)firered_portable_resolve_script_ptr(rawValue);
+    }
 
     return script;
 }
@@ -8619,10 +8623,10 @@ static void DoTracksGroundEffect_BikeTireTracks(struct ObjectEvent *objEvent, st
     //  each byte in that row is for the next direction of the bike in the order
     //  of down, up, left, right.
     static const u8 bikeTireTracks_Transitions[4][4] = {
-        1, 2, 7, 8,
-        1, 2, 6, 5,
-        5, 8, 3, 4,
-        6, 7, 3, 4,
+        {1, 2, 7, 8},
+        {1, 2, 6, 5},
+        {5, 8, 3, 4},
+        {6, 7, 3, 4},
     };
 
     if (objEvent->currentCoords.x != objEvent->previousCoords.x || objEvent->currentCoords.y != objEvent->previousCoords.y)

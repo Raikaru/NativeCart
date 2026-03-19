@@ -1,11 +1,12 @@
 #ifndef GUARD_FLDEFF_H
 #define GUARD_FLDEFF_H
 
-#define FLDEFF_CALL_FUNC_IN_DATA() ((void (*)(void))(((u16)gTasks[taskId].data[8] << 16) | (u16)gTasks[taskId].data[9]))();
+#include "task.h"
 
-#define FLDEFF_SET_FUNC_TO_DATA(func)                     \
-gTasks[taskId].data[8] = (u32)func >> 16;                 \
-gTasks[taskId].data[9] = (u32)func;
+#define FLDEFF_CALL_FUNC_IN_DATA() ((void (*)(void))(uintptr_t)GetWordTaskArg(taskId, 8))()
+
+#define FLDEFF_SET_FUNC_TO_DATA(func) \
+SetWordTaskArg(taskId, 8, (uintptr_t)(func))
 
 extern struct MapPosition gPlayerFacingPosition;
 
