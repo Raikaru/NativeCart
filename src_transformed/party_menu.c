@@ -1713,34 +1713,12 @@ void PartyMenuModifyHP(u8 taskId, u8 slot, s8 hpIncrement, s16 hpDifference, Tas
     SetTaskFuncWithFollowupFunc(taskId, Task_PartyMenuModifyHP, task);
 }
 
-// The usage of hp in this function is mostly nonsense
-// Because caseId is always passed 0, none of the other cases ever occur
-static void ResetHPTaskData(u8 taskId, u8 caseId, u32 hp)
+static void ResetHPTaskData(u8 taskId, u32 hp)
 {
     s16 *data = gTasks[taskId].data;
 
-    switch (caseId) // always zero
-    {
-    case 0:
-        tHP = hp;
-        tStartHP = hp;
-        break;
-    case 1:
-        tMaxHP = hp;
-        break;
-    case 2:
-        tHPIncrement = hp;
-        break;
-    case 3:
-        tHPToAdd = hp;
-        break;
-    case 4:
-        tPartyId = hp;
-        break;
-    case 5:
-        SetTaskFuncWithFollowupFunc(taskId, Task_PartyMenuModifyHP, (TaskFunc)hp); // >casting hp as a taskfunc
-        break;
-    }
+    tHP = hp;
+    tStartHP = hp;
 }
 
 #undef tHP
@@ -4522,7 +4500,7 @@ void ItemUseCB_MedicineStep(u8 taskId, TaskFunc func)
             if (hp == 0)
                 AnimatePartySlot(gPartyMenu.slotId, 1);
             PartyMenuModifyHP(taskId, gPartyMenu.slotId, 1, GetMonData(mon, MON_DATA_HP) - hp, Task_DisplayHPRestoredMessage);
-            ResetHPTaskData(taskId, 0, hp);
+            ResetHPTaskData(taskId, hp);
         }
         else
         {
@@ -5248,7 +5226,7 @@ static void UseSacredAsh(u8 taskId)
     AnimatePartySlot(sPartyMenuInternal->tLastSlotUsed, 0);
     AnimatePartySlot(gPartyMenu.slotId, 1);
     PartyMenuModifyHP(taskId, gPartyMenu.slotId, 1, GetMonData(mon, MON_DATA_HP) - hp, Task_SacredAshDisplayHPRestored);
-    ResetHPTaskData(taskId, 0, hp);
+    ResetHPTaskData(taskId, hp);
     sPartyMenuInternal->tUsedOnSlot = TRUE;
     sPartyMenuInternal->tHadEffect = TRUE;
 }

@@ -2579,6 +2579,9 @@ static void VBlankCB_ShowMonEffect_Indoors(void);
 static void AnimateIndoorShowMonBg(struct Task *task);
 static bool8 SlideIndoorBannerOnscreen(struct Task *task);
 static bool8 SlideIndoorBannerOffscreen(struct Task *task);
+static void SaveShowMonVBlankCallback(struct Task *task);
+static IntrCallback GetSavedShowMonVBlankCallback(struct Task *task);
+static void ClearSavedShowMonVBlankCallback(struct Task *task);
 static u8 InitFieldMoveMonSprite(u32 species, u32 otId, u32 personality);
 static void SpriteCB_FieldMoveMonSlideOnscreen(struct Sprite *sprite);
 static void SpriteCB_FieldMoveMonWaitAfterCry(struct Sprite *sprite);
@@ -2593,6 +2596,8 @@ static void (*const sShowMonOutdoorsEffectFuncs[])(struct Task *task) = {
     ShowMonEffect_Outdoors_6,
     ShowMonEffect_Outdoors_7
 };
+
+static IntrCallback sShowMonSavedVBlankCallbacks[NUM_TASKS] = {0};
 
 u32 FldEff_FieldMoveShowMon(void)
 {
@@ -2623,11 +2628,26 @@ static void Task_ShowMon_Outdoors(u8 taskId)
     sShowMonOutdoorsEffectFuncs[gTasks[taskId].data[0]](&gTasks[taskId]);
 }
 
+static void SaveShowMonVBlankCallback(struct Task *task)
+{
+    sShowMonSavedVBlankCallbacks[task - gTasks] = gMain.vblankCallback;
+}
+
+static IntrCallback GetSavedShowMonVBlankCallback(struct Task *task)
+{
+    return sShowMonSavedVBlankCallbacks[task - gTasks];
+}
+
+static void ClearSavedShowMonVBlankCallback(struct Task *task)
+{
+    sShowMonSavedVBlankCallbacks[task - gTasks] = NULL;
+}
+
 static void ShowMonEffect_Outdoors_1(struct Task *task)
 {
     task->data[11] = GetGpuReg(REG_OFFSET_WININ);
     task->data[12] = GetGpuReg(REG_OFFSET_WINOUT);
-    StoreWordInTwoHalfwords((u16 *)&task->data[13], (u32)gMain.vblankCallback);
+    SaveShowMonVBlankCallback(task);
     task->data[1] = WIN_RANGE(0xF0, 0xF1);
     task->data[2] = WIN_RANGE(0x50, 0x51);
     task->data[3] = WININ_WIN0_BG_ALL | WININ_WIN0_OBJ | WININ_WIN0_CLR;
@@ -2644,8 +2664,8 @@ static void ShowMonEffect_Outdoors_2(struct Task *task)
 {
     u16 charbase = ((GetGpuReg(REG_OFFSET_BG0CNT) >> 2) << 14);
     u16 screenbase = ((GetGpuReg(REG_OFFSET_BG0CNT) >> 8) << 11);
-    CpuCopy16(sFieldMoveStreaksOutdoors_Gfx, (void *)(VRAM + charbase), 0x200);
-    CpuFill32(0, (void *)(VRAM + screenbase), 0x800);
+    CpuCopy16(sFieldMoveStreaksOutdoors_Gfx, (void *)(uintptr_t)(VRAM + charbase), 0x200);
+    CpuFill32(0, (void *)(uintptr_t)(VRAM + screenbase), 0x800);
     LoadPalette(sFieldMoveStreaksOutdoors_Pal, BG_PLTT_ID(15), sizeof(sFieldMoveStreaksOutdoors_Pal));
     LoadFieldMoveStreaksTilemapToVram(screenbase);
     task->data[0]++;
@@ -2720,7 +2740,7 @@ static void ShowMonEffect_Outdoors_5(struct Task *task)
 static void ShowMonEffect_Outdoors_6(struct Task *task)
 {
     u16 bg0cnt = (GetGpuReg(REG_OFFSET_BG0CNT) >> 8) << 11;
-    CpuFill32(0, (void *)VRAM + bg0cnt, 0x800);
+    CpuFill32(0, (void *)(uintptr_t)(VRAM + bg0cnt), 0x800);
     task->data[1] = WIN_RANGE(0x00, 0xf1);
     task->data[2] = WIN_RANGE(0x00, 0xa1);
     task->data[3] = task->data[11];
@@ -2730,9 +2750,8 @@ static void ShowMonEffect_Outdoors_6(struct Task *task)
 
 static void ShowMonEffect_Outdoors_7(struct Task *task)
 {
-    IntrCallback callback;
-    LoadWordFromTwoHalfwords((u16 *)&task->data[13], (u32 *)&callback);
-    SetVBlankCallback(callback);
+    SetVBlankCallback(GetSavedShowMonVBlankCallback(task));
+    ClearSavedShowMonVBlankCallback(task);
     ChangeBgX(0, 0, 0);
     ChangeBgY(0, 0, 0);
     Menu_LoadStdPal();
@@ -2743,10 +2762,8 @@ static void ShowMonEffect_Outdoors_7(struct Task *task)
 
 static void VBlankCB_ShowMonEffect_Outdoors(void)
 {
-    IntrCallback callback;
     struct Task *task = &gTasks[FindTaskIdByFunc(Task_ShowMon_Outdoors)];
-    LoadWordFromTwoHalfwords((u16 *)&task->data[13], (u32 *)&callback);
-    callback();
+    GetSavedShowMonVBlankCallback(task)();
     SetGpuReg(REG_OFFSET_WIN0H, task->data[1]);
     SetGpuReg(REG_OFFSET_WIN0V, task->data[2]);
     SetGpuReg(REG_OFFSET_WININ, task->data[3]);
@@ -2759,7 +2776,7 @@ static void LoadFieldMoveStreaksTilemapToVram(u16 screenbase)
 {
     u16 i;
     u16 *dest;
-    dest = (u16 *)(VRAM + (10 * 32) + screenbase);
+    dest = (u16 *)(uintptr_t)(VRAM + (10 * 32) + screenbase);
     for (i = 0; i < (10 * 32); i++, dest++)
         *dest = sFieldMoveStreaksOutdoors_Tilemap[i] | 0xF000;
 }
@@ -2783,7 +2800,7 @@ static void ShowMonEffect_Indoors_1(struct Task *task)
 {
     SetGpuReg(REG_OFFSET_BG0HOFS, task->data[1]);
     SetGpuReg(REG_OFFSET_BG0VOFS, task->data[2]);
-    StoreWordInTwoHalfwords((u16 *)&task->data[13], (u32)gMain.vblankCallback);
+    SaveShowMonVBlankCallback(task);
     SetVBlankCallback(VBlankCB_ShowMonEffect_Indoors);
     task->data[0]++;
 }
@@ -2795,8 +2812,8 @@ static void ShowMonEffect_Indoors_2(struct Task *task)
     charbase = ((GetGpuReg(REG_OFFSET_BG0CNT) >> 2) << 14);
     screenbase = ((GetGpuReg(REG_OFFSET_BG0CNT) >> 8) << 11);
     task->data[12] = screenbase;
-    CpuCopy16(sFieldMoveStreaksIndoors_Gfx, (void *)(VRAM + charbase), 0x80);
-    CpuFill32(0, (void *)(VRAM + screenbase), 0x800);
+    CpuCopy16(sFieldMoveStreaksIndoors_Gfx, (void *)(uintptr_t)(VRAM + charbase), 0x80);
+    CpuFill32(0, (void *)(uintptr_t)(VRAM + screenbase), 0x800);
     LoadPalette(sFieldMoveStreaksIndoors_Pal, BG_PLTT_ID(15), sizeof(sFieldMoveStreaksIndoors_Pal));
     task->data[0]++;
 }
@@ -2846,12 +2863,11 @@ static void ShowMonEffect_Indoors_6(struct Task *task)
 
 static void ShowMonEffect_Indoors_7(struct Task *task)
 {
-    IntrCallback intrCallback;
     u16 charbase;
     charbase = (GetGpuReg(REG_OFFSET_BG0CNT) >> 8) << 11;
-    CpuFill32(0, (void *)VRAM + charbase, 0x800);
-    LoadWordFromTwoHalfwords((u16 *)&task->data[13], (u32 *)&intrCallback);
-    SetVBlankCallback(intrCallback);
+    CpuFill32(0, (void *)(uintptr_t)(VRAM + charbase), 0x800);
+    SetVBlankCallback(GetSavedShowMonVBlankCallback(task));
+    ClearSavedShowMonVBlankCallback(task);
     ChangeBgX(0, 0, 0);
     ChangeBgY(0, 0, 0);
     Menu_LoadStdPal();
@@ -2862,11 +2878,9 @@ static void ShowMonEffect_Indoors_7(struct Task *task)
 
 static void VBlankCB_ShowMonEffect_Indoors(void)
 {
-    IntrCallback intrCallback;
     struct Task *task;
     task = &gTasks[FindTaskIdByFunc(Task_ShowMon_Indoors)];
-    LoadWordFromTwoHalfwords((u16 *)&task->data[13], (u32 *)&intrCallback);
-    intrCallback();
+    GetSavedShowMonVBlankCallback(task)();
     SetGpuReg(REG_OFFSET_BG0HOFS, task->data[1]);
     SetGpuReg(REG_OFFSET_BG0VOFS, task->data[2]);
 }
@@ -2892,7 +2906,7 @@ static bool8 SlideIndoorBannerOnscreen(struct Task *task)
     {
         dstOffs = (32 - dstOffs) & 0x1f;
         srcOffs = (32 - task->data[4]) & 0x1f;
-        dest = (u16 *)(VRAM + 0x140 + (u16)task->data[12]);
+        dest = (u16 *)(uintptr_t)(VRAM + 0x140 + (u16)task->data[12]);
         for (i = 0; i < 10; i++)
         {
             dest[dstOffs + i * 32] = sFieldMoveStreaksIndoors_Tilemap[srcOffs + i * 32];
@@ -2919,7 +2933,7 @@ static bool8 SlideIndoorBannerOffscreen(struct Task *task)
     if (dstOffs >= task->data[4])
     {
         dstOffs = (task->data[1] >> 3) & 0x1f;
-        dest = (u16 *)(VRAM + 0x140 + (u16)task->data[12]);
+        dest = (u16 *)(uintptr_t)(VRAM + 0x140 + (u16)task->data[12]);
         for (i = 0; i < 10; i++)
         {
             dest[dstOffs + i * 32] = 0xf000;

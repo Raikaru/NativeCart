@@ -14,6 +14,8 @@
 #include "constants/songs.h"
 #include "constants/sound.h"
 
+extern bool8 BattleLinkTransferIsReady(void);
+
 static void LinkPartnerHandleGetMonData(void);
 static void LinkPartnerHandleGetRawMonData(void);
 static void LinkPartnerHandleSetMonData(void);
@@ -377,7 +379,7 @@ static void SwitchIn_TryShinyAnim(void)
 static void LinkPartnerBufferExecCompleted(void)
 {
     gBattlerControllerFuncs[gActiveBattler] = LinkPartnerBufferRunCommand;
-    if (gBattleTypeFlags & BATTLE_TYPE_LINK)
+    if (BattleLinkTransferIsReady())
     {
         u8 playerId = GetMultiplayerId();
 

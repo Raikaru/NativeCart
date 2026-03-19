@@ -292,8 +292,6 @@ void PrepareAffineAnimInTaskData(struct Task *task, u8 spriteId, const union Aff
 bool8 RunAffineAnimFromTaskData(struct Task *task);
 void SetBattlerSpriteYOffsetFromYScale(u8 spriteId);
 void SetBattlerSpriteYOffsetFromOtherYScale(u8 spriteId, u8 otherSpriteId);
-void StorePointerInVars(s16 *lo, s16 *hi, const void *ptr);
-void *LoadPointerFromVars(s16 lo, s16 hi);
 void BattleAnimHelper_SetSpriteSquashParams(struct Task *task, u8 spriteId, s16 xScale0, s16 yScale0, s16 xScale1, s16 yScale1, u16 duration);
 u8 BattleAnimHelper_RunSpriteSquash(struct Task *task);
 void InitPrioritiesForVisibleBattlers(void);

@@ -7,12 +7,12 @@
 #include "util.h"
 #include "constants/songs.h"
 
-struct {
+static EWRAM_DATA struct {
     s16 startX;
     s16 startY;
     s16 targetX;
     s16 targetY;
-} static EWRAM_DATA sFrenzyPlantRootData = {0}; // Debug? Written to but never read.
+} sFrenzyPlantRootData = {0}; // Debug? Written to but never read.
 
 static void AnimMovePowderParticle(struct Sprite *);
 static void AnimMovePowderParticle_Step(struct Sprite *);
@@ -2792,12 +2792,9 @@ static void AnimConstrictBinding(struct Sprite* sprite)
 
 static void AnimConstrictBinding_Step1(struct Sprite* sprite)
 {
-    u8 spriteId;
-
     if ((u16)gBattleAnimArgs[7] == 0xFFFF)
     {
         sprite->affineAnimPaused = FALSE;
-        spriteId = GetAnimBattlerSpriteId(ANIM_TARGET);
         sprite->data[0] = 0x100;
         sprite->callback = AnimConstrictBinding_Step2;
     }
@@ -2805,8 +2802,6 @@ static void AnimConstrictBinding_Step1(struct Sprite* sprite)
 
 static void AnimConstrictBinding_Step2(struct Sprite* sprite)
 {
-    u8 spriteId = GetAnimBattlerSpriteId(ANIM_TARGET);
-    
     if (!sprite->data[2])
         sprite->data[0] += 11;
     else
@@ -4771,7 +4766,7 @@ static void AnimFalseSwipeSlice(struct Sprite* sprite)
 
 static void AnimFalseSwipePositionedSlice(struct Sprite* sprite)
 {
-    sprite->x = sprite->x = GetBattlerSpriteCoord(gBattleAnimTarget, BATTLER_COORD_X_2) + 0xFFD0 + gBattleAnimArgs[0];
+    sprite->x = GetBattlerSpriteCoord(gBattleAnimTarget, BATTLER_COORD_X_2) - 0x30 + gBattleAnimArgs[0];
     sprite->y = GetBattlerSpriteCoord(gBattleAnimTarget, BATTLER_COORD_Y_PIC_OFFSET);
     StartSpriteAnim(sprite, 1);
     sprite->data[0] = 0;
@@ -5056,7 +5051,7 @@ void AnimTask_MoonlightEndFade(u8 taskId)
     gTasks[taskId].data[9] = 15;
     b = GetBattleMonSpritePalettesMask(1, 1, 1, 1);
     c = a | b;
-    StorePointerInVars(&gTasks[taskId].data[14], &gTasks[taskId].data[15], (void *)c);
+    SetWordTaskArg(taskId, 14, c);
     b = b | (0x10000 << IndexOfSpritePaletteTag(ANIM_TAG_MOON));
     d = IndexOfSpritePaletteTag(ANIM_TAG_GREEN_SPARKLE);
     BeginNormalPaletteFade((0x10000 << d) | b, 0, 0, 16, RGB(27, 29, 31));
@@ -5132,7 +5127,8 @@ void AnimTask_MoonlightEndFade_Step(u8 taskId)
     case 2:
         if (++task->data[1] > 30)
         {
-            BeginNormalPaletteFade((u32)LoadPointerFromVars(task->data[14], task->data[15]), 0, 16, 0, RGB(27, 29, 31));
+            u32 paletteMask = (u32)GetWordTaskArg(taskId, 14);
+            BeginNormalPaletteFade(paletteMask, 0, 16, 0, RGB(27, 29, 31));
             task->data[0]++;
         }
         break;
@@ -5674,4 +5670,3 @@ static void AnimTauntFinger_Step2(struct Sprite* sprite)
     if (++sprite->data[1] > 5)
         DestroyAnimSprite(sprite);
 }
-

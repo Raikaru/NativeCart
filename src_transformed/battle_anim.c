@@ -10,6 +10,7 @@
 #include "m4a.h"
 #include "task.h"
 #include "constants/battle_anim.h"
+#include <stdint.h>
 
 /*
     This file handles the commands for the macros defined in
@@ -55,6 +56,7 @@ static void LoadDefaultBg(void);
 static void Task_LoopAndPlaySE(u8 taskId);
 static void Task_WaitAndPlaySE(u8 taskId);
 static void Task_ClearMonBg(u8 taskId);
+static TaskFunc ResolveBattleAnimTaskFunc(const u8 *ptr);
 
 static void Cmd_loadspritegfx(void);
 static void Cmd_unloadspritegfx(void);
@@ -106,6 +108,19 @@ static void Cmd_teamattack_movefwd(void);
 static void Cmd_stopsound(void);
 
 #include "data/battle_anim.h"
+
+static TaskFunc ResolveBattleAnimTaskFunc(const u8 *ptr)
+{
+    uintptr_t resolved;
+
+#ifdef PORTABLE
+    resolved = (uintptr_t)firered_portable_resolve_script_ptr(T2_READ_32(ptr));
+#else
+    resolved = (uintptr_t)T2_READ_32(ptr);
+#endif
+
+    return (TaskFunc)resolved;
+}
 
 static void (*const sScriptCmdTable[])(void) =
 {
@@ -355,7 +370,7 @@ static void Cmd_createsprite(void)
     s16 subpriority;
 
     sBattleAnimScriptPtr++;
-    template = (const struct SpriteTemplate *)(T2_READ_32(sBattleAnimScriptPtr));
+    template = T2_READ_PTR(sBattleAnimScriptPtr);
     sBattleAnimScriptPtr += 4;
 
     argVar = sBattleAnimScriptPtr[0];
@@ -410,7 +425,7 @@ static void Cmd_createvisualtask(void)
 
     sBattleAnimScriptPtr++;
 
-    taskFunc = (TaskFunc)T2_READ_32(sBattleAnimScriptPtr);
+    taskFunc = ResolveBattleAnimTaskFunc(sBattleAnimScriptPtr);
     sBattleAnimScriptPtr += 4;
 
     taskPriority = sBattleAnimScriptPtr[0];
@@ -1044,13 +1059,12 @@ static void Cmd_fadetobg(void)
 
 static void Cmd_fadetobgfromset(void)
 {
-    u8 bg1, bg2, bg3;
+    u8 bg1, bg2;
     u8 taskId;
 
     sBattleAnimScriptPtr++;
     bg1 = sBattleAnimScriptPtr[0];
     bg2 = sBattleAnimScriptPtr[1];
-    bg3 = sBattleAnimScriptPtr[2];
     sBattleAnimScriptPtr += 3;
     taskId = CreateTask(Task_FadeToBg, 5);
 
@@ -1509,7 +1523,7 @@ static void Cmd_createsoundtask(void)
     s32 i;
 
     sBattleAnimScriptPtr++;
-    func = (TaskFunc)T2_READ_32(sBattleAnimScriptPtr);
+    func = ResolveBattleAnimTaskFunc(sBattleAnimScriptPtr);
     sBattleAnimScriptPtr += 4;
     numArgs = sBattleAnimScriptPtr[0];
     sBattleAnimScriptPtr++;

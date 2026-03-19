@@ -241,23 +241,19 @@ static u8 CheckPathBetweenTrainerAndPlayer(struct ObjectEvent *trainerObj, u8 ap
 }
 
 #define tFuncId             data[0]
-#define tTrainerObjHi       data[1]
-#define tTrainerObjLo       data[2]
 #define tTrainerRange       data[3]
 #define tOutOfAshSpriteId   data[4]
 #define tData5              data[5]
 
-#define TaskGetTrainerObj(dest, task) do { \
-    (dest) = (struct ObjectEvent *)(((task)->tTrainerObjHi << 16) | ((u16)(task)->tTrainerObjLo)); \
+#define TaskGetTrainerObj(dest, taskId) do { \
+    (dest) = (struct ObjectEvent *)(uintptr_t)GetWordTaskArg((taskId), 1); \
 } while (0)
 
 static void TrainerApproachPlayer(struct ObjectEvent * trainerObj, u8 approachDistance)
 {
     u8 taskId = CreateTask(Task_RunTrainerSeeFuncList, 80);
-    struct Task *task = &gTasks[taskId];
-    task->tTrainerObjHi = ((uintptr_t)trainerObj) >> 16;
-    task->tTrainerObjLo = (uintptr_t)trainerObj;
-    task->tTrainerRange = approachDistance;
+    gTasks[taskId].tTrainerRange = approachDistance;
+    SetWordTaskArg(taskId, 1, (uintptr_t)trainerObj);
 }
 
 static void StartTrainerApproachWithFollowupTask(TaskFunc taskFunc)
@@ -272,7 +268,7 @@ static void Task_RunTrainerSeeFuncList(u8 taskId)
 {
     struct Task *task = &gTasks[taskId];
     struct ObjectEvent * trainerObj;
-    TaskGetTrainerObj(trainerObj, task);
+    TaskGetTrainerObj(trainerObj, taskId);
 
     if (!trainerObj->active)
     {
@@ -516,17 +512,12 @@ static bool8 TrainerSeeFunc_OffscreenAboveTrainerCameraObjMoveDown(u8 taskId, st
 #undef tData5
 #undef tOutOfAshSpriteId
 #undef tTrainerRange
-#undef tTrainerObjLo
-#undef tTrainerObjHi
 #undef tFuncId
 
 static void Task_RevealTrainer_RunTrainerSeeFuncList(u8 taskId)
 {
     struct Task *task = &gTasks[taskId];
-    struct ObjectEvent * trainerObj;
-
-    // another objEvent loaded into by loadword?
-    LoadWordFromTwoHalfwords((u16 *)&task->data[1], (u32 *)&trainerObj);
+    struct ObjectEvent *trainerObj = (struct ObjectEvent *)(uintptr_t)GetWordTaskArg(taskId, 1);
     if (!task->data[7])
     {
         ObjectEventClearHeldMovement(trainerObj);
@@ -547,7 +538,8 @@ static void Task_RevealTrainer_RunTrainerSeeFuncList(u8 taskId)
 
 void MovementAction_RevealTrainer_RunTrainerSeeFuncList(struct ObjectEvent *var)
 {
-    StoreWordInTwoHalfwords((u16 *)&gTasks[CreateTask(Task_RevealTrainer_RunTrainerSeeFuncList, 0)].data[1], (u32)var);
+    u8 taskId = CreateTask(Task_RevealTrainer_RunTrainerSeeFuncList, 0);
+    SetWordTaskArg(taskId, 1, (uintptr_t)var);
 }
 
 void EndTrainerApproach(void)

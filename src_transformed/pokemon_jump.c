@@ -2595,10 +2595,10 @@ static const u16 sPrizeItems[] = {
     ITEM_IAPAPA_BERRY
 };
 
-struct {
+static const struct {
     u32 score;
     u32 quantity;
-} static const sPrizeQuantityData[] =
+} sPrizeQuantityData[] =
 {
     { .score =  5000, .quantity = 1},
     { .score =  8000, .quantity = 2},
@@ -2970,11 +2970,11 @@ static const struct WindowTemplate sWindowTemplates[] =
     DUMMY_WIN_TEMPLATE,
 };
 
-struct
+static const struct
 {
     int id;
     void (*func)(void);
-} static const sPokeJumpGfxFuncs[] =
+} sPokeJumpGfxFuncs[] =
 {
     {GFXFUNC_LOAD,                 LoadPokeJumpGfx}, // Element not used, LoadPokeJumpGfx is passed directly to SetUpPokeJumpGfxFunc
     {GFXFUNC_SHOW_NAMES,           PrintPlayerNamesNoHighlight},
