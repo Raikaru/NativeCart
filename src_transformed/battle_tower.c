@@ -22,6 +22,7 @@
 #include "constants/items.h"
 #include "constants/moves.h"
 #include "constants/pokemon.h"
+#include "constants/trainers.h"
 #include "constants/event_objects.h"
 
 static EWRAM_DATA u16 sSpecialVar_0x8004_Copy = 0;
@@ -43,6 +44,7 @@ static u16 GetCurrentBattleTowerWinStreak(u8 levelType);
 static void AppendBattleTowerBanText(const u8 *src);
 static void SetEReaderTrainerChecksum(struct BattleTowerEReaderTrainer * eReaderTrainer);
 static void PrintEReaderTrainerFarewellMessage(void);
+static u8 GetBattleTowerPlayerTrainerClass(bool8 female);
 
 // unknown unused data
 static const u8 sUnused[] = {
@@ -146,6 +148,28 @@ static const u8 sFemaleTrainerGfx[] =
 {
 
 };
+
+static u8 GetBattleTowerPlayerTrainerClass(bool8 female)
+{
+    u32 trainerIdSum = gSaveBlock2Ptr->playerTrainerId[0]
+                     + gSaveBlock2Ptr->playerTrainerId[1]
+                     + gSaveBlock2Ptr->playerTrainerId[2]
+                     + gSaveBlock2Ptr->playerTrainerId[3];
+    u32 classCount;
+
+    if (female)
+    {
+        classCount = NELEMS(sFemaleTrainerClasses);
+        if (classCount == 0)
+            return TRAINER_CLASS_LASS;
+        return sFemaleTrainerClasses[trainerIdSum % classCount];
+    }
+
+    classCount = NELEMS(sMaleTrainerClasses);
+    if (classCount == 0)
+        return TRAINER_CLASS_YOUNGSTER;
+    return sMaleTrainerClasses[trainerIdSum % classCount];
+}
 
 const u16 gBattleTowerBannedSpecies[] = {
     SPECIES_MEW,
@@ -1129,15 +1153,9 @@ static void SetPlayerBattleTowerRecord(void)
     u8 battleTowerLevelType = gSaveBlock2Ptr->battleTower.battleTowerLevelType;
 
     if (gSaveBlock2Ptr->playerGender != MALE)
-    {
-        trainerClass = sFemaleTrainerClasses[(gSaveBlock2Ptr->playerTrainerId[0] + gSaveBlock2Ptr->playerTrainerId[1]
-                                              + gSaveBlock2Ptr->playerTrainerId[2] + gSaveBlock2Ptr->playerTrainerId[3]) % NELEMS(sFemaleTrainerClasses)];
-    }
+        trainerClass = GetBattleTowerPlayerTrainerClass(TRUE);
     else
-    {
-        trainerClass = sMaleTrainerClasses[(gSaveBlock2Ptr->playerTrainerId[0] + gSaveBlock2Ptr->playerTrainerId[1]
-                                            + gSaveBlock2Ptr->playerTrainerId[2] + gSaveBlock2Ptr->playerTrainerId[3]) % NELEMS(sMaleTrainerClasses)];
-    }
+        trainerClass = GetBattleTowerPlayerTrainerClass(FALSE);
 
     playerRecord->battleTowerLevelType = battleTowerLevelType;
     playerRecord->trainerClass = trainerClass;
@@ -1323,15 +1341,9 @@ static void Debug_FillEReaderTrainerWithPlayerData(void)
     ereaderTrainer = &gSaveBlock2Ptr->battleTower.ereaderTrainer;
 
     if (gSaveBlock2Ptr->playerGender != MALE)
-    {
-        ereaderTrainer->trainerClass = sFemaleTrainerClasses[(gSaveBlock2Ptr->playerTrainerId[0] + gSaveBlock2Ptr->playerTrainerId[1]
-                                                              + gSaveBlock2Ptr->playerTrainerId[2] + gSaveBlock2Ptr->playerTrainerId[3]) % NELEMS(sFemaleTrainerClasses)];
-    }
+        ereaderTrainer->trainerClass = GetBattleTowerPlayerTrainerClass(TRUE);
     else
-    {
-        ereaderTrainer->trainerClass = sMaleTrainerClasses[(gSaveBlock2Ptr->playerTrainerId[0] + gSaveBlock2Ptr->playerTrainerId[1]
-                                                            + gSaveBlock2Ptr->playerTrainerId[2] + gSaveBlock2Ptr->playerTrainerId[3]) % NELEMS(sMaleTrainerClasses)];
-    }
+        ereaderTrainer->trainerClass = GetBattleTowerPlayerTrainerClass(FALSE);
 
     CopyTrainerId(ereaderTrainer->trainerId, gSaveBlock2Ptr->playerTrainerId);
     StringCopy_PlayerName(ereaderTrainer->name, gSaveBlock2Ptr->playerName);
@@ -1443,6 +1455,7 @@ void Dummy_TryEnableBravoTrainerBattleTower(void)
     for (i = 0; i < 2; i++)
     {
         if (gSaveBlock2Ptr->battleTower.var_4AE[i] == 1)
-            TakeBravoTrainerBattleTowerOffTheAir();
+        {
+        }
     }
 }

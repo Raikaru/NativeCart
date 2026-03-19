@@ -24,6 +24,7 @@
 #ifdef PORTABLE
 #include <stdio.h>
 #include <stdarg.h>
+extern void firered_runtime_trace_external(const char *message);
 static void TraceOpponentSendout(const char *fmt, ...)
 {
     char buffer[256];
@@ -32,8 +33,7 @@ static void TraceOpponentSendout(const char *fmt, ...)
     va_start(args, fmt);
     vsnprintf(buffer, sizeof(buffer), fmt, args);
     va_end(args);
-    printf("%s\n", buffer);
-    fflush(stdout);
+    firered_runtime_trace_external(buffer);
 }
 
 static bool8 IsPortableLiveSprite(u8 spriteId)

@@ -30,6 +30,7 @@ static void AnimTask_BlendColorCycleByTagLoop(u8 taskId);
 static void AnimTask_FlashAnimTagWithColor_Step1(u8 taskId);
 static void AnimTask_FlashAnimTagWithColor_Step2(u8 taskId);
 static void AnimShakeMonOrBattleTerrain_UpdateCoordOffsetEnabled(void);
+static u16 *GetShakeMonTarget(struct Sprite *sprite);
 static void AnimShakeMonOrBattleTerrain_Step(struct Sprite *sprite);
 static void AnimTask_ShakeBattleTerrain_Step(u8 taskId);
 static void AnimFlashingHitSplat_Step(struct Sprite *sprite);
@@ -770,6 +771,7 @@ static void AnimTask_TintPalettes(u8 taskId)
 
 static void AnimShakeMonOrBattleTerrain(struct Sprite *sprite)
 {
+    u16 *target;
     u16 var0;
 
     sprite->invisible = TRUE;
@@ -778,23 +780,9 @@ static void AnimShakeMonOrBattleTerrain(struct Sprite *sprite)
     sprite->data[2] = gBattleAnimArgs[1];
     sprite->data[3] = gBattleAnimArgs[2];
 
-    switch (gBattleAnimArgs[3])
-    {
-    case 0:
-        StoreSpriteCallbackInData6(sprite, (void *)&gBattle_BG3_X);
-        break;
-    case 1:
-        StoreSpriteCallbackInData6(sprite, (void *)&gBattle_BG3_Y);
-        break;
-    case 2:
-        StoreSpriteCallbackInData6(sprite, (void *)&gSpriteCoordOffsetX);
-        break;
-    default:
-        StoreSpriteCallbackInData6(sprite, (void *)&gSpriteCoordOffsetY);
-        break;
-    }
-    sprite->data[4] = *(u16 *)(sprite->data[6] | (sprite->data[7] << 16));
     sprite->data[5] = gBattleAnimArgs[3];
+    target = GetShakeMonTarget(sprite);
+    sprite->data[4] = *target;
     var0 = sprite->data[5] - 2;
     if (var0 < 2)
         AnimShakeMonOrBattleTerrain_UpdateCoordOffsetEnabled();
@@ -804,6 +792,7 @@ static void AnimShakeMonOrBattleTerrain(struct Sprite *sprite)
 static void AnimShakeMonOrBattleTerrain_Step(struct Sprite *sprite)
 {
     u8 i;
+    u16 *target = GetShakeMonTarget(sprite);
     u16 var0;
 
     if (sprite->data[3] > 0)
@@ -816,18 +805,33 @@ static void AnimShakeMonOrBattleTerrain_Step(struct Sprite *sprite)
         else
         {
             sprite->data[1] = sprite->data[2];
-            *(u16 *)(sprite->data[6] | (sprite->data[7] << 16)) += sprite->data[0];
+            *target += sprite->data[0];
             sprite->data[0] = -sprite->data[0];
         }
     }
     else
     {
-        *(u16 *)(sprite->data[6] | (sprite->data[7] << 16)) = sprite->data[4];
+        *target = sprite->data[4];
         var0 = sprite->data[5] - 2;
         if (var0 < 2)
             for (i = 0; i < gBattlersCount; ++i)
                 gSprites[gBattlerSpriteIds[i]].coordOffsetEnabled = FALSE;
         DestroyAnimSprite(sprite);
+    }
+}
+
+static u16 *GetShakeMonTarget(struct Sprite *sprite)
+{
+    switch (sprite->data[5])
+    {
+    case 0:
+        return &gBattle_BG3_X;
+    case 1:
+        return &gBattle_BG3_Y;
+    case 2:
+        return &gSpriteCoordOffsetX;
+    default:
+        return &gSpriteCoordOffsetY;
     }
 }
 

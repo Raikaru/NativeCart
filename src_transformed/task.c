@@ -2,6 +2,12 @@
 #include "task.h"
 
 #ifdef PORTABLE
+#ifndef PORTABLE_BUILD
+#define PORTABLE_BUILD
+#endif
+#endif
+
+#ifdef PORTABLE
 #include <stdarg.h>
 #include <stdio.h>
 
@@ -32,10 +38,8 @@ static void TraceTaskCreate(const char *fmt, ...)
 
 COMMON_DATA struct Task gTasks[NUM_TASKS] = {0};
 
-#ifdef PORTABLE
 static uintptr_t sTaskWordArgs[NUM_TASKS][NUM_TASK_DATA] = {0};
 static TaskFunc sTaskFollowupFuncs[NUM_TASKS] = {0};
-#endif
 
 static void InsertTask(u8 newTaskId);
 static u8 FindFirstActiveTask();
@@ -52,10 +56,8 @@ void ResetTasks(void)
         gTasks[i].next = i + 1;
         gTasks[i].priority = -1;
         memset(gTasks[i].data, 0, sizeof(gTasks[i].data));
-#ifdef PORTABLE
         memset(sTaskWordArgs[i], 0, sizeof(sTaskWordArgs[i]));
         sTaskFollowupFuncs[i] = TaskDummy;
-#endif
     }
 
     gTasks[0].prev = HEAD_SENTINEL;
@@ -167,6 +169,18 @@ void RunTasks(void)
 
     if (taskId != NUM_TASKS)
     {
+#ifdef PORTABLE_BUILD
+        {
+            int _t;
+            for (_t = 0; _t < NUM_TASKS; _t++)
+                if (gTasks[_t].isActive)
+                {
+                    char buffer[128];
+                    snprintf(buffer, sizeof(buffer), "RunTasks: active id=%d func=%p", _t, gTasks[_t].func);
+                    firered_runtime_trace_external(buffer);
+                }
+        }
+#endif
         do
         {
 #ifdef PORTABLE
@@ -208,27 +222,13 @@ void TaskDummy(u8 taskId)
 
 void SetTaskFuncWithFollowupFunc(u8 taskId, TaskFunc func, TaskFunc followupFunc)
 {
-    u8 followupFuncIndex = NUM_TASK_DATA - 2; // Should be const.
-
-#ifdef PORTABLE
     sTaskFollowupFuncs[taskId] = followupFunc;
-#endif
-#ifndef PORTABLE
-    gTasks[taskId].data[followupFuncIndex] = (s16)((u32)followupFunc);
-    gTasks[taskId].data[followupFuncIndex + 1] = (s16)((u32)followupFunc >> 16); // Store followupFunc as two half-words in the data array.
-#endif
     gTasks[taskId].func = func;
 }
 
 void SwitchTaskToFollowupFunc(u8 taskId)
 {
-    u8 followupFuncIndex = NUM_TASK_DATA - 2; // Should be const.
-
-#ifdef PORTABLE
     gTasks[taskId].func = sTaskFollowupFuncs[taskId];
-#else
-    gTasks[taskId].func = (TaskFunc)((u16)(gTasks[taskId].data[followupFuncIndex]) | (gTasks[taskId].data[followupFuncIndex + 1] << 16));
-#endif
 }
 
 bool8 FuncIsActiveTask(TaskFunc func)
@@ -270,9 +270,7 @@ void SetWordTaskArg(u8 taskId, u8 dataElem, uintptr_t value)
     if (dataElem <= 14)
     {
         u32 lowValue = (u32)value;
-#ifdef PORTABLE
         sTaskWordArgs[taskId][dataElem] = value;
-#endif
         gTasks[taskId].data[dataElem] = (s16)(lowValue & 0xFFFF);
         gTasks[taskId].data[dataElem + 1] = (s16)(lowValue >> 16);
     }
@@ -281,11 +279,7 @@ void SetWordTaskArg(u8 taskId, u8 dataElem, uintptr_t value)
 uintptr_t GetWordTaskArg(u8 taskId, u8 dataElem)
 {
     if (dataElem <= 14)
-#ifdef PORTABLE
         return sTaskWordArgs[taskId][dataElem];
-#else
-        return (u16)gTasks[taskId].data[dataElem] | (gTasks[taskId].data[dataElem + 1] << 16);
-#endif
     else
         return 0;
 }

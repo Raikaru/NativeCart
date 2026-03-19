@@ -29,6 +29,9 @@ static void TraceTextPrinter(const char *fmt, ...)
 
 static EWRAM_DATA struct TextPrinter sTempTextPrinter = {0};
 static EWRAM_DATA struct TextPrinter sTextPrinters[NUM_TEXT_PRINTERS] = {0};
+#ifdef PORTABLE
+static EWRAM_DATA u8 sPortableTextPrinterBuffers[NUM_TEXT_PRINTERS][1200] = {0};
+#endif
 
 static u16 sFontHalfRowLookupTable[0x51];
 static u16 sLastTextBgColor;
@@ -70,10 +73,75 @@ void DeactivateAllTextPrinters (void)
         sTextPrinters[printer].active = 0;
 }
 
+#ifdef PORTABLE
+static const u8 *PortableNormalizeTextControlEscapes(const u8 *src, u8 windowId)
+{
+    u32 srcIdx = 0;
+    u32 dstIdx = 0;
+    bool8 needsNormalization = FALSE;
+    u8 *dst;
+
+    if (src == NULL || windowId >= NUM_TEXT_PRINTERS)
+        return src;
+
+    while (src[srcIdx] != EOS && src[srcIdx] != '\0')
+    {
+        if (src[srcIdx] == '\\')
+        {
+            u8 next = src[srcIdx + 1];
+            if (next == 'p' || next == 'l' || next == 'n')
+            {
+                needsNormalization = TRUE;
+                break;
+            }
+        }
+        srcIdx++;
+    }
+
+    if (!needsNormalization)
+        return src;
+
+    dst = sPortableTextPrinterBuffers[windowId];
+    srcIdx = 0;
+    while (src[srcIdx] != EOS && src[srcIdx] != '\0' && dstIdx + 1 < sizeof(sPortableTextPrinterBuffers[windowId]))
+    {
+        if (src[srcIdx] == '\\')
+        {
+            u8 next = src[srcIdx + 1];
+            if (next == 'p')
+            {
+                dst[dstIdx++] = CHAR_PROMPT_CLEAR;
+                srcIdx += 2;
+                continue;
+            }
+            if (next == 'l')
+            {
+                dst[dstIdx++] = CHAR_PROMPT_SCROLL;
+                srcIdx += 2;
+                continue;
+            }
+            if (next == 'n')
+            {
+                dst[dstIdx++] = CHAR_NEWLINE;
+                srcIdx += 2;
+                continue;
+            }
+        }
+        dst[dstIdx++] = src[srcIdx++];
+    }
+
+    dst[dstIdx] = EOS;
+    return dst;
+}
+#endif
+
 u16 AddTextPrinterParameterized(u8 windowId, u8 fontId, const u8 *str, u8 x, u8 y, u8 speed, void (*callback)(struct TextPrinterTemplate *, u16))
 {
     struct TextPrinterTemplate printerTemplate;
 
+#ifdef PORTABLE
+    str = PortableNormalizeTextControlEscapes(str, windowId);
+#endif
     printerTemplate.currentChar = str;
     printerTemplate.windowId = windowId;
     printerTemplate.fontId = fontId;
@@ -108,6 +176,10 @@ bool16 AddTextPrinter(struct TextPrinterTemplate *textSubPrinter, u8 speed, void
         sTempTextPrinter.subUnion.fields[i] = 0;
 
     sTempTextPrinter.printerTemplate = *textSubPrinter;
+#ifdef PORTABLE
+    sTempTextPrinter.printerTemplate.currentChar = PortableNormalizeTextControlEscapes(sTempTextPrinter.printerTemplate.currentChar,
+                                                                                       sTempTextPrinter.printerTemplate.windowId);
+#endif
     sTempTextPrinter.callback = callback;
     sTempTextPrinter.minLetterSpacing = 0;
     sTempTextPrinter.japanese = 0;

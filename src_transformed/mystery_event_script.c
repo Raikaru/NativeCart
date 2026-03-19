@@ -25,6 +25,12 @@ extern ScrCmdFunc gMysteryEventScriptCmdTableEnd[];
 #endif
 
 EWRAM_DATA static struct ScriptContext sMysteryEventScriptContext = {0};
+EWRAM_DATA static u8 *sMysteryEventScriptBase = NULL;
+
+static u8 *ResolveMysteryEventScriptPtr(struct ScriptContext *ctx, u32 virtualAddr)
+{
+    return sMysteryEventScriptBase + (virtualAddr - ctx->data[1]);
+}
 
 static bool32 CheckCompatibility(u16 a1, u32 a2, u16 a3, u32 a4)
 {
@@ -53,7 +59,8 @@ static void InitMysteryEventScript(struct ScriptContext *ctx, u8 *script)
 {
     InitScriptContext(ctx, gMysteryEventScriptCmdTable, gMysteryEventScriptCmdTableEnd);
     SetupBytecodeScript(ctx, script);
-    ctx->data[0] = (u32)script;
+    sMysteryEventScriptBase = script;
+    ctx->data[0] = 0;
     ctx->data[1] = 0;
     ctx->data[2] = 0;
     ctx->data[3] = 0;
@@ -136,7 +143,7 @@ bool8 MEScrCmd_setstatus(struct ScriptContext *ctx)
 bool8 MEScrCmd_setmsg(struct ScriptContext *ctx)
 {
     u8 value = ScriptReadByte(ctx);
-    u8 *str = (u8 *)(ScriptReadWord(ctx) - ctx->data[1] + ctx->data[0]);
+    u8 *str = ResolveMysteryEventScriptPtr(ctx, ScriptReadWord(ctx));
     if (value == 0xFF || value == ctx->data[2])
         StringExpandPlaceholders(gStringVar4, str);
     return FALSE;
@@ -144,7 +151,7 @@ bool8 MEScrCmd_setmsg(struct ScriptContext *ctx)
 
 bool8 MEScrCmd_runscript(struct ScriptContext *ctx)
 {
-    u8 *script = (u8 *)(ScriptReadWord(ctx) - ctx->data[1] + ctx->data[0]);
+    u8 *script = ResolveMysteryEventScriptPtr(ctx, ScriptReadWord(ctx));
     RunScriptImmediately(script);
     return FALSE;
 }
@@ -154,7 +161,7 @@ bool8 MEScrCmd_setenigmaberry(struct ScriptContext *ctx)
     u8 *str;
     const u8 *message;
     bool32 haveBerry = IsEnigmaBerryValid();
-    u8 *berry = (u8 *)(ScriptReadWord(ctx) - ctx->data[1] + ctx->data[0]);
+    u8 *berry = ResolveMysteryEventScriptPtr(ctx, ScriptReadWord(ctx));
     StringCopyN(gStringVar1, gSaveBlock1Ptr->enigmaBerry.berry.name, BERRY_NAME_LENGTH + 1);
     SetEnigmaBerry(berry);
     StringCopyN(gStringVar2, gSaveBlock1Ptr->enigmaBerry.berry.name, BERRY_NAME_LENGTH + 1);
@@ -202,8 +209,8 @@ bool8 MEScrCmd_initramscript(struct ScriptContext *ctx)
     u8 mapGroup = ScriptReadByte(ctx);
     u8 mapNum = ScriptReadByte(ctx);
     u8 objectId = ScriptReadByte(ctx);
-    u8 *script = (u8 *)(ScriptReadWord(ctx) - ctx->data[1] + ctx->data[0]);
-    u8 *scriptEnd = (u8 *)(ScriptReadWord(ctx) - ctx->data[1] + ctx->data[0]);
+    u8 *script = ResolveMysteryEventScriptPtr(ctx, ScriptReadWord(ctx));
+    u8 *scriptEnd = ResolveMysteryEventScriptPtr(ctx, ScriptReadWord(ctx));
     InitRamScript(script, scriptEnd - script, mapGroup, mapNum, objectId);
     return FALSE;
 }
@@ -237,9 +244,9 @@ bool8 MEScrCmd_givepokemon(struct ScriptContext *ctx)
     struct Pokemon pokemon;
     u16 species;
     u16 heldItem;
-    u32 data = ScriptReadWord(ctx) - ctx->data[1] + ctx->data[0];
-    void *pokemonPtr = (void *)data;
-    void *mailPtr = (void *)(data + sizeof(struct Pokemon));
+    u8 *data = ResolveMysteryEventScriptPtr(ctx, ScriptReadWord(ctx));
+    void *pokemonPtr = data;
+    void *mailPtr = data + sizeof(struct Pokemon);
 
     pokemon = *(struct Pokemon *)pokemonPtr;
     species = GetMonData(&pokemon, MON_DATA_SPECIES_OR_EGG);
@@ -280,8 +287,8 @@ bool8 MEScrCmd_givepokemon(struct ScriptContext *ctx)
 
 bool8 MEScrCmd_addtrainer(struct ScriptContext *ctx)
 {
-    u32 data = ScriptReadWord(ctx) - ctx->data[1] + ctx->data[0];
-    memcpy(&gSaveBlock2Ptr->battleTower.ereaderTrainer, (void *)data, sizeof(struct BattleTowerEReaderTrainer));
+    u8 *data = ResolveMysteryEventScriptPtr(ctx, ScriptReadWord(ctx));
+    memcpy(&gSaveBlock2Ptr->battleTower.ereaderTrainer, data, sizeof(struct BattleTowerEReaderTrainer));
     ValidateEReaderTrainer();
     StringExpandPlaceholders(gStringVar4, gText_MysteryGiftNewTrainer);
     ctx->data[2] = 2;
@@ -298,8 +305,8 @@ bool8 MEScrCmd_enableresetrtc(struct ScriptContext *ctx)
 bool8 MEScrCmd_checksum(struct ScriptContext *ctx)
 {
     int checksum = ScriptReadWord(ctx);
-    u8 *data = (u8 *)(ScriptReadWord(ctx) - ctx->data[1] + ctx->data[0]);
-    u8 *dataEnd = (u8 *)(ScriptReadWord(ctx) - ctx->data[1] + ctx->data[0]);
+    u8 *data = ResolveMysteryEventScriptPtr(ctx, ScriptReadWord(ctx));
+    u8 *dataEnd = ResolveMysteryEventScriptPtr(ctx, ScriptReadWord(ctx));
     if (checksum != CalcByteArraySum(data, dataEnd - data))
     {
         ctx->data[3] = 0;
@@ -311,8 +318,8 @@ bool8 MEScrCmd_checksum(struct ScriptContext *ctx)
 bool8 MEScrCmd_crc(struct ScriptContext *ctx)
 {
     int crc = ScriptReadWord(ctx);
-    u8 *data = (u8 *)(ScriptReadWord(ctx) - ctx->data[1] + ctx->data[0]);
-    u8 *dataEnd = (u8 *)(ScriptReadWord(ctx) - ctx->data[1] + ctx->data[0]);
+    u8 *data = ResolveMysteryEventScriptPtr(ctx, ScriptReadWord(ctx));
+    u8 *dataEnd = ResolveMysteryEventScriptPtr(ctx, ScriptReadWord(ctx));
     if (crc != CalcCRC16(data, dataEnd - data))
     {
         ctx->data[3] = 0;

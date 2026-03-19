@@ -5,9 +5,15 @@ EWRAM_DATA static struct Window* sWindowPtr = NULL;
 EWRAM_DATA static u16 sWindowSize = 0;
 
 static u8 GetNumActiveWindowsOnBg8Bit(u8 bgId);
+static u32 GetWindow8BitTileDataSize(const struct WindowTemplate *template);
 
 static void nullsub_9(void)
 {
+}
+
+static u32 GetWindow8BitTileDataSize(const struct WindowTemplate *template)
+{
+    return 0x40u * template->width * template->height;
 }
 
 u16 AddWindow8Bit(const struct WindowTemplate *template)
@@ -39,7 +45,7 @@ u16 AddWindow8Bit(const struct WindowTemplate *template)
             SetBgTilemapBuffer(bgLayer, memAddress);
         }
     }
-    memAddress = Alloc((u16)(0x40 * (template->width * template->height)));
+    memAddress = Alloc(GetWindow8BitTileDataSize(template));
     if (memAddress == NULL)
     {
         if (GetNumActiveWindowsOnBg8Bit(bgLayer) == 0 && gWindowBgTilemapBuffers[bgLayer] != nullsub_9)
@@ -62,7 +68,7 @@ void FillWindowPixelBuffer8Bit(u8 windowId, u8 fillValue)
     s32 i;
     s32 size;
 
-    size = (u16)(0x40 * (gWindows[windowId].window.width * gWindows[windowId].window.height));
+    size = GetWindow8BitTileDataSize(&gWindows[windowId].window);
     for (i = 0; i < size; i++)
         gWindows[windowId].tileData[i] = fillValue;
 }

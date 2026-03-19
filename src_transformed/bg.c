@@ -26,8 +26,6 @@ static void TraceBgTilemapOp(const char *kind, u8 bg, void *buffer, const char *
     else
         snprintf(trace, sizeof(trace), "%s: bg=%u buf=%p", kind, bg, buffer);
 
-    printf("%s\n", trace);
-    fflush(stdout);
     firered_runtime_trace_external(trace);
 }
 #endif

@@ -19,10 +19,23 @@
 
 #ifdef PORTABLE
 #include <stdio.h>
+#include <stdarg.h>
+
+extern void firered_runtime_trace_external(const char *message);
+
+static void TraceMainLoop(const char *fmt, ...)
+{
+    char buffer[160];
+    va_list args;
+
+    va_start(args, fmt);
+    vsnprintf(buffer, sizeof(buffer), fmt, args);
+    va_end(args);
+    firered_runtime_trace_external(buffer);
+}
 #endif
 
 #ifdef PORTABLE
-extern void firered_runtime_trace_external(const char *message);
 extern MainCallback firered_portable_get_cb2_overworld(void);
 #endif
 
@@ -192,8 +205,7 @@ void AgbMain()
 #endif
         ReadKeys();
 #ifdef PORTABLE
-        printf("MainLoop: post-vblank B\n");
-        fflush(stdout);
+        firered_runtime_trace_external("MainLoop: post-vblank B");
 #endif
 
         if (
@@ -210,8 +222,7 @@ void AgbMain()
             DoSoftReset();
         }
 #ifdef PORTABLE
-        printf("MainLoop: post-vblank C\n");
-        fflush(stdout);
+        firered_runtime_trace_external("MainLoop: post-vblank C");
 #endif
 
         if (Overworld_SendKeysToLinkIsRunning() == TRUE)
@@ -239,8 +250,7 @@ void AgbMain()
             }
         }
 #ifdef PORTABLE
-        printf("MainLoop: post-vblank D\n");
-        fflush(stdout);
+        firered_runtime_trace_external("MainLoop: post-vblank D");
 #endif
 
         PlayTimeCounter_Update();
@@ -251,8 +261,7 @@ void AgbMain()
 
             for (t = 0; t < NUM_TASKS; t++)
                 if (gTasks[t].isActive)
-                    printf("ActiveTask: id=%d func=%p\n", t, gTasks[t].func);
-            fflush(stdout);
+                    TraceMainLoop("ActiveTask: id=%d func=%p", t, gTasks[t].func);
         }
         if (gMain.callback2 == CB2_InitBattle)
             firered_runtime_trace_external("MainLoop: pre-WaitForVBlank with CB2_InitBattle");
@@ -261,12 +270,10 @@ void AgbMain()
 #ifdef PORTABLE
         if (stackCanary != 0xDEADBEEF)
         {
-            printf("STACK CORRUPT: canary=%08X frame=%u activeTask=%d activeBattler=%d\n",
-                stackCanary, *gMain.vblankCounter1, FindTaskIdByFunc((TaskFunc)gMain.callback1), gActiveBattler);
-            fflush(stdout);
+            TraceMainLoop("STACK CORRUPT: canary=%08X frame=%u cb1=%p activeBattler=%d",
+                stackCanary, *gMain.vblankCounter1, gMain.callback1, gActiveBattler);
         }
-        printf("MainLoop: post-vblank A\n");
-        fflush(stdout);
+        firered_runtime_trace_external("MainLoop: post-vblank A");
 #endif
 #ifdef PORTABLE
         if (gMain.callback2 == CB2_InitBattle)
@@ -278,8 +285,7 @@ void AgbMain()
 static void UpdateLinkAndCallCallbacks(void)
 {
 #ifdef PORTABLE
-    printf("MainLoop: post-vblank E\n");
-    fflush(stdout);
+    firered_runtime_trace_external("MainLoop: post-vblank E");
     CallCallbacks();
 #else
     if (!HandleLinkConnection())
@@ -304,13 +310,11 @@ static void CallCallbacks(void)
 {
     bool32 saveFailed = RunSaveFailedScreen();
 #ifdef PORTABLE
-    printf("MainLoop: post-vblank F\n");
-    fflush(stdout);
+    firered_runtime_trace_external("MainLoop: post-vblank F");
 #endif
     u8 helpSystem = RunHelpSystemCallback();
 #ifdef PORTABLE
-    printf("MainLoop: post-vblank G\n");
-    fflush(stdout);
+    firered_runtime_trace_external("MainLoop: post-vblank G");
 #endif
 
     if (!saveFailed && !helpSystem)
@@ -318,13 +322,11 @@ static void CallCallbacks(void)
         if (gMain.callback1)
         {
 #ifdef PORTABLE
-            printf("MainLoop: pre-cb1 dispatch cb1=%p\n", gMain.callback1);
-            fflush(stdout);
+            TraceMainLoop("MainLoop: pre-cb1 dispatch cb1=%p", gMain.callback1);
 #endif
             gMain.callback1();
 #ifdef PORTABLE
-            printf("MainLoop: post-cb1 dispatch\n");
-            fflush(stdout);
+            firered_runtime_trace_external("MainLoop: post-cb1 dispatch");
 #endif
         }
 
@@ -622,13 +624,11 @@ static void WaitForVBlank(void)
     VBlankIntrWait();
     if (vblankCanary != 0xCAFEBABE)
     {
-        printf("STACK CORRUPT IN VBLANK: canary=%08X frame=%u\n",
+        TraceMainLoop("STACK CORRUPT IN VBLANK: canary=%08X frame=%u",
             vblankCanary, *gMain.vblankCounter1);
-        fflush(stdout);
     }
     firered_runtime_trace_external("WaitForVBlank: exit");
-    printf("MainLoop: post-vblank pre-cb1 cb1=%p\n", gMain.callback1);
-    fflush(stdout);
+    TraceMainLoop("MainLoop: post-vblank pre-cb1 cb1=%p", gMain.callback1);
 #else
     gMain.intrCheck &= ~INTR_FLAG_VBLANK;
 
