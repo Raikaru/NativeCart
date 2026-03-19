@@ -25,6 +25,22 @@ static void SetBattlePartyIds(void);
 static void Task_HandleSendLinkBuffersData(u8 taskId);
 static void Task_HandleCopyReceivedLinkBuffersData(u8 taskId);
 
+bool8 BattleLinkTransferIsReady(void)
+{
+    if (!(gBattleTypeFlags & BATTLE_TYPE_LINK))
+        return FALSE;
+    if (gLinkBattleSendBuffer == NULL)
+        return FALSE;
+    if (sLinkSendTaskId >= NUM_TASKS)
+        return FALSE;
+    if (!gTasks[sLinkSendTaskId].isActive)
+        return FALSE;
+    if (gTasks[sLinkSendTaskId].func != Task_HandleSendLinkBuffersData)
+        return FALSE;
+
+    return TRUE;
+}
+
 void HandleLinkBattleSetup(void)
 {
     if (gBattleTypeFlags & BATTLE_TYPE_LINK)
@@ -98,7 +114,7 @@ static void InitSinglePlayerBtlControllers(void)
         {
             if (gBattleTypeFlags & BATTLE_TYPE_SAFARI)
                 gBattlerControllerFuncs[0] = SetControllerToSafari;
-            else if (gBattleTypeFlags & (BATTLE_TYPE_OLD_MAN_TUTORIAL | BATTLE_TYPE_FIRST_BATTLE))
+            else if (gBattleTypeFlags & BATTLE_TYPE_OLD_MAN_TUTORIAL)
                 gBattlerControllerFuncs[0] = SetControllerToOakOrOldMan;
             else
                 gBattlerControllerFuncs[0] = SetControllerToPlayer;
@@ -358,7 +374,7 @@ static void PrepareBufferDataTransfer(u8 bufferId, u8 *data, u16 size)
 {
     s32 i;
 
-    if (gBattleTypeFlags & BATTLE_TYPE_LINK)
+    if (BattleLinkTransferIsReady())
     {
         PrepareBufferDataTransferLink(bufferId, size, data);
     }
@@ -413,6 +429,9 @@ void PrepareBufferDataTransferLink(u8 bufferId, u16 size, u8 *data)
 {
     s32 alignedSize;
     s32 i;
+
+    if (!BattleLinkTransferIsReady())
+        return;
 
     alignedSize = size - size % 4 + 4;
     if (gTasks[sLinkSendTaskId].data[14] + alignedSize + LINK_BUFF_DATA + 1 > BATTLE_BUFFER_LINK_SIZE)
@@ -963,12 +982,13 @@ void BtlController_EmitDataTransfer(u8 bufferId, u16 size, void *data)
 static void BtlController_EmitDMA3Transfer(u8 bufferId, void *dst, u16 size, void *data)
 {
     s32 i;
+    uintptr_t dstAddr = (uintptr_t)dst;
 
     sBattleBuffersTransferData[0] = CONTROLLER_DMA3TRANSFER;
-    sBattleBuffersTransferData[1] = (u32)(dst);
-    sBattleBuffersTransferData[2] = ((u32)(dst) & 0x0000FF00) >> 8;
-    sBattleBuffersTransferData[3] = ((u32)(dst) & 0x00FF0000) >> 16;
-    sBattleBuffersTransferData[4] = ((u32)(dst) & 0xFF000000) >> 24;
+    sBattleBuffersTransferData[1] = (u8)(dstAddr & 0xFF);
+    sBattleBuffersTransferData[2] = (u8)((dstAddr >> 8) & 0xFF);
+    sBattleBuffersTransferData[3] = (u8)((dstAddr >> 16) & 0xFF);
+    sBattleBuffersTransferData[4] = (u8)((dstAddr >> 24) & 0xFF);
     sBattleBuffersTransferData[5] = size;
     sBattleBuffersTransferData[6] = (size & 0xFF00) >> 8;
     for (i = 0; i < size; i++)

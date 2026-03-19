@@ -19,6 +19,7 @@ private:
     bool running = false;
     bool input_override_active = false;
     uint16_t input_override_buttons = 0;
+    double fps_title_timer = 0.0;
 
     Ref<Image> framebuffer_image;
     Ref<ImageTexture> framebuffer_texture;

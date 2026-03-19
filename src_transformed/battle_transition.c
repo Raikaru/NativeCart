@@ -1231,7 +1231,7 @@ static void SpriteCB_FldEffPokeballTrail(struct Sprite *sprite)
                 u16 *ptr;
 
                 sprite->sPrevX = posX;
-                ptr = (u16 *)BG_SCREEN_ADDR((GetGpuReg(REG_OFFSET_BG0CNT) >> 8) & 0x1F);
+                ptr = (u16 *)(uintptr_t)BG_SCREEN_ADDR((GetGpuReg(REG_OFFSET_BG0CNT) >> 8) & 0x1F);
                 SET_TILE(ptr, posY - 2, posX, 1);
                 SET_TILE(ptr, posY - 1, posX, 1);
                 SET_TILE(ptr, posY - 0, posX, 1);
@@ -2941,7 +2941,7 @@ static void GetBg0TilemapDst(u16 **tilesetPtr)
 
     charBase = GetGpuReg(REG_OFFSET_BG0CNT) >> 2;
     charBase <<= 14;
-    *tilesetPtr = (u16 *)(VRAM + charBase);
+    *tilesetPtr = (u16 *)(uintptr_t)(VRAM + charBase);
 }
 
 static void GetBg0TilesDst(u16 **tilemapPtr, u16 **tilesetPtr)
@@ -2952,8 +2952,8 @@ static void GetBg0TilesDst(u16 **tilemapPtr, u16 **tilesetPtr)
     charBase = GetGpuReg(REG_OFFSET_BG0CNT) >> 2;
     screenBase <<= 11;
     charBase <<= 14;
-    *tilemapPtr = (u16 *)(VRAM + screenBase);
-    *tilesetPtr = (u16 *)(VRAM + charBase);
+    *tilemapPtr = (u16 *)(uintptr_t)(VRAM + screenBase);
+    *tilesetPtr = (u16 *)(uintptr_t)(VRAM + charBase);
 }
 
 static void FadeScreenBlack(void)

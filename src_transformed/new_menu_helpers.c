@@ -322,7 +322,7 @@ void DecompressAndLoadBgGfxUsingHeap(u8 bgId, const void *src, u32 size, u16 off
 #ifdef PORTABLE
         SetWordTaskArg(taskId, 1, StoreHeapPtrForTask(ptr));
 #else
-        SetWordTaskArg(taskId, 1, (u32)ptr);
+        SetWordTaskArg(taskId, 1, (uintptr_t)ptr);
 #endif
     }
 }
@@ -341,7 +341,7 @@ void DecompressAndLoadBgGfxUsingHeap2(u8 bgId, const void *src, u32 size, u16 of
 #ifdef PORTABLE
         SetWordTaskArg(taskId, 1, StoreHeapPtrForTask(ptr));
 #else
-        SetWordTaskArg(taskId, 1, (u32)ptr);
+        SetWordTaskArg(taskId, 1, (uintptr_t)ptr);
 #endif
     }
 }

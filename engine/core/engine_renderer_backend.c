@@ -43,11 +43,17 @@ typedef struct EngineLayerPixel {
     uint8_t semi_transparent;
 } EngineLayerPixel;
 
+#define ENGINE_PIXEL_LAYER_CAPACITY 8
+
+typedef struct EnginePixelLayers {
+    EngineLayerPixel layers[ENGINE_PIXEL_LAYER_CAPACITY];
+    uint8_t count;
+} EnginePixelLayers;
+
 static uint8_t g_framebuffer[ENGINE_GBA_RGBA_SIZE];
 static uint32_t g_palette_cache[ENGINE_PALETTE_ENTRIES];
 static uint16_t g_palette_snapshot[ENGINE_PALETTE_ENTRIES];
-static EngineLayerPixel g_top_layer[ENGINE_GBA_WIDTH * ENGINE_GBA_HEIGHT];
-static EngineLayerPixel g_second_layer[ENGINE_GBA_WIDTH * ENGINE_GBA_HEIGHT];
+static EnginePixelLayers g_pixel_layers[ENGINE_GBA_WIDTH * ENGINE_GBA_HEIGHT];
 static uint8_t g_obj_window_mask_cache[ENGINE_GBA_WIDTH * ENGINE_GBA_HEIGHT];
 static uint8_t g_window_mask_cache[ENGINE_GBA_WIDTH * ENGINE_GBA_HEIGHT];
 static uint8_t g_has_semi_transparent_obj;
@@ -318,15 +324,16 @@ static int engine_sample_sprite_pixel(int obj_1d,
                                       int src_y,
                                       uint32_t *rgba_out) {
     uint8_t *vram = engine_vram();
-    int tiles_per_row = obj_1d ? (width / 8) : 32;
+    int tiles_per_row = obj_1d ? (width / 8) : (use_256_colors ? 16 : 32);
+    int tile_stride = use_256_colors ? 2 : 1;
     int tile_col = src_x / 8;
     int tile_row = src_y / 8;
     int sub_x = src_x % 8;
     int sub_y = src_y % 8;
-    uint32_t tile_num = (uint32_t)tile_index + (uint32_t)(tile_row * tiles_per_row + tile_col);
+    uint32_t tile_num = (uint32_t)tile_index + (uint32_t)((tile_row * tiles_per_row + tile_col) * tile_stride);
 
     if (use_256_colors) {
-        uint32_t tile_offset = 0x10000u + tile_num * 64u + (uint32_t)(sub_y * 8 + sub_x);
+        uint32_t tile_offset = 0x10000u + tile_num * 32u + (uint32_t)(sub_y * 8 + sub_x);
         uint8_t pixel;
 
         if (tile_offset >= ENGINE_VRAM_SIZE) {
@@ -659,12 +666,33 @@ static void engine_trace_trainer_card_layer_pixel(int x, int y, uint32_t color, 
 
 static void engine_insert_layer_pixel(int x, int y, uint32_t color, uint8_t kind, uint8_t semi_transparent) {
     size_t index = (size_t)y * ENGINE_GBA_WIDTH + (size_t)x;
+    EnginePixelLayers *pixel_layers = &g_pixel_layers[index];
+    EngineLayerPixel *layer;
+
     engine_trace_trainer_card_layer_pixel(x, y, color, kind);
-    g_second_layer[index] = g_top_layer[index];
-    g_top_layer[index].color = color;
-    g_top_layer[index].kind = kind;
-    g_top_layer[index].valid = 1;
-    g_top_layer[index].semi_transparent = semi_transparent;
+
+    if (pixel_layers->count >= ENGINE_PIXEL_LAYER_CAPACITY) {
+        memmove(&pixel_layers->layers[0],
+                &pixel_layers->layers[1],
+                sizeof(pixel_layers->layers[0]) * (ENGINE_PIXEL_LAYER_CAPACITY - 1));
+        pixel_layers->count = ENGINE_PIXEL_LAYER_CAPACITY - 1;
+    }
+
+    layer = &pixel_layers->layers[pixel_layers->count++];
+    layer->color = color;
+    layer->kind = kind;
+    layer->valid = 1;
+    layer->semi_transparent = semi_transparent;
+}
+
+static EngineLayerPixel engine_get_pixel_layer(const EnginePixelLayers *pixel_layers, int reverse_index)
+{
+    EngineLayerPixel empty = {0};
+
+    if (reverse_index < 0 || reverse_index >= pixel_layers->count)
+        return empty;
+
+    return pixel_layers->layers[pixel_layers->count - 1 - reverse_index];
 }
 
 static void engine_trace_trainer_card_compose_pixel(int x, int y,
@@ -761,7 +789,7 @@ static void engine_compose_framebuffer(void) {
         for (y = 0; y < ENGINE_GBA_HEIGHT; ++y) {
             for (x = 0; x < ENGINE_GBA_WIDTH; ++x) {
                 size_t index = (size_t)y * ENGINE_GBA_WIDTH + (size_t)x;
-                EngineLayerPixel top = g_top_layer[index];
+                EngineLayerPixel top = engine_get_pixel_layer(&g_pixel_layers[index], 0);
 
                 if (top.kind == ENGINE_LAYER_BACKDROP && (g_window_mask_cache[index] & 0x20u) == 0) {
                     engine_put_color(x, y, 0xFF000000u);
@@ -777,8 +805,8 @@ static void engine_compose_framebuffer(void) {
     for (y = 0; y < ENGINE_GBA_HEIGHT; ++y) {
         for (x = 0; x < ENGINE_GBA_WIDTH; ++x) {
             size_t index = (size_t)y * ENGINE_GBA_WIDTH + (size_t)x;
-            EngineLayerPixel top = g_top_layer[index];
-            EngineLayerPixel second = g_second_layer[index];
+            EngineLayerPixel top = engine_get_pixel_layer(&g_pixel_layers[index], 0);
+            EngineLayerPixel second = engine_get_pixel_layer(&g_pixel_layers[index], 1);
             uint32_t color = top.color;
             uint8_t window_mask = g_window_mask_cache[index];
             int special_enabled = (window_mask & 0x20u) != 0;
@@ -1101,7 +1129,7 @@ static void engine_render_mode0_backgrounds_for_priority(int priority) {
 
     engine_renderer_tracef("render_bg: priority=%d enter", priority);
 
-    for (bg = 0; bg < 4; ++bg) {
+    for (bg = 3; bg >= 0; --bg) {
         uint16_t bgcnt = engine_bgcnt_value(bg);
         uint32_t screen_base = (uint32_t)(((bgcnt >> 8) & 0x1Fu) * 0x800u);
         int use_256_colors = (bgcnt & 0x0080u) != 0;
@@ -1254,6 +1282,10 @@ static void engine_render_sprite(const EngineOAMEntry *oam,
 static void engine_render_sprites_for_priority(int priority) {
     EngineOAMEntry *oam = engine_oam();
     uint16_t dispcnt = *engine_reg16(ENGINE_REG_DISPCNT);
+    uint16_t bg0cnt = *engine_reg16(ENGINE_REG_BG0CNT);
+    uint16_t bg1cnt = *engine_reg16(ENGINE_REG_BG1CNT);
+    uint16_t bg2cnt = *engine_reg16(ENGINE_REG_BG2CNT);
+    uint16_t bg3cnt = *engine_reg16(ENGINE_REG_BG3CNT);
     int obj_1d = (dispcnt & ENGINE_DISPCNT_OBJ_1D_MAP) != 0;
     int i;
 
@@ -1271,6 +1303,7 @@ static void engine_render_sprites_for_priority(int priority) {
         int size;
         int width;
         int height;
+        int use_256_colors;
         uint8_t semi_transparent;
 
         if (engine_sprite_is_disabled(attr0)) {
@@ -1296,6 +1329,7 @@ static void engine_render_sprites_for_priority(int priority) {
 
         shape = (attr0 >> 14) & 0x3;
         size = (attr1 >> 14) & 0x3;
+        use_256_colors = (attr0 & 0x2000u) != 0;
         width = 0;
         height = 0;
 
@@ -1480,8 +1514,7 @@ void engine_video_reset(void) {
     memset(g_framebuffer, 0, sizeof(g_framebuffer));
     memset(g_palette_cache, 0, sizeof(g_palette_cache));
     memset(g_palette_snapshot, 0, sizeof(g_palette_snapshot));
-    memset(g_top_layer, 0, sizeof(g_top_layer));
-    memset(g_second_layer, 0, sizeof(g_second_layer));
+    memset(g_pixel_layers, 0, sizeof(g_pixel_layers));
     memset(g_obj_window_mask_cache, 0, sizeof(g_obj_window_mask_cache));
     memset(g_window_mask_cache, 0, sizeof(g_window_mask_cache));
     g_has_semi_transparent_obj = 0;
@@ -1516,13 +1549,13 @@ void engine_video_render_frame(void) {
 
     backdrop = g_palette_cache[0];
     engine_clear_framebuffer(backdrop);
-    memset(g_top_layer, 0, sizeof(g_top_layer));
-    memset(g_second_layer, 0, sizeof(g_second_layer));
+    memset(g_pixel_layers, 0, sizeof(g_pixel_layers));
     g_has_semi_transparent_obj = 0;
     engine_precompute_window_masks();
     {
         size_t i;
         EngineLayerPixel fill;
+        EnginePixelLayers *pixel_layers;
 
         engine_backend_trace_external("backdrop_init: enter");
 
@@ -1532,7 +1565,9 @@ void engine_video_render_frame(void) {
         fill.semi_transparent = 0;
 
         for (i = 0; i < ENGINE_GBA_WIDTH * ENGINE_GBA_HEIGHT; ++i) {
-            g_top_layer[i] = fill;
+            pixel_layers = &g_pixel_layers[i];
+            pixel_layers->layers[0] = fill;
+            pixel_layers->count = 1;
         }
 
         engine_backend_trace_external("backdrop_init: exit");

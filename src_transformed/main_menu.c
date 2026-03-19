@@ -77,7 +77,7 @@ static void SetStdFrame0OnBg(u8 bgId);
 static void MainMenu_DrawWindow(const struct WindowTemplate * template);
 static void MainMenu_EraseWindow(const struct WindowTemplate * template);
 
-static const u8 sString_Dummy[] = _("");
+static const u8 sString_Dummy[] = { EOS };
 static const u8 sString_Newline[] = _("\n");
 
 static const struct WindowTemplate sWindowTemplate[] = {

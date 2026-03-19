@@ -697,7 +697,6 @@ static void AnimFallingFeather_Step(struct Sprite *sprite)
                     }
                 }
                 data->unk0_0d = 0;
-                data->unk2;
             }
             data->unk0_1 = 0;
             break;

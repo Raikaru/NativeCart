@@ -44,6 +44,7 @@ static void *LoadPortableTrainerAssetFile(const char *relativePath)
     char fullPath[512];
     size_t bytesRead;
     long size;
+    u32 allocSize;
     u32 i;
 
     for (i = 0; i < ARRAY_COUNT(sPortableTrainerAssetPrefixes); i++)
@@ -68,9 +69,15 @@ static void *LoadPortableTrainerAssetFile(const char *relativePath)
         fclose(file);
         return NULL;
     }
+    if ((unsigned long)size > (unsigned long)UINT32_MAX)
+    {
+        fclose(file);
+        return NULL;
+    }
 
     rewind(file);
-    data = Alloc((u32)size);
+    allocSize = (u32)size;
+    data = Alloc(allocSize);
     if (data == NULL)
     {
         fclose(file);

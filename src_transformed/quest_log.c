@@ -33,6 +33,7 @@
 #ifdef PORTABLE
 #include <stdio.h>
 extern void firered_runtime_trace_external(const char *message);
+extern char *getenv(const char *name);
 #endif
 
 enum {
@@ -45,6 +46,7 @@ enum {
 #define DESC_WIN_WIDTH (DISPLAY_WIDTH / 8)
 #define DESC_WIN_HEIGHT 6
 #define DESC_WIN_SIZE (DESC_WIN_WIDTH * DESC_WIN_HEIGHT * TILE_SIZE_4BPP)
+#define QUEST_LOG_MOVEMENT_SCRIPT_SLOTS 256
 
 // sQuestLogActionRecordBuffer should be large enough to fill a scene's script with the maximum number of actions
 #define SCRIPT_BUFFER_SIZE (sizeof(gSaveBlock1Ptr->questLog[0].script) / sizeof(struct QuestLogAction))
@@ -93,10 +95,15 @@ static EWRAM_DATA u16 *sPalettesBackup = NULL;
 static EWRAM_DATA struct PlaybackControl sPlaybackControl = {0};
 static EWRAM_DATA struct QuestLogAction sQuestLogActionRecordBuffer[SCRIPT_BUFFER_SIZE] = {0};
 EWRAM_DATA u16 gQuestLogCurActionIdx = 0;
-static EWRAM_DATA u8 sMovementScripts[OBJECT_EVENT_TEMPLATES_COUNT][2] = {{0}};
+// Playback queues scripts by recorded localId, not by template slot index.
+static EWRAM_DATA u8 sMovementScripts[QUEST_LOG_MOVEMENT_SCRIPT_SLOTS][2] = {{0}};
 static EWRAM_DATA u16 sNextActionDelay = 0;
 static EWRAM_DATA u16 sLastQuestLogCursor = 0;
 static EWRAM_DATA u16 sFlagOrVarPlayhead = 0;
+static u8 sInvalidQuestLogSceneNum = 0xFF;
+static const char *sInvalidQuestLogReason = NULL;
+static u16 sInvalidQuestLogOffset = 0;
+static u16 sInvalidQuestLogCommand = 0xFFFF;
 
 static void QLogCB_Recording(void);
 static void QLogCB_Playback(void);
@@ -114,7 +121,7 @@ static void SetPokemonCounts(void);
 static u16 QuestLog_GetPartyCount(void);
 static u16 QuestLog_GetBoxMonCount(void);
 static void RestoreTrainerRematches(void);
-static void ReadQuestLogScriptFromSav1(u8, struct QuestLogAction *);
+static bool8 ReadQuestLogScriptFromSav1(u8, struct QuestLogAction *);
 static void DoSceneEndTransition(s8 delay);
 static void DoSkipToEndTransition(s8 delay);
 static void QuestLog_AdvancePlayhead(void);
@@ -141,6 +148,19 @@ static bool8 RecordHeadAtEndOfEntry(void);
 static bool8 InQuestLogDisabledLocation(void);
 static bool8 TrySetLinkQuestLogEvent(u16, const u16 *);
 static bool8 TrySetTrainerBattleQuestLogEvent(u16, const u16 *);
+static bool8 IsQuestLogSceneValid(const struct QuestLogScene *scene);
+static bool8 IsQuestLogScriptValid(u8 sceneNum);
+static bool8 IsQuestLogScriptTailZeroed(u8 sceneNum, const u16 *script);
+static void DiscardInvalidQuestLogAndContinue(u8 taskId);
+static void AbortQuestLogPlaybackAndContinue(void);
+static void NoteInvalidQuestLogData(u8 sceneNum, const char *reason);
+static void NoteInvalidQuestLogScriptFailure(u8 sceneNum, const char *reason, const u16 *script);
+static void TraceInvalidQuestLogData(const char *prefix);
+static void WriteQuestLogStatusFile(const char *status, u8 sceneNum, const char *reason);
+static void WriteQuestLogScriptDump(FILE *file, u8 sceneNum, u16 offset);
+#ifdef PORTABLE
+static bool8 IsQuestLogPlaybackExplicitlyEnabled(void);
+#endif
 
 static const struct WindowTemplate sWindowTemplates[WIN_COUNT] = {
     [WIN_TOP_BAR] = {
@@ -173,7 +193,7 @@ static const struct WindowTemplate sWindowTemplates[WIN_COUNT] = {
 };
 
 static const u8 sTextColors[3] = {TEXT_DYNAMIC_COLOR_6, TEXT_COLOR_WHITE, TEXT_DYNAMIC_COLOR_3};
-#define sDescriptionWindow_Gfx ((const u16 *)NULL)
+static const u16 sDescriptionWindow_Gfx[] = INCBIN_U16("graphics/quest_log/description_window.4bpp");
 
 static const u8 sQuestLogTextLineYCoords[] = {17, 10, 3};
 
@@ -209,6 +229,10 @@ void ResetQuestLog(void)
     sQuestLogCB = NULL;
     gQuestLogRecordingPointer = NULL;
     gQuestLogDefeatedWildMonRecord = NULL;
+    sInvalidQuestLogSceneNum = 0xFF;
+    sInvalidQuestLogReason = NULL;
+    sInvalidQuestLogOffset = 0;
+    sInvalidQuestLogCommand = 0xFFFF;
     QL_ResetEventStates();
     ResetDeferredLinkEvent();
 }
@@ -488,27 +512,329 @@ static bool8 TryRecordActionSequence(struct QuestLogAction * actions)
 void TryStartQuestLogPlayback(u8 taskId)
 {
     u8 i;
+    bool8 foundInvalidScene = FALSE;
+
+#ifdef PORTABLE
+    if (!IsQuestLogPlaybackExplicitlyEnabled())
+    {
+        WriteQuestLogStatusFile("disabled", 0xFF, "quest log replay not explicitly enabled");
+        SetMainCallback2(CB2_ContinueSavedGame);
+        DestroyTask(taskId);
+        return;
+    }
+#endif
 
     QL_EnableRecordingSteps();
     sNumScenes = 0;
     for (i = 0; i < QUEST_LOG_SCENE_COUNT; i++)
     {
         if (gSaveBlock1Ptr->questLog[i].startType != 0)
-            sNumScenes++;
+        {
+            if (IsQuestLogSceneValid(&gSaveBlock1Ptr->questLog[i])
+             && IsQuestLogScriptValid(i))
+                sNumScenes++;
+            else
+                foundInvalidScene = TRUE;
+        }
     }
 
-    if (sNumScenes != 0)
+    if (getenv("FIRERED_SKIP_QUEST_LOG_PLAYBACK") != NULL)
     {
+        WriteQuestLogStatusFile("skipped", 0xFF, "quest log replay explicitly skipped");
+        SetMainCallback2(CB2_ContinueSavedGame);
+        DestroyTask(taskId);
+    }
+    else if (foundInvalidScene)
+    {
+        DiscardInvalidQuestLogAndContinue(taskId);
+    }
+    else if (sNumScenes != 0)
+    {
+        WriteQuestLogStatusFile("starting", 0xFF, "quest log replay passed startup validation");
         gHelpSystemEnabled = FALSE;
         Task_BeginQuestLogPlayback(taskId);
         DestroyTask(taskId);
     }
     else
     {
+        WriteQuestLogStatusFile("empty", 0xFF, "quest log replay had no scenes");
         SetMainCallback2(CB2_ContinueSavedGame);
         DestroyTask(taskId);
     }
 }
+
+static bool8 IsQuestLogSceneValid(const struct QuestLogScene *scene)
+{
+    const struct MapHeader *header;
+
+    if (scene == NULL)
+    {
+        NoteInvalidQuestLogData(0xFF, "scene pointer was NULL");
+        return FALSE;
+    }
+
+    if (scene->startType != QL_START_NORMAL && scene->startType != QL_START_WARP)
+    {
+        NoteInvalidQuestLogData((u8)(scene - gSaveBlock1Ptr->questLog), "scene startType was invalid");
+        return FALSE;
+    }
+
+    header = Overworld_GetMapHeaderByGroupAndId(scene->mapGroup, scene->mapNum);
+    if (header == NULL || header->mapLayoutId == 0)
+    {
+        NoteInvalidQuestLogData((u8)(scene - gSaveBlock1Ptr->questLog), "scene map header/layout was invalid");
+        return FALSE;
+    }
+
+    if (scene->x < -1 || scene->y < -1)
+    {
+        NoteInvalidQuestLogData((u8)(scene - gSaveBlock1Ptr->questLog), "scene coordinates were invalid");
+        return FALSE;
+    }
+
+    return TRUE;
+}
+
+static bool8 IsQuestLogScriptValid(u8 sceneNum)
+{
+    u8 previousSceneNum = sCurrentSceneNum;
+    struct QuestLogAction action;
+    u16 *eventData;
+    u16 *script;
+    u16 *next;
+    const u16 *scriptStart = gSaveBlock1Ptr->questLog[sceneNum].script;
+    const u16 *scriptEnd = gSaveBlock1Ptr->questLog[sceneNum].end;
+    u16 i;
+    u16 actionCount = 0;
+    u16 eventCount = 0;
+
+    sCurrentSceneNum = sceneNum;
+    script = gSaveBlock1Ptr->questLog[sceneNum].script;
+    for (i = 0; i < ARRAY_COUNT(sEventData); i++)
+    {
+        if (script < scriptStart || script >= scriptEnd)
+        {
+            NoteInvalidQuestLogScriptFailure(sceneNum, "script pointer was out of bounds", script);
+            sCurrentSceneNum = previousSceneNum;
+            return FALSE;
+        }
+        if (IsQuestLogScriptTailZeroed(sceneNum, script))
+        {
+            sCurrentSceneNum = previousSceneNum;
+            return TRUE;
+        }
+
+        switch (script[0] & QL_CMD_EVENT_MASK)
+        {
+        case QL_EVENT_INPUT:
+            next = QL_LoadAction_Input(script, &action);
+            actionCount++;
+            break;
+        case QL_EVENT_GFX_CHANGE:
+        case QL_EVENT_MOVEMENT:
+            next = QL_LoadAction_MovementOrGfxChange(script, &action);
+            actionCount++;
+            break;
+        case QL_EVENT_SCENE_END:
+            next = QL_LoadAction_SceneEnd(script, &action);
+            actionCount++;
+            break;
+        case QL_EVENT_WAIT:
+            next = QL_LoadAction_Wait(script, &action);
+            actionCount++;
+            break;
+        default:
+            next = QL_SkipCommand(script, &eventData);
+            eventCount++;
+            break;
+        }
+
+        if (actionCount > SCRIPT_BUFFER_SIZE || eventCount > ARRAY_COUNT(sEventData))
+        {
+            NoteInvalidQuestLogScriptFailure(sceneNum, "script exceeded action/event limits", script);
+            sCurrentSceneNum = previousSceneNum;
+            return FALSE;
+        }
+        if (next == NULL || next <= script || next > scriptEnd)
+        {
+            NoteInvalidQuestLogScriptFailure(sceneNum, "script command parse failed or advanced out of bounds", script);
+            sCurrentSceneNum = previousSceneNum;
+            return FALSE;
+        }
+        if ((script[0] & QL_CMD_EVENT_MASK) == QL_EVENT_SCENE_END)
+        {
+            sCurrentSceneNum = previousSceneNum;
+            return TRUE;
+        }
+
+        script = next;
+    }
+
+    sCurrentSceneNum = previousSceneNum;
+    return TRUE;
+}
+
+static bool8 IsQuestLogScriptTailZeroed(u8 sceneNum, const u16 *script)
+{
+    const u16 *scriptStart = gSaveBlock1Ptr->questLog[sceneNum].script;
+    const u16 *scriptEnd = gSaveBlock1Ptr->questLog[sceneNum].end;
+
+    if (script == NULL || script < scriptStart || script >= scriptEnd)
+        return FALSE;
+
+    while (script < scriptEnd)
+    {
+        if (*script != 0)
+            return FALSE;
+        script++;
+    }
+
+    return TRUE;
+}
+
+static void NoteInvalidQuestLogData(u8 sceneNum, const char *reason)
+{
+    sInvalidQuestLogSceneNum = sceneNum;
+    sInvalidQuestLogReason = reason;
+    sInvalidQuestLogOffset = 0;
+    sInvalidQuestLogCommand = 0xFFFF;
+}
+
+static void NoteInvalidQuestLogScriptFailure(u8 sceneNum, const char *reason, const u16 *script)
+{
+    const u16 *scriptStart = gSaveBlock1Ptr->questLog[sceneNum].script;
+
+    sInvalidQuestLogSceneNum = sceneNum;
+    sInvalidQuestLogReason = reason;
+    if (script != NULL && script >= scriptStart && script < gSaveBlock1Ptr->questLog[sceneNum].end)
+    {
+        sInvalidQuestLogOffset = (u16)(script - scriptStart);
+        sInvalidQuestLogCommand = script[0] & QL_CMD_EVENT_MASK;
+    }
+    else
+    {
+        sInvalidQuestLogOffset = 0xFFFF;
+        sInvalidQuestLogCommand = 0xFFFF;
+    }
+}
+
+static void TraceInvalidQuestLogData(const char *prefix)
+{
+#ifdef PORTABLE
+    char buffer[192];
+
+    snprintf(
+        buffer,
+        sizeof(buffer),
+        "%s scene=%u offset=%u command=%u reason=%s",
+        prefix,
+        sInvalidQuestLogSceneNum,
+        sInvalidQuestLogOffset,
+        sInvalidQuestLogCommand,
+        (sInvalidQuestLogReason != NULL) ? sInvalidQuestLogReason : "unknown");
+    firered_runtime_trace_external(buffer);
+#else
+    (void)prefix;
+#endif
+}
+
+static void WriteQuestLogStatusFile(const char *status, u8 sceneNum, const char *reason)
+{
+#ifdef PORTABLE
+    FILE *file = fopen("build/quest_log_replay_status.txt", "wb");
+
+    if (file == NULL)
+        return;
+
+    fprintf(
+        file,
+        "status=%s\nscene=%u\noffset=%u\ncommand=%u\nreason=%s\n",
+        status,
+        sceneNum,
+        sInvalidQuestLogOffset,
+        sInvalidQuestLogCommand,
+        (reason != NULL) ? reason : "unknown");
+    WriteQuestLogScriptDump(file, sceneNum, sInvalidQuestLogOffset);
+    fclose(file);
+#else
+    (void)status;
+    (void)sceneNum;
+    (void)reason;
+#endif
+}
+
+static void WriteQuestLogScriptDump(FILE *file, u8 sceneNum, u16 offset)
+{
+#ifdef PORTABLE
+    const struct QuestLogScene *scene;
+    const u16 *script;
+    const u16 *scriptEnd;
+    u16 wordsToWrite;
+    u16 i;
+
+    if (file == NULL || sceneNum >= ARRAY_COUNT(gSaveBlock1Ptr->questLog))
+        return;
+
+    scene = &gSaveBlock1Ptr->questLog[sceneNum];
+    script = scene->script;
+    scriptEnd = scene->end;
+    if (script == NULL || scriptEnd == NULL || script >= scriptEnd)
+        return;
+
+    fprintf(file, "script_words_total=%u\n", (unsigned)(scriptEnd - script));
+    if (offset == 0xFFFF || offset >= (u16)(scriptEnd - script))
+        return;
+
+    fprintf(file, "raw_words=");
+    wordsToWrite = (u16)(scriptEnd - (script + offset));
+    if (wordsToWrite > 8)
+        wordsToWrite = 8;
+
+    for (i = 0; i < wordsToWrite; i++)
+    {
+        fprintf(file, "%s0x%04X", (i == 0) ? "" : ",", script[offset + i]);
+    }
+    fprintf(file, "\nraw_bytes=");
+    for (i = 0; i < wordsToWrite; i++)
+    {
+        u8 low = script[offset + i] & 0xFF;
+        u8 high = script[offset + i] >> 8;
+
+        fprintf(file, "%s%02X,%02X", (i == 0) ? "" : ",", low, high);
+    }
+    fprintf(file, "\n");
+#else
+    (void)file;
+    (void)sceneNum;
+    (void)offset;
+#endif
+}
+
+static void DiscardInvalidQuestLogAndContinue(u8 taskId)
+{
+    TraceInvalidQuestLogData("QuestLog: invalid replay data detected, clearing quest log and continuing normally:");
+    WriteQuestLogStatusFile("invalid", sInvalidQuestLogSceneNum, sInvalidQuestLogReason);
+    ResetQuestLog();
+    SetMainCallback2(CB2_ContinueSavedGame);
+    DestroyTask(taskId);
+}
+
+static void AbortQuestLogPlaybackAndContinue(void)
+{
+    TraceInvalidQuestLogData("QuestLog: invalid replay script detected during playback setup, continuing normally:");
+    WriteQuestLogStatusFile("invalid", sInvalidQuestLogSceneNum, sInvalidQuestLogReason);
+    ResetQuestLog();
+    gQuestLogPlaybackState = QL_PLAYBACK_STATE_STOPPED;
+    sQuestLogCB = NULL;
+    SetMainCallback2(CB2_ContinueSavedGame);
+}
+
+#ifdef PORTABLE
+static bool8 IsQuestLogPlaybackExplicitlyEnabled(void)
+{
+    return getenv("FIRERED_ENABLE_QUEST_LOG_PLAYBACK") != NULL;
+}
+#endif
 
 static void Task_BeginQuestLogPlayback(u8 taskId)
 {
@@ -523,7 +849,11 @@ static void Task_BeginQuestLogPlayback(u8 taskId)
 
 void QL_InitSceneObjectsAndActions(void)
 {
-    ReadQuestLogScriptFromSav1(sCurrentSceneNum, sQuestLogActionRecordBuffer);
+    if (!ReadQuestLogScriptFromSav1(sCurrentSceneNum, sQuestLogActionRecordBuffer))
+    {
+        AbortQuestLogPlaybackAndContinue();
+        return;
+    }
     QL_ResetRepeatEventTracker();
     ResetActions(QL_PLAYBACK_STATE_RUNNING, sQuestLogActionRecordBuffer, sizeof(sQuestLogActionRecordBuffer));
     QL_LoadObjectsAndTemplates(sCurrentSceneNum);
@@ -801,10 +1131,14 @@ void QL_RestoreMapLayoutId(void)
     }
 }
 
-static void ReadQuestLogScriptFromSav1(u8 sceneNum, struct QuestLogAction * actions)
+static bool8 ReadQuestLogScriptFromSav1(u8 sceneNum, struct QuestLogAction * actions)
 {
+    u8 previousSceneNum = sCurrentSceneNum;
     u16 i;
+    u16 *currentScript;
     u16 *script;
+    const u16 *scriptStart = gSaveBlock1Ptr->questLog[sceneNum].script;
+    const u16 *scriptEnd = gSaveBlock1Ptr->questLog[sceneNum].end;
     u16 actionNum = 0;
     u16 eventNum = 0;
 
@@ -812,29 +1146,79 @@ static void ReadQuestLogScriptFromSav1(u8 sceneNum, struct QuestLogAction * acti
     for (i = 0; i < ARRAY_COUNT(sEventData); i++)
         sEventData[i] = NULL;
 
+    sCurrentSceneNum = sceneNum;
     script = gSaveBlock1Ptr->questLog[sceneNum].script;
     for (i = 0; i < ARRAY_COUNT(sEventData); i++)
     {
+        currentScript = script;
+        if (script < scriptStart || script >= scriptEnd)
+        {
+            NoteInvalidQuestLogScriptFailure(sceneNum, "live script read started out of bounds", script);
+            sCurrentSceneNum = previousSceneNum;
+            return FALSE;
+        }
+        if (IsQuestLogScriptTailZeroed(sceneNum, script))
+        {
+            sCurrentSceneNum = previousSceneNum;
+            return TRUE;
+        }
+
         switch (script[0] & QL_CMD_EVENT_MASK)
         {
         case QL_EVENT_INPUT:
+            if (actionNum >= ARRAY_COUNT(sQuestLogActionRecordBuffer))
+            {
+                NoteInvalidQuestLogScriptFailure(sceneNum, "live script read overflowed action buffer", script);
+                sCurrentSceneNum = previousSceneNum;
+                return FALSE;
+            }
             script = QL_LoadAction_Input(script, &actions[actionNum]);
             actionNum++;
             break;
         case QL_EVENT_GFX_CHANGE:
         case QL_EVENT_MOVEMENT:
+            if (actionNum >= ARRAY_COUNT(sQuestLogActionRecordBuffer))
+            {
+                NoteInvalidQuestLogScriptFailure(sceneNum, "live script read overflowed action buffer", script);
+                sCurrentSceneNum = previousSceneNum;
+                return FALSE;
+            }
             script = QL_LoadAction_MovementOrGfxChange(script, &actions[actionNum]);
             actionNum++;
             break;
         case QL_EVENT_SCENE_END:
+            if (actionNum >= ARRAY_COUNT(sQuestLogActionRecordBuffer))
+            {
+                NoteInvalidQuestLogScriptFailure(sceneNum, "live script read overflowed action buffer", script);
+                sCurrentSceneNum = previousSceneNum;
+                return FALSE;
+            }
             script = QL_LoadAction_SceneEnd(script, &actions[actionNum]);
-            actionNum++;
-            break;
+            if (script == NULL)
+            {
+                NoteInvalidQuestLogScriptFailure(sceneNum, "live scene-end command parse failed", currentScript);
+                sCurrentSceneNum = previousSceneNum;
+                return FALSE;
+            }
+            sCurrentSceneNum = previousSceneNum;
+            return script != NULL;
         case QL_EVENT_WAIT:
+            if (actionNum >= ARRAY_COUNT(sQuestLogActionRecordBuffer))
+            {
+                NoteInvalidQuestLogScriptFailure(sceneNum, "live script read overflowed action buffer", script);
+                sCurrentSceneNum = previousSceneNum;
+                return FALSE;
+            }
             script = QL_LoadAction_Wait(script, &actions[actionNum]);
             actionNum++;
             break;
         default: // Normal event
+            if (eventNum >= ARRAY_COUNT(sEventData))
+            {
+                NoteInvalidQuestLogScriptFailure(sceneNum, "live script read overflowed event buffer", script);
+                sCurrentSceneNum = previousSceneNum;
+                return FALSE;
+            }
             script = QL_SkipCommand(script, &sEventData[eventNum]);
             if (eventNum == 0)
                 QL_UpdateLastDepartedLocation(sEventData[0]);
@@ -842,8 +1226,21 @@ static void ReadQuestLogScriptFromSav1(u8 sceneNum, struct QuestLogAction * acti
             break;
         }
         if (script == NULL)
-            break;
+        {
+            NoteInvalidQuestLogScriptFailure(sceneNum, "live script command parse returned NULL", currentScript);
+            sCurrentSceneNum = previousSceneNum;
+            return FALSE;
+        }
+        if (script <= scriptStart || script > scriptEnd)
+        {
+            NoteInvalidQuestLogScriptFailure(sceneNum, "live script command advanced out of bounds", script);
+            sCurrentSceneNum = previousSceneNum;
+            return FALSE;
+        }
     }
+
+    sCurrentSceneNum = previousSceneNum;
+    return TRUE;
 }
 
 static void DoSceneEndTransition(s8 delay)
@@ -976,9 +1373,13 @@ static void QuestLog_PlayCurrentEvent(void)
     if (sPlaybackControl.cursor < ARRAY_COUNT(sEventData))
     {
         if (QL_TryRepeatEvent(sEventData[sPlaybackControl.cursor]) == TRUE)
+        {
             HandleShowQuestLogMessage();
+        }
         else if (QL_LoadEvent(sEventData[sPlaybackControl.cursor]) == TRUE)
+        {
             HandleShowQuestLogMessage();
+        }
     }
 }
 
@@ -1073,6 +1474,8 @@ static void DrawSceneDescription(void)
         if (gStringVar4[i] == CHAR_NEWLINE)
             numLines++;
     }
+    if (numLines >= ARRAY_COUNT(sQuestLogTextLineYCoords))
+        numLines = ARRAY_COUNT(sQuestLogTextLineYCoords) - 1;
 
     PutWindowTilemap(sWindowIds[WIN_DESCRIPTION]);
     CopyDescriptionWindowTiles(sWindowIds[WIN_DESCRIPTION]);
@@ -1139,7 +1542,11 @@ static void QuestLog_WaitFadeAndCancelPlayback(void)
         {
             if (gSaveBlock1Ptr->questLog[sCurrentSceneNum].startType == 0)
                 break;
-            ReadQuestLogScriptFromSav1(sCurrentSceneNum, sQuestLogActionRecordBuffer);
+            if (!ReadQuestLogScriptFromSav1(sCurrentSceneNum, sQuestLogActionRecordBuffer))
+            {
+                AbortQuestLogPlaybackAndContinue();
+                return;
+            }
         }
         gQuestLogPlaybackState = QL_PLAYBACK_STATE_STOPPED;
         QuestLog_StartFinalScene();

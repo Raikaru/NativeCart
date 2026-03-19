@@ -21,6 +21,7 @@ var screenshot_requested := false
 var quicksave_requested := false
 var quickload_requested := false
 var start_menu_pulse_frames := 0
+var fps_title_timer := 0.0
 
 
 func _ready() -> void:
@@ -47,7 +48,7 @@ func _ready() -> void:
 
 	game_display.custom_minimum_size = Vector2(720, 480)
 	game_display.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	status_label.text = "Frame 0"
+	status_label.text = _format_status("Frame 0")
 	set_process(true)
 	set_process_unhandled_input(true)
 
@@ -87,14 +88,19 @@ func _unhandled_input(event: InputEvent) -> void:
 			held_keys &= ~mask
 
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
 	if firered == null:
 		return
+
+	fps_title_timer += delta
+	if fps_title_timer >= 0.5:
+		DisplayServer.window_set_title("PokeFired Portable - %d FPS" % int(Engine.get_frames_per_second()))
+		fps_title_timer = 0.0
 
 	if quicksave_requested:
 		quicksave_requested = false
 		if firered.save_state(_quick_state_path()):
-			status_label.text = "Frame %d (quick saved)" % frame_count
+			status_label.text = _format_status("Frame %d (quick saved)" % frame_count)
 		else:
 			push_warning("Quick save failed")
 
@@ -106,7 +112,7 @@ func _process(_delta: float) -> void:
 			var restored_texture: Texture2D = firered.get_framebuffer_texture()
 			if restored_texture != null:
 				game_display.texture = restored_texture
-			status_label.text = "Frame %d (quick loaded)" % frame_count
+			status_label.text = _format_status("Frame %d (quick loaded)" % frame_count)
 			return
 		else:
 			push_warning("Quick load failed")
@@ -115,11 +121,11 @@ func _process(_delta: float) -> void:
 	if start_menu_pulse_frames > 0:
 		input_mask |= GBA_START
 		start_menu_pulse_frames -= 1
-		status_label.text = "Frame %d (opening menu)" % frame_count
+		status_label.text = _format_status("Frame %d (opening menu)" % frame_count)
 
 	firered.set_input_override(input_mask)
 	if not firered.step_frame():
-		status_label.text = "Frame %d failed" % frame_count
+		status_label.text = _format_status("Frame %d failed" % frame_count)
 		push_error("FireRedNode failed stepping frame %d" % frame_count)
 		set_process(false)
 		return
@@ -127,13 +133,13 @@ func _process(_delta: float) -> void:
 	frame_count += 1
 	var texture: Texture2D = firered.get_framebuffer_texture()
 	if texture == null:
-		status_label.text = "No framebuffer texture at frame %d" % frame_count
+		status_label.text = _format_status("No framebuffer texture at frame %d" % frame_count)
 		push_error("FireRedNode returned no framebuffer texture at frame %d" % frame_count)
 		set_process(false)
 		return
 
 	game_display.texture = texture
-	status_label.text = "Frame %d" % frame_count
+	status_label.text = _format_status("Frame %d" % frame_count)
 
 	if screenshot_requested:
 		_write_snapshot(texture)
@@ -216,7 +222,11 @@ func _write_snapshot(texture: Texture2D) -> void:
 		file.store_string("\n".join(summary) + "\n")
 		file.close()
 
-	status_label.text = "Frame %d (saved snapshot)" % frame_count
+	status_label.text = _format_status("Frame %d (saved snapshot)" % frame_count)
+
+
+func _format_status(base: String) -> String:
+	return "%s | %d FPS" % [base, int(Engine.get_frames_per_second())]
 
 
 func _quick_state_path() -> String:

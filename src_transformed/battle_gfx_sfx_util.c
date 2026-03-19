@@ -61,6 +61,7 @@ static void *LoadPortableBattleAssetFile(const char *relativePath)
     char fullPath[512];
     size_t bytesRead;
     long size;
+    u32 allocSize;
     u32 i;
 
     for (i = 0; i < ARRAY_COUNT(sPortableBattleAssetPrefixes); i++)
@@ -85,9 +86,15 @@ static void *LoadPortableBattleAssetFile(const char *relativePath)
         fclose(file);
         return NULL;
     }
+    if ((unsigned long)size > (unsigned long)UINT32_MAX)
+    {
+        fclose(file);
+        return NULL;
+    }
 
     rewind(file);
-    data = Alloc((u32)size);
+    allocSize = (u32)size;
+    data = Alloc(allocSize);
     if (data == NULL)
     {
         fclose(file);
@@ -582,23 +589,31 @@ void DecompressTrainerFrontPic(u16 frontPicId, u8 battlerId)
     void *buffer;
     struct SpritePalette palette;
 
-    if (picData == NULL || paletteData == NULL)
-        return;
+    if (picData != NULL)
+        LZ77UnCompWram(picData, gMonSpritesGfxPtr->sprites[position]);
+    else
+        DecompressPicFromTable(&gTrainerFrontPicTable[frontPicId], gMonSpritesGfxPtr->sprites[position], SPECIES_NONE);
 
-    LZ77UnCompWram(picData, gMonSpritesGfxPtr->sprites[position]);
     sheet.data = gMonSpritesGfxPtr->sprites[position];
     sheet.size = gTrainerFrontPicTable[frontPicId].size;
     sheet.tag = gTrainerFrontPicTable[frontPicId].tag;
     LoadSpriteSheet(&sheet);
 
-    buffer = AllocZeroed(*paletteData >> 8);
-    if (buffer == NULL)
-        return;
-    LZ77UnCompWram(paletteData, buffer);
-    palette.data = buffer;
-    palette.tag = gTrainerFrontPicPaletteTable[frontPicId].tag;
-    LoadSpritePalette(&palette);
-    Free(buffer);
+    if (paletteData != NULL)
+    {
+        buffer = AllocZeroed(*paletteData >> 8);
+        if (buffer == NULL)
+            return;
+        LZ77UnCompWram(paletteData, buffer);
+        palette.data = buffer;
+        palette.tag = gTrainerFrontPicPaletteTable[frontPicId].tag;
+        LoadSpritePalette(&palette);
+        Free(buffer);
+    }
+    else
+    {
+        LoadCompressedSpritePaletteUsingHeap(&gTrainerFrontPicPaletteTable[frontPicId]);
+    }
 #else
     DecompressPicFromTable(&gTrainerFrontPicTable[frontPicId], gMonSpritesGfxPtr->sprites[position], SPECIES_NONE);
     sheet.data = gMonSpritesGfxPtr->sprites[position];
@@ -1002,7 +1017,7 @@ void HandleSpeciesGfxDataChange(u8 battlerAtk, u8 battlerDef, u8 transformType)
                                                   targetSpecies,
                                                   personalityValue);
         src = gMonSpritesGfxPtr->sprites[position];
-        dst = (void *)(VRAM + 0x10000 + gSprites[gBattlerSpriteIds[battlerAtk]].oam.tileNum * 32);
+        dst = (void *)(uintptr_t)(VRAM + 0x10000 + gSprites[gBattlerSpriteIds[battlerAtk]].oam.tileNum * 32);
         DmaCopy32(3, src, dst, 0x800);
         paletteOffset = OBJ_PLTT_ID(battlerAtk);
         lzPaletteData = GetMonSpritePalFromSpeciesAndPersonality(targetSpecies, otId, personalityValue);
@@ -1060,7 +1075,7 @@ void HandleSpeciesGfxDataChange(u8 battlerAtk, u8 battlerDef, u8 transformType)
                                                       gTransformedPersonalities[battlerAtk]);
         }
         src = gMonSpritesGfxPtr->sprites[position];
-        dst = (void *)(VRAM + 0x10000 + gSprites[gBattlerSpriteIds[battlerAtk]].oam.tileNum * 32);
+        dst = (void *)(uintptr_t)(VRAM + 0x10000 + gSprites[gBattlerSpriteIds[battlerAtk]].oam.tileNum * 32);
         DmaCopy32(3, src, dst, 0x800);
         paletteOffset = OBJ_PLTT_ID(battlerAtk);
         lzPaletteData = GetMonSpritePalFromSpeciesAndPersonality(targetSpecies, otId, personalityValue);
@@ -1324,7 +1339,7 @@ void HideBattlerShadowSprite(u8 battlerId)
 void BattleInterfaceSetWindowPals(void)
 {
     // 9 tiles at 0x06000240
-    u16 *vramPtr = (u16 *)(BG_VRAM + 0x240);
+    u16 *vramPtr = (u16 *)(uintptr_t)(BG_VRAM + 0x240);
     s32 i;
     s32 j;
 
@@ -1344,7 +1359,7 @@ void BattleInterfaceSetWindowPals(void)
     }
 
     // 18 tiles at 0x06000600
-    vramPtr = (u16 *)(BG_VRAM + 0x600);
+    vramPtr = (u16 *)(uintptr_t)(BG_VRAM + 0x600);
     for (i = 0; i < 18; ++i)
     {
         for (j = 0; j < 16; ++vramPtr, ++j)

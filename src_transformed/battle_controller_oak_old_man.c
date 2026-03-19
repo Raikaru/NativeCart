@@ -18,6 +18,8 @@
 #include "constants/songs.h"
 #include "constants/items.h"
 
+extern bool8 BattleLinkTransferIsReady(void);
+
 static void OakOldManHandleGetMonData(void);
 static void OakOldManHandleGetRawMonData(void);
 static void OakOldManHandleSetMonData(void);
@@ -946,7 +948,7 @@ static void CompleteOnFinishedBattleAnimation(void)
 static void OakOldManBufferExecCompleted(void)
 {
     gBattlerControllerFuncs[gActiveBattler] = OakOldManBufferRunCommand;
-    if (gBattleTypeFlags & BATTLE_TYPE_LINK)
+    if (BattleLinkTransferIsReady())
     {
         u8 playerId = GetMultiplayerId();
 

@@ -16,6 +16,8 @@
 #include "constants/sound.h"
 #include "constants/trainers.h"
 
+extern bool8 BattleLinkTransferIsReady(void);
+
 static void LinkOpponentHandleGetMonData(void);
 static void LinkOpponentHandleGetRawMonData(void);
 static void LinkOpponentHandleSetMonData(void);
@@ -428,7 +430,7 @@ static void CompleteOnFinishedBattleAnimation(void)
 static void LinkOpponentBufferExecCompleted(void)
 {
     gBattlerControllerFuncs[gActiveBattler] = LinkOpponentBufferRunCommand;
-    if (gBattleTypeFlags & BATTLE_TYPE_LINK)
+    if (BattleLinkTransferIsReady())
     {
         u8 playerId = GetMultiplayerId();
 

@@ -37,6 +37,7 @@ static void Task_FlashTransition_Enter_2(u8 taskId);
 static void Task_FlashTransition_Enter_3(u8 taskId);
 static void RunMapPreviewScreen(u8 mapsecId);
 static void Task_MapPreviewScreen_0(u8 taskId);
+static IntrCallback GetSavedMapPreviewVBlankCallback(u8 taskId);
 
 static const struct FlashStruct sTransitionTypes[] = {
     {
@@ -153,6 +154,11 @@ static const struct FlashStruct sTransitionTypes[] = {
         .func2 = RunMapPreviewScreen
     }, {0}
 };
+
+static IntrCallback GetSavedMapPreviewVBlankCallback(u8 taskId)
+{
+    return (IntrCallback)GetWordTaskArg(taskId, 5);
+}
 #define sCaveTransitionPalette_White ((const u16 *)NULL)
 #define sCaveTransitionPalette_Black ((const u16 *)NULL)
 #define sCaveTransitionPalette_Enter ((const u16 *)NULL)
@@ -443,7 +449,7 @@ static void Task_MapPreviewScreen_0(u8 taskId)
         if (!IsDma3ManagerBusyWithBgCopy())
         {
             BeginNormalPaletteFade(PALETTES_ALL, -1, 16, 0, RGB_BLACK);
-            SetVBlankCallback((IntrCallback)GetWordTaskArg(taskId, 5));
+            SetVBlankCallback(GetSavedMapPreviewVBlankCallback(taskId));
             data[0]++;
         }
         break;

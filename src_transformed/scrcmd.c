@@ -44,13 +44,17 @@
 static const void *ResolveScriptOperandPointer(const void *ptr)
 {
     uintptr_t value;
+    uint32_t rawValue;
 
     if (ptr == NULL)
         return NULL;
 
     value = (uintptr_t)ptr;
     if (value <= 0xFFFFFFFFu)
-        return firered_portable_resolve_script_ptr((u32)value);
+    {
+        rawValue = (uint32_t)value;
+        return firered_portable_resolve_script_ptr(rawValue);
+    }
 
     return ptr;
 }
@@ -85,10 +89,16 @@ extern void firered_runtime_trace_external(const char *message);
 
 static const u8 *ResolveVirtualScriptPointer(u32 value)
 {
+    ptrdiff_t resolvedValue;
+
     if (value == 0)
         return NULL;
 
-    return (const u8 *)firered_portable_resolve_script_ptr(value - (u32)sAddressOffset);
+    resolvedValue = (ptrdiff_t)value - sAddressOffset;
+    if (resolvedValue < 0 || resolvedValue > UINT32_MAX)
+        return NULL;
+
+    return (const u8 *)firered_portable_resolve_script_ptr((uint32_t)resolvedValue);
 }
 
 static const u8 *ResolveScriptDataPointer(u32 value)
@@ -105,13 +115,13 @@ void *const gNullScriptPtr = NULL;
 
 static const u8 sScriptConditionTable[6][3] =
 {
-//  <  =  >
-    1, 0, 0, // <
-    0, 1, 0, // =
-    0, 0, 1, // >
-    1, 1, 0, // <=
-    0, 1, 1, // >=
-    1, 0, 1, // !=
+    //  <  =  >
+    {1, 0, 0}, // <
+    {0, 1, 0}, // =
+    {0, 0, 1}, // >
+    {1, 1, 0}, // <=
+    {0, 1, 1}, // >=
+    {1, 0, 1}, // !=
 };
 
 bool8 ScrCmd_nop(struct ScriptContext * ctx)
@@ -211,10 +221,10 @@ bool8 ScrCmd_call_if(struct ScriptContext * ctx)
 
 bool8 ScrCmd_setvaddress(struct ScriptContext * ctx)
 {
-    u32 addr1 = (u32)ctx->scriptPtr - 1;
+    uintptr_t addr1 = (uintptr_t)ctx->scriptPtr - 1;
     u32 addr2 = ScriptReadWord(ctx);
 
-    sAddressOffset = addr2 - addr1;
+    sAddressOffset = (ptrdiff_t)addr2 - (ptrdiff_t)addr1;
     return FALSE;
 }
 

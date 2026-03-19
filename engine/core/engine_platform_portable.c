@@ -9,6 +9,8 @@
 #include <math.h>
 #include <string.h>
 
+extern void firered_portable_m4aSoundVSync(void);
+
 #define ENGINE_PI 3.14159265358979323846
 
 u8 gHeap[HEAP_SIZE];
@@ -247,4 +249,5 @@ int MultiBoot(struct MultiBootParam *mp)
 
 void m4aSoundVSync(void)
 {
+    firered_portable_m4aSoundVSync();
 }

@@ -35,6 +35,7 @@ opts = Variables([], ARGUMENTS)
 opts.Add(EnumVariable("platform", "Target platform", detect_platform(), ["windows", "linux", "macos", "android", "ios"]))
 opts.Add(EnumVariable("target", "Build target", "debug", ["debug", "release"]))
 opts.Add(EnumVariable("arch", "Target architecture", "x86_64", ["x86_64", "x86_32", "arm64", "arm32"]))
+opts.Add(BoolVariable("experimental_audio", "Build with transformed m4a runtime enabled", False))
 opts.Add(PathVariable("godot_cpp_path", "Path to godot-cpp", os.environ.get("GODOT_CPP_PATH", "../godot-cpp"), PathVariable.PathIsDir))
 
 if ARGUMENTS.get("platform", detect_platform()) == "windows":
@@ -99,8 +100,9 @@ def merged_engine_sources():
     originals.update(transformed)
     originals.pop("librfu_intr.c", None)
     originals.pop("isagbprn.c", None)
-    originals.pop("m4a.c", None)
-    originals.pop("m4a_tables.c", None)
+    if not env["experimental_audio"]:
+        originals.pop("m4a.c", None)
+        originals.pop("m4a_tables.c", None)
     originals.pop("main.c", None)
     originals.pop("multiboot.c", None)
     originals.pop("region_map.c", None)
@@ -174,6 +176,8 @@ c_env.Append(CCFLAGS=[
     "-Wno-implicit-fallthrough",
 ])
 c_env.Append(CPPDEFINES=["PORTABLE", "NO_SAVEFLASH", "FIRERED", "GAME_LANGUAGE=2", "PORTABLE_FAKE_INCBIN", "__INTELLISENSE__"])
+if env["experimental_audio"]:
+    c_env.Append(CPPDEFINES=["FIRERED_EXPERIMENTAL_AUDIO"])
 
 if env["platform"] == "windows":
     c_env.Append(CCFLAGS=["-mms-bitfields", "-m64" if env["arch"] == "x86_64" else "-m32"])

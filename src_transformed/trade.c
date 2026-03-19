@@ -518,12 +518,12 @@ static const u8 sUnusedCoords[][2] =
     {23, 12}
 };
 
-static const u8 sText_Dummy[] = _("");
+static const u8 sText_Dummy[] = { EOS };
 static const u8 sText_ClrWhtHltTranspShdwDrkGry[] = _("{COLOR WHITE}{HIGHLIGHT TRANSPARENT}{SHADOW DARK_GRAY}");
 const u8 gText_MaleSymbol4[] = _("♂");
 const u8 gText_FemaleSymbol4[] = _("♀");
-const u8 gText_GenderlessSymbol[] = _("");
-static const u8 sText_Dummy2[] = _("");
+const u8 gText_GenderlessSymbol[] = { EOS };
+static const u8 sText_Dummy2[] = { EOS };
 static const u8 sText_Newline[] = _("\n");
 static const u8 sText_Slash[] = _("/");
 

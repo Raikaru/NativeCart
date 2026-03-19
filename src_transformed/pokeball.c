@@ -672,8 +672,6 @@ static void SpriteCB_BallThrow_Shake(struct Sprite *sprite)
 #define tCryTaskSpecies         data[0]
 #define tCryTaskPan             data[1]
 #define tCryTaskWantedCry       data[2]
-#define tCryTaskMonPtr1         data[3]
-#define tCryTaskMonPtr2         data[4]
 #define tCryTaskFrames          data[10]
 #define tCryTaskState           data[15]
 
@@ -682,11 +680,7 @@ static void Task_PlayCryWhenReleasedFromBall(u8 taskId)
     u8 wantedCry = gTasks[taskId].tCryTaskWantedCry;
     s8 pan = gTasks[taskId].tCryTaskPan;
     u16 species = gTasks[taskId].tCryTaskSpecies;
-#ifdef PORTABLE
     struct Pokemon *mon = (struct Pokemon *)(uintptr_t)GetWordTaskArg(taskId, 3);
-#else
-    struct Pokemon *mon = (void *)(u32)((gTasks[taskId].tCryTaskMonPtr1 << 16) | (u16)(gTasks[taskId].tCryTaskMonPtr2));
-#endif
 
     switch (gTasks[taskId].tCryTaskState)
     {
@@ -820,12 +814,7 @@ static void SpriteCB_ReleaseMonFromBall(struct Sprite *sprite)
         gTasks[taskId].tCryTaskSpecies = species;
         gTasks[taskId].tCryTaskPan = pan;
         gTasks[taskId].tCryTaskWantedCry = wantedCryCase;
-#ifdef PORTABLE
         SetWordTaskArg(taskId, 3, (uintptr_t)mon);
-#else
-        gTasks[taskId].tCryTaskMonPtr1 = (u32)(mon) >> 16;
-        gTasks[taskId].tCryTaskMonPtr2 = (u32)(mon);
-#endif
         gTasks[taskId].tCryTaskState = 0;
     }
 
@@ -837,8 +826,6 @@ static void SpriteCB_ReleaseMonFromBall(struct Sprite *sprite)
 #undef tCryTaskSpecies
 #undef tCryTaskPan
 #undef tCryTaskWantedCry
-#undef tCryTaskMonPtr1
-#undef tCryTaskMonPtr2
 #undef tCryTaskFrames
 #undef tCryTaskState
 
@@ -1321,7 +1308,7 @@ void LoadBallGfx(u8 ballId)
         break;
     default:
         var = GetSpriteTileStartByTag(gBallSpriteSheets[ballId].tag);
-        LZDecompressVram(gOpenPokeballGfx, (void *)(OBJ_VRAM0 + 0x100 + var * 32));
+        LZDecompressVram(gOpenPokeballGfx, (void *)(uintptr_t)(OBJ_VRAM0 + 0x100 + var * 32));
         break;
     }
 }

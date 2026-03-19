@@ -1,5 +1,50 @@
 #include "global.h"
+#include "constants/songs.h"
 #include "gba/m4a_internal.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdint.h>
+
+#ifdef PORTABLE
+extern void firered_portable_m4aInitAssets(void);
+static bool32 sPortableM4aInitMarked;
+static bool32 sPortableM4aMainMarked;
+static bool32 sPortableAudioConfigInitialized;
+static bool32 sPortableAudioEnabled;
+
+static const struct Song *GetPortableSongOrNull(u16 n)
+{
+    if (n == MUS_NONE || n > MUS_TEACHY_TV_MENU)
+        return NULL;
+
+    if (gSongTable[n].header == NULL)
+        return NULL;
+
+    return &gSongTable[n];
+}
+
+static void WritePortableM4aMarker(const char *path, const char *contents)
+{
+    FILE *marker = fopen(path, "wb");
+
+    if (marker == NULL)
+        return;
+
+    fputs(contents, marker);
+    fclose(marker);
+}
+
+static bool32 IsPortableAudioEnabled(void)
+{
+    if (!sPortableAudioConfigInitialized)
+    {
+        sPortableAudioConfigInitialized = TRUE;
+        sPortableAudioEnabled = (getenv("FIRERED_ENABLE_EXPERIMENTAL_AUDIO") != NULL);
+    }
+
+    return sPortableAudioEnabled;
+}
+#endif
 
 extern const u8 gCgb3Vol[];
 
@@ -71,7 +116,12 @@ void m4aSoundInit(void)
 {
     s32 i;
 
-    CpuCopy32((void *)((s32)SoundMainRAM & ~1), SoundMainRAM_Buffer, sizeof(SoundMainRAM_Buffer));
+#ifdef PORTABLE
+    if (!IsPortableAudioEnabled())
+        return;
+#endif
+
+    CpuCopy32((const void *)((uintptr_t)SoundMainRAM & ~(uintptr_t)1), SoundMainRAM_Buffer, sizeof(SoundMainRAM_Buffer));
 
     SoundInit(&gSoundInfo);
     MPlayExtender(gCgbChans);
@@ -97,18 +147,49 @@ void m4aSoundInit(void)
         MPlayOpen(mplayInfo, track, 2);
         track->chan = 0;
     }
+
+#ifdef PORTABLE
+    if (!sPortableM4aInitMarked)
+    {
+        sPortableM4aInitMarked = TRUE;
+        WritePortableM4aMarker("build/portable_audio_m4a_init.ok",
+                               "m4aSoundInit reached\n");
+    }
+    firered_portable_m4aInitAssets();
+#endif
 }
 
 void m4aSoundMain(void)
 {
+#ifdef PORTABLE
+    if (!IsPortableAudioEnabled())
+        return;
+
+    if (!sPortableM4aMainMarked)
+    {
+        sPortableM4aMainMarked = TRUE;
+        WritePortableM4aMarker("build/portable_audio_m4a_main.ok",
+                               "m4aSoundMain reached\n");
+    }
+#endif
     SoundMain();
 }
 
 void m4aSongNumStart(u16 n)
 {
+#ifdef PORTABLE
+    if (!IsPortableAudioEnabled())
+        return;
+#endif
     const struct MusicPlayer *mplayTable = gMPlayTable;
+#ifdef PORTABLE
+    const struct Song *song = GetPortableSongOrNull(n);
+#else
     const struct Song *songTable = gSongTable;
     const struct Song *song = &songTable[n];
+#endif
+    if (song == NULL)
+        return;
     const struct MusicPlayer *mplay = &mplayTable[song->ms];
 
     MPlayStart(mplay->info, song->header);
@@ -116,9 +197,19 @@ void m4aSongNumStart(u16 n)
 
 void m4aSongNumStartOrChange(u16 n)
 {
+#ifdef PORTABLE
+    if (!IsPortableAudioEnabled())
+        return;
+#endif
     const struct MusicPlayer *mplayTable = gMPlayTable;
+#ifdef PORTABLE
+    const struct Song *song = GetPortableSongOrNull(n);
+#else
     const struct Song *songTable = gSongTable;
     const struct Song *song = &songTable[n];
+#endif
+    if (song == NULL)
+        return;
     const struct MusicPlayer *mplay = &mplayTable[song->ms];
 
     if (mplay->info->songHeader != song->header)
@@ -137,9 +228,19 @@ void m4aSongNumStartOrChange(u16 n)
 
 void m4aSongNumStartOrContinue(u16 n)
 {
+#ifdef PORTABLE
+    if (!IsPortableAudioEnabled())
+        return;
+#endif
     const struct MusicPlayer *mplayTable = gMPlayTable;
+#ifdef PORTABLE
+    const struct Song *song = GetPortableSongOrNull(n);
+#else
     const struct Song *songTable = gSongTable;
     const struct Song *song = &songTable[n];
+#endif
+    if (song == NULL)
+        return;
     const struct MusicPlayer *mplay = &mplayTable[song->ms];
 
     if (mplay->info->songHeader != song->header)
@@ -152,9 +253,19 @@ void m4aSongNumStartOrContinue(u16 n)
 
 void m4aSongNumStop(u16 n)
 {
+#ifdef PORTABLE
+    if (!IsPortableAudioEnabled())
+        return;
+#endif
     const struct MusicPlayer *mplayTable = gMPlayTable;
+#ifdef PORTABLE
+    const struct Song *song = GetPortableSongOrNull(n);
+#else
     const struct Song *songTable = gSongTable;
     const struct Song *song = &songTable[n];
+#endif
+    if (song == NULL)
+        return;
     const struct MusicPlayer *mplay = &mplayTable[song->ms];
 
     if (mplay->info->songHeader == song->header)
@@ -163,9 +274,19 @@ void m4aSongNumStop(u16 n)
 
 void m4aSongNumContinue(u16 n)
 {
+#ifdef PORTABLE
+    if (!IsPortableAudioEnabled())
+        return;
+#endif
     const struct MusicPlayer *mplayTable = gMPlayTable;
+#ifdef PORTABLE
+    const struct Song *song = GetPortableSongOrNull(n);
+#else
     const struct Song *songTable = gSongTable;
     const struct Song *song = &songTable[n];
+#endif
+    if (song == NULL)
+        return;
     const struct MusicPlayer *mplay = &mplayTable[song->ms];
 
     if (mplay->info->songHeader == song->header)
@@ -509,7 +630,7 @@ void SoundClear(void)
     {
         ((struct SoundChannel *)chan)->statusFlags = 0;
         i--;
-        chan = (void *)((s32)chan + sizeof(struct SoundChannel));
+        chan = (void *)((uintptr_t)chan + sizeof(struct SoundChannel));
     }
 
     chan = soundInfo->cgbChans;
@@ -523,7 +644,7 @@ void SoundClear(void)
             soundInfo->CgbOscOff(i);
             ((struct CgbChannel *)chan)->statusFlags = 0;
             i++;
-            chan = (void *)((s32)chan + sizeof(struct CgbChannel));
+            chan = (void *)((uintptr_t)chan + sizeof(struct CgbChannel));
         }
     }
 

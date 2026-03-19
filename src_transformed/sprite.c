@@ -3,6 +3,7 @@
 
 #ifdef PORTABLE
 #include <stdio.h>
+extern void firered_runtime_trace_external(const char *message);
 #endif
 
 #define MAX_SPRITE_COPY_REQUESTS 64
@@ -91,6 +92,30 @@ static u8 IndexOfSpriteTileTag(u16 tag);
 static void AllocSpriteTileRange(u16 tag, u16 start, u16 count);
 static void DoLoadSpritePalette(const u16 *src, u16 paletteOffset);
 static void UpdateSpriteMatrixAnchorPos(struct Sprite* sprite, s32 a1, s32 a2);
+
+#ifdef PORTABLE
+static bool8 IsBattleUiSpriteTag(u16 tag)
+{
+    return tag >= 55039 && tag <= 55061;
+}
+
+static void TraceBattleUiSpriteTag(const char *action, u16 tag, u16 start, u16 count)
+{
+    char buffer[160];
+
+    if (!IsBattleUiSpriteTag(tag))
+        return;
+
+    snprintf(buffer, sizeof(buffer),
+             "BattleSpriteTiles: %s tag=%u start=%u count=%u bytes=%u",
+             action,
+             tag,
+             start,
+             count,
+             count * TILE_SIZE_4BPP);
+    firered_runtime_trace_external(buffer);
+}
+#endif
 
 typedef void (*AnimFunc)(struct Sprite *);
 typedef void (*AnimCmdFunc)(struct Sprite *);
@@ -579,6 +604,9 @@ u8 CreateSpriteAt(u8 index, const struct SpriteTemplate *template, s16 x, s16 y,
     {
         sprite->sheetTileStart = GetSpriteTileStartByTag(template->tileTag);
         SetSpriteSheetFrameTileNum(sprite);
+#ifdef PORTABLE
+        TraceBattleUiSpriteTag("create", template->tileTag, sprite->sheetTileStart, 0);
+#endif
     }
 
     if (sprite->oam.affineMode & ST_OAM_AFFINE_ON_MASK)
@@ -643,10 +671,70 @@ void ResetOamRange(u8 a, u8 b)
     }
 }
 
+static void PackOamEntry(const struct OamData *src, u16 *dst)
+{
+    dst[0] = (u16)((src->y & 0xFF)
+        | ((src->affineMode & 0x3) << 8)
+        | ((src->objMode & 0x3) << 10)
+        | ((src->mosaic & 0x1) << 12)
+        | ((src->bpp & 0x1) << 13)
+        | ((src->shape & 0x3) << 14));
+
+    dst[1] = (u16)((src->x & 0x1FF)
+        | ((src->matrixNum & 0x1F) << 9)
+        | ((src->size & 0x3) << 14));
+
+    dst[2] = (u16)((src->tileNum & 0x3FF)
+        | ((src->priority & 0x3) << 10)
+        | ((src->paletteNum & 0xF) << 12));
+
+    dst[3] = src->affineParam;
+}
+
 void LoadOam(void)
 {
     if (!gMain.oamLoadDisabled)
-        CpuCopy32(gMain.oamBuffer, (void *)OAM, sizeof(gMain.oamBuffer));
+    {
+        u16 *oam = (u16 *)OAM;
+        u16 i;
+
+#ifdef PORTABLE
+        {
+            static int dumpedBattleOam;
+            int printed = 0;
+
+            if (!dumpedBattleOam) {
+                for (i = 0; i < MAX_SPRITES && printed < 16; i++) {
+                    struct OamData *src = &gMain.oamBuffer[i];
+
+                    if (src->x > 176 && src->x < 240 && src->y > 20 && src->y < 160) {
+                        printf("BattleOAMUpload: i=%u x=%u y=%u tile=%u shape=%u size=%u prio=%u pal=%u aff=%u obj=%u bpp=%u matrix=%u\n",
+                               i,
+                               src->x,
+                               src->y,
+                               src->tileNum,
+                               src->shape,
+                               src->size,
+                               src->priority,
+                               src->paletteNum,
+                               src->affineMode,
+                               src->objMode,
+                               src->bpp,
+                               src->matrixNum);
+                        fflush(stdout);
+                        printed++;
+                    }
+                }
+
+                if (printed > 0)
+                    dumpedBattleOam = 1;
+            }
+        }
+#endif
+
+        for (i = 0; i < MAX_SPRITES; i++)
+            PackOamEntry(&gMain.oamBuffer[i], &oam[i * 4]);
+    }
 }
 
 void ClearSpriteCopyRequests(void)
@@ -1518,6 +1606,9 @@ u16 LoadSpriteSheet(const struct SpriteSheet *sheet)
     {
         AllocSpriteTileRange(sheet->tag, (u16)tileStart, sheet->size / TILE_SIZE_4BPP);
         CpuCopy16(sheet->data, (u8 *)OBJ_VRAM0 + TILE_SIZE_4BPP * tileStart, sheet->size);
+#ifdef PORTABLE
+        TraceBattleUiSpriteTag("load", sheet->tag, (u16)tileStart, sheet->size / TILE_SIZE_4BPP);
+#endif
         return (u16)tileStart;
     }
 }
@@ -1547,6 +1638,9 @@ void FreeSpriteTilesByTag(u16 tag)
         for (i = start; i < start + count; i++)
             FREE_SPRITE_TILE(i);
 
+#ifdef PORTABLE
+        TraceBattleUiSpriteTag("free", tag, start, count);
+#endif
         sSpriteTileRangeTags[index] = TAG_NONE;
     }
 }

@@ -791,10 +791,14 @@ static void AnimSuperpowerOrb_Step(struct Sprite *sprite)
 // Floating rock that flies off to hit the target. Used by Superpower
 static void AnimSuperpowerRock(struct Sprite *sprite)
 {
+    s32 fixedPointY;
+
     sprite->x = gBattleAnimArgs[0];
     sprite->y = 120;
     sprite->data[0] = gBattleAnimArgs[3];
-    StorePointerInVars(&sprite->data[4], &sprite->data[5], (void *)(sprite->y << 8));
+    fixedPointY = sprite->y << 8;
+    sprite->data[4] = fixedPointY;
+    sprite->data[5] = fixedPointY >> 16;
     sprite->data[6] = gBattleAnimArgs[1];
     sprite->oam.tileNum += gBattleAnimArgs[2] * 4;
     sprite->callback = AnimSuperpowerRock_Step1;
@@ -802,15 +806,15 @@ static void AnimSuperpowerRock(struct Sprite *sprite)
 
 static void AnimSuperpowerRock_Step1(struct Sprite *sprite)
 {
-    void *var0;
+    s32 fixedPointY;
 
     if (sprite->data[0] != 0)
     {
-        var0 = LoadPointerFromVars(sprite->data[4], sprite->data[5]);
-        var0 -= sprite->data[6];
-        StorePointerInVars(&sprite->data[4], &sprite->data[5], var0);
-        var0 = (void *)(((intptr_t)var0) >> 8);
-        sprite->y = (intptr_t)var0;
+        fixedPointY = (u16)sprite->data[4] | (sprite->data[5] << 16);
+        fixedPointY -= sprite->data[6];
+        sprite->data[4] = fixedPointY;
+        sprite->data[5] = fixedPointY >> 16;
+        sprite->y = fixedPointY >> 8;
         if (sprite->y < -8)
             DestroyAnimSprite(sprite);
         else

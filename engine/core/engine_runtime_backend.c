@@ -14,6 +14,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
@@ -21,6 +22,52 @@
 #else
 #include <pthread.h>
 #endif
+
+#define ENGINE_TRACE_RING_SIZE 2048
+#define ENGINE_TRACE_LINE_MAX 512
+
+#define ENGINE_TRACE_CAT_CRASH    (1u << 0)
+#define ENGINE_TRACE_CAT_BATTLE   (1u << 1)
+#define ENGINE_TRACE_CAT_TASK     (1u << 2)
+#define ENGINE_TRACE_CAT_MOVE     (1u << 3)
+#define ENGINE_TRACE_CAT_WEATHER  (1u << 4)
+#define ENGINE_TRACE_CAT_RENDERER (1u << 5)
+#define ENGINE_TRACE_CAT_MAINLOOP (1u << 6)
+#define ENGINE_TRACE_CAT_WARN     (1u << 7)
+#define ENGINE_TRACE_CAT_GENERAL  (1u << 8)
+
+#define ENGINE_TRACE_DEFAULT_MASK (ENGINE_TRACE_CAT_CRASH | ENGINE_TRACE_CAT_BATTLE | ENGINE_TRACE_CAT_TASK | ENGINE_TRACE_CAT_MOVE | ENGINE_TRACE_CAT_WARN)
+
+typedef struct EngineTraceEntry {
+    char line[ENGINE_TRACE_LINE_MAX];
+} EngineTraceEntry;
+
+#ifdef _WIN32
+typedef LONG EngineTraceAtomicInt;
+#define engine_trace_atomic_load(ptr) InterlockedCompareExchange((volatile LONG *)(ptr), 0, 0)
+#define engine_trace_atomic_compare_exchange(ptr, expected, desired) \
+    (InterlockedCompareExchange((volatile LONG *)(ptr), (LONG)(desired), (LONG)(expected)) == (LONG)(expected))
+#define engine_trace_atomic_increment(ptr) InterlockedIncrement((volatile LONG *)(ptr))
+#define engine_trace_atomic_exchange(ptr, value) InterlockedExchange((volatile LONG *)(ptr), (LONG)(value))
+#define engine_trace_atomic_store(ptr, value) InterlockedExchange((volatile LONG *)(ptr), (LONG)(value))
+#else
+typedef int EngineTraceAtomicInt;
+#define engine_trace_atomic_load(ptr) __atomic_load_n((ptr), __ATOMIC_ACQUIRE)
+#define engine_trace_atomic_compare_exchange(ptr, expected, desired) \
+    __atomic_compare_exchange_n((ptr), &(expected), (desired), 0, __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE)
+#define engine_trace_atomic_increment(ptr) __atomic_add_fetch((ptr), 1, __ATOMIC_ACQ_REL)
+#define engine_trace_atomic_exchange(ptr, value) __atomic_exchange_n((ptr), (value), __ATOMIC_ACQ_REL)
+#define engine_trace_atomic_store(ptr, value) __atomic_store_n((ptr), (value), __ATOMIC_RELEASE)
+#endif
+
+static EngineTraceEntry s_trace_ring[ENGINE_TRACE_RING_SIZE];
+static volatile EngineTraceAtomicInt s_trace_ready[ENGINE_TRACE_RING_SIZE];
+static volatile EngineTraceAtomicInt s_trace_head = 0;
+static volatile EngineTraceAtomicInt s_trace_tail = 0;
+static volatile EngineTraceAtomicInt s_trace_dropped = 0;
+static uint64_t s_trace_last_flush_ms = 0;
+static uint32_t s_trace_mask = ENGINE_TRACE_DEFAULT_MASK;
+static int s_trace_config_initialized = 0;
 
 extern void AgbMain(void);
 extern void CopyBufferedValuesToGpuRegs(void);
@@ -72,8 +119,180 @@ typedef struct EngineStateFileHeader {
 #define ENGINE_STATE_FILE_VERSION 2u
 
 static void engine_runtime_trace(const char *message);
+static void engine_runtime_trace_flush(void);
 static int engine_runtime_begin_idle_mutation(void);
 static void engine_runtime_end_idle_mutation(void);
+
+static int engine_trace_starts_with(const char *message, const char *prefix)
+{
+    while (*prefix != '\0')
+    {
+        if (*message != *prefix)
+            return 0;
+        ++message;
+        ++prefix;
+    }
+    return 1;
+}
+
+static int engine_trace_token_equals(const char *start, size_t length, const char *token)
+{
+    size_t i;
+
+    for (i = 0; i < length; ++i)
+    {
+        if (token[i] == '\0' || start[i] != token[i])
+            return 0;
+    }
+
+    return token[length] == '\0';
+}
+
+static uint32_t engine_runtime_trace_category_for_message(const char *message)
+{
+    if (message == NULL || *message == '\0')
+        return ENGINE_TRACE_CAT_GENERAL;
+    if (engine_trace_starts_with(message, "WARN:"))
+        return ENGINE_TRACE_CAT_WARN;
+    if (engine_trace_starts_with(message, "CrashTrace:"))
+        return ENGINE_TRACE_CAT_CRASH;
+    if (engine_trace_starts_with(message, "BattleMain")
+     || engine_trace_starts_with(message, "BattleMainCB1:")
+     || engine_trace_starts_with(message, "UpdatePaletteFade:"))
+        return ENGINE_TRACE_CAT_BATTLE;
+    if (engine_trace_starts_with(message, "PerStepCB:")
+     || engine_trace_starts_with(message, "RunTasks:"))
+        return ENGINE_TRACE_CAT_TASK;
+    if (engine_trace_starts_with(message, "MoveScript:"))
+        return ENGINE_TRACE_CAT_MOVE;
+    if (engine_trace_starts_with(message, "WeatherMain:")
+     || engine_trace_starts_with(message, "ApplyGammaShift:"))
+        return ENGINE_TRACE_CAT_WEATHER;
+    if (engine_trace_starts_with(message, "palette_cache:")
+     || engine_trace_starts_with(message, "clear_framebuffer:")
+     || engine_trace_starts_with(message, "precompute_windows:")
+     || engine_trace_starts_with(message, "backdrop_init:")
+     || engine_trace_starts_with(message, "render_bg:")
+     || engine_trace_starts_with(message, "render_sprites:")
+     || engine_trace_starts_with(message, "compose:")
+     || engine_trace_starts_with(message, "engine_video_render_frame:"))
+        return ENGINE_TRACE_CAT_RENDERER;
+    if (engine_trace_starts_with(message, "MainLoop:")
+     || engine_trace_starts_with(message, "PlttTransfer:")
+     || engine_trace_starts_with(message, "WaitForVBlank:")
+     || engine_trace_starts_with(message, "RuntimeVBlank:"))
+        return ENGINE_TRACE_CAT_MAINLOOP;
+    return ENGINE_TRACE_CAT_GENERAL;
+}
+
+static uint32_t engine_runtime_trace_mask_from_token(const char *start, size_t length)
+{
+    if (engine_trace_token_equals(start, length, "all"))
+        return 0xFFFFFFFFu;
+    if (engine_trace_token_equals(start, length, "default"))
+        return ENGINE_TRACE_DEFAULT_MASK;
+    if (engine_trace_token_equals(start, length, "none"))
+        return 0u;
+    if (engine_trace_token_equals(start, length, "crash"))
+        return ENGINE_TRACE_CAT_CRASH;
+    if (engine_trace_token_equals(start, length, "battle"))
+        return ENGINE_TRACE_CAT_BATTLE;
+    if (engine_trace_token_equals(start, length, "task"))
+        return ENGINE_TRACE_CAT_TASK;
+    if (engine_trace_token_equals(start, length, "move"))
+        return ENGINE_TRACE_CAT_MOVE;
+    if (engine_trace_token_equals(start, length, "weather"))
+        return ENGINE_TRACE_CAT_WEATHER;
+    if (engine_trace_token_equals(start, length, "renderer"))
+        return ENGINE_TRACE_CAT_RENDERER;
+    if (engine_trace_token_equals(start, length, "mainloop"))
+        return ENGINE_TRACE_CAT_MAINLOOP;
+    if (engine_trace_token_equals(start, length, "warn"))
+        return ENGINE_TRACE_CAT_WARN;
+    if (engine_trace_token_equals(start, length, "general"))
+        return ENGINE_TRACE_CAT_GENERAL;
+    return 0u;
+}
+
+static void engine_runtime_trace_init_config(void)
+{
+    const char *env;
+
+    if (s_trace_config_initialized)
+        return;
+
+    s_trace_config_initialized = 1;
+    env = getenv("NATIVECART_TRACE");
+    if (env == NULL || *env == '\0')
+        return;
+
+    if (strcmp(env, "all") == 0)
+    {
+        s_trace_mask = 0xFFFFFFFFu;
+        return;
+    }
+
+    {
+        const char *cursor = env;
+        uint32_t mask = 0u;
+
+        while (*cursor != '\0')
+        {
+            const char *token_start;
+            size_t token_length;
+
+            while (*cursor == ' ' || *cursor == '\t' || *cursor == ',' || *cursor == ';')
+                ++cursor;
+            if (*cursor == '\0')
+                break;
+
+            token_start = cursor;
+            while (*cursor != '\0' && *cursor != ',' && *cursor != ';')
+                ++cursor;
+            token_length = (size_t)(cursor - token_start);
+            while (token_length > 0 && (token_start[token_length - 1] == ' ' || token_start[token_length - 1] == '\t'))
+                --token_length;
+
+            if (token_length > 0)
+            {
+                uint32_t token_mask = engine_runtime_trace_mask_from_token(token_start, token_length);
+                if (token_mask == 0xFFFFFFFFu)
+                {
+                    mask = token_mask;
+                    break;
+                }
+                if (engine_trace_token_equals(token_start, token_length, "default"))
+                    mask |= ENGINE_TRACE_DEFAULT_MASK;
+                else
+                    mask |= token_mask;
+            }
+        }
+
+        s_trace_mask = mask;
+    }
+}
+
+static int engine_runtime_trace_should_emit(const char *message)
+{
+    uint32_t category;
+
+    engine_runtime_trace_init_config();
+    category = engine_runtime_trace_category_for_message(message);
+    return (s_trace_mask & category) != 0;
+}
+
+static uint64_t engine_runtime_trace_now_ms(void)
+{
+#ifdef _WIN32
+    return (uint64_t)GetTickCount64();
+#else
+    struct timespec ts;
+
+    if (clock_gettime(CLOCK_MONOTONIC, &ts) != 0)
+        return 0;
+    return (uint64_t)ts.tv_sec * 1000ull + (uint64_t)ts.tv_nsec / 1000000ull;
+#endif
+}
 
 #ifdef PORTABLE
 static void engine_runtime_dump_palette_stage16_once(void)
@@ -235,22 +454,73 @@ static int engine_runtime_should_log_frame_step(unsigned long frame)
 
 static void engine_runtime_trace(const char *message)
 {
-#ifdef _WIN32
-    const char *temp_dir = getenv("TEMP");
-    const char *base = temp_dir != NULL ? temp_dir : ".";
-    char path[MAX_PATH];
-    FILE *out;
+    int head;
+    int tail;
+    int slot;
 
-    snprintf(path, sizeof(path), "%s\\pokeengine_gdextension.log", base);
-    out = fopen(path, "a");
-#else
-    FILE *out = fopen("/tmp/pokeengine_gdextension.log", "a");
-#endif
-    if (out != NULL) {
-        fputs(message, out);
-        fputc('\n', out);
-        fclose(out);
+    if (message == NULL) {
+        return;
     }
+    if (!engine_runtime_trace_should_emit(message)) {
+        return;
+    }
+
+    for (;;) {
+        head = (int)engine_trace_atomic_load(&s_trace_head);
+        tail = (int)engine_trace_atomic_load(&s_trace_tail);
+        if ((unsigned int)(head - tail) >= ENGINE_TRACE_RING_SIZE) {
+            engine_trace_atomic_increment(&s_trace_dropped);
+            return;
+        }
+        if (engine_trace_atomic_compare_exchange(&s_trace_head, head, head + 1)) {
+            break;
+        }
+    }
+
+    slot = head % ENGINE_TRACE_RING_SIZE;
+    snprintf(s_trace_ring[slot].line, sizeof(s_trace_ring[slot].line), "%s", message);
+    engine_trace_atomic_store(&s_trace_ready[slot], 1);
+}
+
+static void engine_runtime_trace_flush(void)
+{
+    int tail;
+    int head;
+    long dropped;
+
+    tail = (int)engine_trace_atomic_load(&s_trace_tail);
+    head = (int)engine_trace_atomic_load(&s_trace_head);
+    dropped = (long)engine_trace_atomic_exchange(&s_trace_dropped, 0);
+
+    if (tail >= head && dropped == 0) {
+        s_trace_last_flush_ms = engine_runtime_trace_now_ms();
+        return;
+    }
+
+    while (1) {
+        tail = (int)engine_trace_atomic_load(&s_trace_tail);
+        head = (int)engine_trace_atomic_load(&s_trace_head);
+        if (tail >= head) {
+            break;
+        }
+        if (!engine_trace_atomic_load(&s_trace_ready[tail % ENGINE_TRACE_RING_SIZE])) {
+            break;
+        }
+
+        fputs(s_trace_ring[tail % ENGINE_TRACE_RING_SIZE].line, stdout);
+        fputc('\n', stdout);
+        engine_trace_atomic_store(&s_trace_ready[tail % ENGINE_TRACE_RING_SIZE], 0);
+        engine_trace_atomic_store(&s_trace_tail, tail + 1);
+    }
+
+    fflush(stdout);
+
+    if (dropped > 0) {
+        printf("engine_runtime_trace: dropped %ld entries\n", dropped);
+        fflush(stdout);
+    }
+
+    s_trace_last_flush_ms = engine_runtime_trace_now_ms();
 }
 
 void engine_backend_trace_external(const char *message)
@@ -473,6 +743,7 @@ void engine_backend_set_input(uint16_t buttons) {
 void engine_backend_run_frame(void) {
     unsigned long target_frame;
     unsigned long completed_frame;
+    uint64_t now_ms;
     char buffer[64];
 
     if (!g_runtime.initialized) {
@@ -525,6 +796,10 @@ void engine_backend_run_frame(void) {
             engine_runtime_trace(buffer);
         }
 #endif
+        now_ms = engine_runtime_trace_now_ms();
+        if (now_ms >= s_trace_last_flush_ms + 1000ull) {
+            engine_runtime_trace_flush();
+        }
     }
 
     if (g_runtime.soft_reset_requested) {
@@ -677,6 +952,8 @@ void engine_backend_shutdown(void) {
         pthread_mutex_destroy(&g_runtime.mutex);
 #endif
     }
+
+    engine_runtime_trace_flush();
 
     engine_memory_shutdown();
     engine_runtime_free_rom();

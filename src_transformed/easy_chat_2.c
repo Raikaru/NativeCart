@@ -60,6 +60,7 @@ static void Task_InitEasyChat(u8 taskId);
 static void Task_RunEasyChat(u8 taskId);
 static bool8 Task_InitEasyChatInternal(u8 taskId);
 static void DismantleEasyChat(MainCallback cb);
+static MainCallback GetEasyChatMainCallback(u8 taskId);
 static void CompareProfileResponseWithPassphrase(void);
 static void CompareQuestionnaireResponseWithPassphrase(void);
 static bool8 EasyChat_AllocateResources(u8 type, u16 *words);
@@ -114,6 +115,11 @@ void DoEasyChatScreen(u8 type, u16 *words, MainCallback callback)
     SetWordTaskArg(taskId, EZCHAT_TASK_WORDS, (uintptr_t)words);
     SetWordTaskArg(taskId, EZCHAT_TASK_MAINCALLBACK, (uintptr_t)callback);
     SetMainCallback2(CB2_EasyChatScreen);
+}
+
+static MainCallback GetEasyChatMainCallback(u8 taskId)
+{
+    return (MainCallback)GetWordTaskArg(taskId, EZCHAT_TASK_MAINCALLBACK);
 }
 
 static void CB2_EasyChatScreen(void)
@@ -194,7 +200,7 @@ static void Task_RunEasyChat(u8 taskId)
                 FlagSet(FLAG_SYS_SET_TRAINER_CARD_PROFILE);
                 CompareProfileResponseWithPassphrase();
             }
-            DismantleEasyChat((MainCallback)GetWordTaskArg(taskId, EZCHAT_TASK_MAINCALLBACK));
+            DismantleEasyChat(GetEasyChatMainCallback(taskId));
         }
         break;
     }
@@ -216,19 +222,19 @@ static bool8 Task_InitEasyChatInternal(u8 taskId)
     case 1:
         if (!InitEasyChatSelection())
         {
-            DismantleEasyChat((MainCallback)GetWordTaskArg(taskId, EZCHAT_TASK_MAINCALLBACK));
+            DismantleEasyChat(GetEasyChatMainCallback(taskId));
         }
         break;
     case 2:
         if (!EasyChat_AllocateResources(data[EZCHAT_TASK_TYPE], (u16 *)GetWordTaskArg(taskId, EZCHAT_TASK_WORDS)))
         {
-            DismantleEasyChat((MainCallback)GetWordTaskArg(taskId, EZCHAT_TASK_MAINCALLBACK));
+            DismantleEasyChat(GetEasyChatMainCallback(taskId));
         }
         break;
     case 3:
         if (!InitEasyChatGraphicsWork())
         {
-            DismantleEasyChat((MainCallback)GetWordTaskArg(taskId, EZCHAT_TASK_MAINCALLBACK));
+            DismantleEasyChat(GetEasyChatMainCallback(taskId));
         }
         break;
     case 4:
