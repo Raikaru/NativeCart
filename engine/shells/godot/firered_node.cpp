@@ -15,7 +15,9 @@ extern "C" {
 }
 
 #include <godot_cpp/classes/file_access.hpp>
+#include <godot_cpp/classes/engine.hpp>
 #include <godot_cpp/classes/input.hpp>
+#include <godot_cpp/classes/window.hpp>
 #include <godot_cpp/core/class_db.hpp>
 #include <godot_cpp/variant/packed_byte_array.hpp>
 
@@ -75,10 +77,19 @@ void FireRedNode::_ready() {
 }
 
 void FireRedNode::_process(double delta) {
-    (void)delta;
-
     if (!running) {
         return;
+    }
+
+    fps_title_timer += delta;
+    if (fps_title_timer >= 0.5) {
+        Window *window = get_window();
+
+        if (window != nullptr) {
+            int fps = Engine::get_singleton()->get_frames_per_second();
+            window->set_title(String("NativeCart Godot - ") + String::num_int64(fps) + " FPS");
+        }
+        fps_title_timer = 0.0;
     }
 
     step_frame();

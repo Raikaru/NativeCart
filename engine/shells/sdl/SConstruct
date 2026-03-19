@@ -3,6 +3,7 @@
 import glob
 import os
 import platform
+import shutil
 import subprocess
 import sys
 
@@ -31,12 +32,26 @@ def build_static_archive(target, source, env):
         subprocess.check_call([env["AR"], "rcs", target_path] + chunk)
 
 
+def copy_runtime_file(target, source, env):
+    source_path = str(source[0])
+    target_path = str(target[0])
+    target_dir = os.path.dirname(target_path)
+
+    if target_dir and not os.path.exists(target_dir):
+        os.makedirs(target_dir)
+
+    shutil.copy2(source_path, target_path)
+
+
 opts = Variables([], ARGUMENTS)
 opts.Add(EnumVariable("platform", "Target platform", detect_platform(), ["windows", "linux", "macos"]))
 opts.Add(EnumVariable("target", "Build target", "debug", ["debug", "release"]))
 opts.Add(EnumVariable("arch", "Target architecture", "x86_64", ["x86_64", "x86_32", "arm64", "arm32"]))
-opts.Add(PathVariable("sdl_include_dir", "Path to SDL2 headers", os.environ.get("SDL2_INCLUDE_DIR", "C:/msys64/mingw64/include"), PathVariable.PathAccept))
-opts.Add(PathVariable("sdl_lib_dir", "Path to SDL2 libraries", os.environ.get("SDL2_LIB_DIR", "C:/msys64/mingw64/lib"), PathVariable.PathAccept))
+opts.Add(BoolVariable("asan", "Build SDL shell with AddressSanitizer", False))
+opts.Add(BoolVariable("experimental_audio", "Build with transformed m4a runtime enabled", False))
+opts.Add(PathVariable("sdl_include_dir", "Path to SDL3 headers", os.environ.get("SDL3_INCLUDE_DIR", "D:/Godot/SDL3-3.4.2/x86_64-w64-mingw32/include"), PathVariable.PathAccept))
+opts.Add(PathVariable("sdl_lib_dir", "Path to SDL3 libraries", os.environ.get("SDL3_LIB_DIR", "D:/Godot/SDL3-3.4.2/x86_64-w64-mingw32/lib"), PathVariable.PathAccept))
+opts.Add(PathVariable("sdl_bin_dir", "Path to SDL3 runtime DLLs", os.environ.get("SDL3_BIN_DIR", "D:/Godot/SDL3-3.4.2/x86_64-w64-mingw32/bin"), PathVariable.PathAccept))
 
 if ARGUMENTS.get("platform", detect_platform()) == "windows":
     env = Environment(tools=["mingw", "gcc", "ar"], variables=opts)
@@ -92,8 +107,9 @@ def merged_engine_sources():
     originals.update(transformed)
     originals.pop("librfu_intr.c", None)
     originals.pop("isagbprn.c", None)
-    originals.pop("m4a.c", None)
-    originals.pop("m4a_tables.c", None)
+    if not env["experimental_audio"]:
+        originals.pop("m4a.c", None)
+        originals.pop("m4a_tables.c", None)
     originals.pop("main.c", None)
     originals.pop("multiboot.c", None)
     originals.pop("region_map.c", None)
@@ -191,12 +207,31 @@ c_env.Append(CCFLAGS=[
     "-Wno-strict-aliasing",
     "-Wno-type-limits",
     "-Wno-implicit-fallthrough",
+    "-Wno-unused-but-set-variable",
+    "-Wno-unused-value",
+    "-Wno-int-to-pointer-cast",
+    "-Wno-pointer-to-int-cast",
+    "-Wno-unknown-escape-sequence",
+    "-Wno-overflow",
+    "-Wno-builtin-declaration-mismatch",
+    "-Wno-discarded-qualifiers",
+    "-Wno-unterminated-string-initialization",
+    "-Wno-missing-braces",
+    "-Wno-attribute-alias",
+    "-Wno-empty-body",
     "-fPIC",
     "-Wa,-I,{}".format(root_dir.replace("\\", "/")),
 ])
+
+# The merged portable tree still carries a large volume of legacy decomp and
+# generated-code warnings. Keep the SDL shell build output actionable while
+# we continue chipping away at the underlying backlog in code.
+c_env.Append(CCFLAGS=["-w"])
 if env["sdl_include_dir"]:
     c_env.Append(CPPPATH=[env["sdl_include_dir"]])
 c_env.Append(CPPDEFINES=["PORTABLE", "NO_SAVEFLASH", "FIRERED", "GAME_LANGUAGE=2", "PORTABLE_FAKE_INCBIN", "__INTELLISENSE__"])
+if env["experimental_audio"]:
+    c_env.Append(CPPDEFINES=["FIRERED_EXPERIMENTAL_AUDIO"])
 
 if env["platform"] == "windows":
     c_env.Append(CCFLAGS=["-mms-bitfields", "-m64" if env["arch"] == "x86_64" else "-m32"])
@@ -206,6 +241,10 @@ if env["target"] == "debug":
     c_env.Append(CCFLAGS=["-g3", "-O0", "-DDEBUG", "-D_DEBUG", "-fno-omit-frame-pointer"])
 else:
     c_env.Append(CCFLAGS=["-O2", "-DNDEBUG", "-fomit-frame-pointer"])
+
+if env["asan"]:
+    c_env.Append(CCFLAGS=["-fsanitize=address", "-fno-omit-frame-pointer", "-g"])
+    c_env.Append(LINKFLAGS=["-fsanitize=address"])
 
 if not os.path.exists(build_dir):
     os.makedirs(build_dir)
@@ -237,9 +276,9 @@ firered_core_lib = c_env.Command(
 )
 
 shell_program = os.path.join(build_dir, "decomp_engine_sdl")
-libs = ["SDL2"]
+libs = ["SDL3"]
 if env["platform"] == "windows":
-    libs = ["mingw32", "SDL2main", "SDL2", "winmm", "ws2_32", "crypt32"]
+    libs = ["mingw32", "SDL3", "winmm", "ws2_32", "crypt32"]
 
 program = c_env.Program(
     target=shell_program,
@@ -249,5 +288,14 @@ program = c_env.Program(
 )
 
 Default(program)
+
+if env["platform"] == "windows" and env["sdl_bin_dir"]:
+    runtime_dll = c_env.Command(
+        target=os.path.join(build_dir, "SDL3.dll"),
+        source=os.path.join(env["sdl_bin_dir"], "SDL3.dll"),
+        action=copy_runtime_file,
+    )
+    Depends(runtime_dll, program)
+    Default(runtime_dll)
 
 print("SDL shell build root: {}".format(root_dir))

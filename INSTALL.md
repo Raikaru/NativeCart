@@ -16,7 +16,7 @@ At minimum, the current build path needs:
 
 Optional for the SDL shell:
 
-- SDL2 development headers and libraries
+- SDL3 development headers and libraries
 
 ## Recommended Windows Setup
 
@@ -127,11 +127,14 @@ The current SDL release build intentionally keeps the FireRed/game side on the
 stable unoptimized codegen path to avoid known 64-bit release-only regressions
 while the remaining UB in transformed portable code is still being isolated.
 
-If SDL2 is installed in a custom location, pass:
+If SDL3 is installed in a custom location, pass:
 
 ```bash
-scons sdl_include_dir=/path/to/include sdl_lib_dir=/path/to/SDL2/lib
+scons sdl_include_dir=/path/to/include sdl_lib_dir=/path/to/SDL3/lib sdl_bin_dir=/path/to/SDL3/bin
 ```
+
+On Windows, the SDL build copies `SDL3.dll` from `sdl_bin_dir` into `build/`
+so `build/decomp_engine_sdl.exe` can run without manually editing `PATH`.
 
 Run it with:
 
