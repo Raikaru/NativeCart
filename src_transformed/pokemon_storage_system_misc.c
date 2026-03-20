@@ -52,6 +52,7 @@ static void MultiMove_RemoveMonsFromBox(void);
 static void MultiMove_CreatePlacedMonIcons(void);
 static void MultiMove_SetPlacedMonData(void);
 static void MultiMove_ResetBg(void);
+static bool8 IsStorageItemIconSpriteValid(struct Sprite *sprite);
 
 static const struct WindowTemplate sWindowTemplate_MultiMove = {
     .bg = 0,
@@ -77,6 +78,15 @@ bool8 MultiMove_Init(void)
     }
 
     return FALSE;
+}
+
+static bool8 IsStorageItemIconSpriteValid(struct Sprite *sprite)
+{
+    return sprite != NULL
+        && sprite >= gSprites
+        && sprite < gSprites + MAX_SPRITES
+        && sprite->inUse
+        && sprite->spriteTemplate != NULL;
 }
 
 void MultiMove_Free(void)
@@ -602,7 +612,17 @@ static void SpriteCB_ItemIcon_ToMon(struct Sprite *sprite);
 static void SpriteCB_ItemIcon_SwapToHand(struct Sprite *sprite);
 static void SpriteCB_ItemIcon_SwapToMon(struct Sprite *sprite);
 static void SpriteCB_ItemIcon_HideParty(struct Sprite *sprite);
+#ifdef PORTABLE
+static const u32 sItemInfoFrame_Gfx_Portable[] = {
+    0xBBBBBBBB, 0x99999999, 0x11111111, 0x11111111, 0x11111111, 0x11111111, 0x11111111, 0x11111111,
+    0xB9111111, 0xB9111111, 0xB9111111, 0xB9111111, 0xB9111111, 0xB9111111, 0xB9111111, 0xB9111111,
+    0x4ABBBBBB, 0xAB799999, 0xB7911111, 0xB9111111, 0xB9111111, 0xB9111111, 0xB9111111, 0xB9111111,
+    0xB9111111, 0xB9111111, 0xB9111111, 0xB9111111, 0xB9111111, 0xB7911111, 0xAB799999, 0xAABBBBBB,
+};
+#define sItemInfoFrame_Gfx sItemInfoFrame_Gfx_Portable
+#else
 #define sItemInfoFrame_Gfx ((const u32 *)NULL)
+#endif
 
 static const struct OamData sOamData_ItemIcon = {
     .y = 0,
@@ -698,14 +718,21 @@ void CreateItemIconSprites(void)
 
         for (i = 0; i < MAX_ITEM_ICONS; i++)
         {
+            gStorage->itemIcons[i].sprite = NULL;
+            gStorage->itemIcons[i].tiles = NULL;
+            gStorage->itemIcons[i].active = FALSE;
             spriteSheet.tag = GFXTAG_ITEM_ICON_0 + i;
             LoadCompressedSpriteSheet(&spriteSheet);
             gStorage->itemIcons[i].tiles = GetSpriteTileStartByTag(spriteSheet.tag) * TILE_SIZE_4BPP + (void *)(OBJ_VRAM0);
             gStorage->itemIcons[i].palIndex = AllocSpritePalette(PALTAG_ITEM_ICON_0 + i);
+            if (gStorage->itemIcons[i].palIndex == 0xFF)
+                continue;
             gStorage->itemIcons[i].palIndex = OBJ_PLTT_ID(gStorage->itemIcons[i].palIndex);
             spriteTemplate.tileTag = GFXTAG_ITEM_ICON_0 + i;
             spriteTemplate.paletteTag = PALTAG_ITEM_ICON_0 + i;
             spriteId = CreateSprite(&spriteTemplate, 0, 0, 11);
+            if (spriteId == MAX_SPRITES)
+                continue;
             gStorage->itemIcons[i].sprite = &gSprites[spriteId];
             gStorage->itemIcons[i].sprite->invisible = TRUE;
             gStorage->itemIcons[i].active = FALSE;
@@ -724,11 +751,15 @@ void TryLoadItemIconAtPos(u8 cursorArea, u8 cursorPos)
     switch (cursorArea)
     {
     case CURSOR_AREA_IN_BOX:
+        if (cursorPos >= IN_BOX_COUNT)
+            return;
         if (!GetCurrentBoxMonData(cursorPos, MON_DATA_SANITY_HAS_SPECIES))
             return;
         heldItem = GetCurrentBoxMonData(cursorPos, MON_DATA_HELD_ITEM);
         break;
     case CURSOR_AREA_IN_PARTY:
+        if (cursorPos >= PARTY_SIZE)
+            return;
         if (!GetMonData(&gPlayerParty[cursorPos], MON_DATA_SANITY_HAS_SPECIES))
             return;
         heldItem = GetMonData(&gPlayerParty[cursorPos], MON_DATA_HELD_ITEM);
@@ -900,8 +931,21 @@ void MoveHeldItemWithPartyMenu(void)
 
     for (i = 0; i < MAX_ITEM_ICONS; i++)
     {
-        if (gStorage->itemIcons[i].active && gStorage->itemIcons[i].cursorArea == CURSOR_AREA_IN_PARTY)
+        if (gStorage->itemIcons[i].active
+            && gStorage->itemIcons[i].sprite != NULL
+            && gStorage->itemIcons[i].cursorArea == CURSOR_AREA_IN_PARTY)
+        {
+#ifdef PORTABLE
+            // Portable builds have been crashing during the party-menu hide
+            // path in MOVE ITEMS. The party-held-item icons are not needed
+            // once the menu closes, so drop them immediately instead of
+            // keeping per-frame hide callbacks alive through the transition.
+            gStorage->itemIcons[i].sprite->callback = SpriteCallbackDummy;
+            SetItemIconActive(i, FALSE);
+#else
             SetItemIconCallback(i, ITEM_CB_HIDE_PARTY, 2, 0);
+ #endif
+        }
     }
 }
 
@@ -913,6 +957,12 @@ bool8 IsItemIconAnimActive(void)
     {
         if (gStorage->itemIcons[i].active)
         {
+            if (!IsStorageItemIconSpriteValid(gStorage->itemIcons[i].sprite))
+            {
+                gStorage->itemIcons[i].sprite = NULL;
+                gStorage->itemIcons[i].active = FALSE;
+                continue;
+            }
             if (!gStorage->itemIcons[i].sprite->affineAnimEnded && gStorage->itemIcons[i].sprite->affineAnimBeginning)
                 return TRUE;
             if (gStorage->itemIcons[i].sprite->callback != SpriteCallbackDummy && gStorage->itemIcons[i].sprite->callback != SpriteCB_ItemIcon_SetPosToCursor)
@@ -1002,6 +1052,7 @@ static u8 GetItemIconIdxBySprite(struct Sprite *sprite)
     for (i = 0; i < MAX_ITEM_ICONS; i++)
     {
         if (gStorage->itemIcons[i].active
+            && IsStorageItemIconSpriteValid(gStorage->itemIcons[i].sprite)
             && gStorage->itemIcons[i].sprite == sprite)
             return i;
     }
@@ -1015,6 +1066,12 @@ static void SetItemIconPosition(u8 id, u8 cursorArea, u8 cursorPos)
 
     if (id >= MAX_ITEM_ICONS)
         return;
+    if (!IsStorageItemIconSpriteValid(gStorage->itemIcons[id].sprite))
+    {
+        gStorage->itemIcons[id].sprite = NULL;
+        gStorage->itemIcons[id].active = FALSE;
+        return;
+    }
 
     switch (cursorArea)
     {
@@ -1050,6 +1107,8 @@ static void LoadItemIconGfx(u8 id, const u32 *itemTiles, const u32 *itemPal)
 
     if (id >= MAX_ITEM_ICONS)
         return;
+    if (gStorage->itemIcons[id].tiles == NULL)
+        return;
 
     CpuFastFill(0, gStorage->itemIconBuffer, 0x200);
     LZ77UnCompWram(itemTiles, gStorage->tileBuffer);
@@ -1065,6 +1124,12 @@ static void SetItemIconAffineAnim(u8 id, u8 animNum)
 {
     if (id >= MAX_ITEM_ICONS)
         return;
+    if (!IsStorageItemIconSpriteValid(gStorage->itemIcons[id].sprite))
+    {
+        gStorage->itemIcons[id].sprite = NULL;
+        gStorage->itemIcons[id].active = FALSE;
+        return;
+    }
 
     StartSpriteAffineAnim(gStorage->itemIcons[id].sprite, animNum);
 }
@@ -1078,6 +1143,12 @@ static void SetItemIconCallback(u8 id, u8 callbackId, u8 cursorArea, u8 cursorPo
 {
     if (id >= MAX_ITEM_ICONS)
         return;
+    if (!IsStorageItemIconSpriteValid(gStorage->itemIcons[id].sprite))
+    {
+        gStorage->itemIcons[id].sprite = NULL;
+        gStorage->itemIcons[id].active = FALSE;
+        return;
+    }
 
     switch (callbackId)
     {
@@ -1120,6 +1191,12 @@ static void SetItemIconActive(u8 id, bool8 show)
 {
     if (id >= MAX_ITEM_ICONS)
         return;
+    if (!IsStorageItemIconSpriteValid(gStorage->itemIcons[id].sprite))
+    {
+        gStorage->itemIcons[id].sprite = NULL;
+        gStorage->itemIcons[id].active = FALSE;
+        return;
+    }
 
     gStorage->itemIcons[id].active = show;
     gStorage->itemIcons[id].sprite->invisible = (show == FALSE);
@@ -1238,6 +1315,8 @@ static void SpriteCB_ItemIcon_ToHand(struct Sprite *sprite)
 
 static void SpriteCB_ItemIcon_SetPosToCursor(struct Sprite *sprite)
 {
+    if (gStorage->cursorSprite == NULL)
+        return;
     sprite->x = gStorage->cursorSprite->x + 4;
     sprite->y = gStorage->cursorSprite->y + gStorage->cursorSprite->y2 + 8;
     sprite->oam.priority = gStorage->cursorSprite->oam.priority;
