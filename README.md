@@ -44,6 +44,7 @@ other local-only artifacts that should not be published.
 - Install and build instructions: [INSTALL.md](INSTALL.md)
 - Architecture notes: [docs/architecture.txt](docs/architecture.txt)
 - Build notes: [docs/build.txt](docs/build.txt)
+- Portable runtime troubleshooting notes: [docs/portable_runtime_notes.md](docs/portable_runtime_notes.md)
 
 ## External Dependencies
 
@@ -54,6 +55,7 @@ other local-only artifacts that should not be published.
 
 - canonical reusable runtime path lives in `engine/core/`
 - SDL and Godot both now exist as shells over the generic engine/core path
+- the SDL shell is currently the primary debugging and validation shell
 - canonical FireRed-specific portable/generated glue lives in `cores/firered/`
 - compatibility wrappers remain in `pokefirered_core/` and `gdextension/` so the
   current build still works while the public architecture is cleaner

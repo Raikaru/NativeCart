@@ -53,10 +53,12 @@ release-facing build configuration.
 Optional SCons variables:
 
 - `sdl_include_dir=/path/to/include`
-- `sdl_lib_dir=/path/to/SDL2/lib`
+- `sdl_lib_dir=/path/to/SDL3/lib`
+- `sdl_bin_dir=/path/to/SDL3/bin`
 
-The default Windows paths assume an MSYS2-style SDL2 install where headers live
-under `.../include/SDL2` and libraries live under `.../lib`.
+The default Windows paths assume an SDL3 install where headers live under
+`.../include`, libraries live under `.../lib`, and the runtime DLL lives under
+`.../bin`.
 
 SDL-specific intermediates now live under `build/sdl/` so SDL and Godot builds do
 not wipe each other's archives/objects.
@@ -68,3 +70,11 @@ build/decomp_engine_sdl.exe baserom.gba
 ```
 
 Optional second argument sets the state file path.
+
+## Debugging Notes
+
+- Use this shell as the primary portable-runtime validation path.
+- If a graphics bug appears only on portable builds, audit raw `INCBIN` users
+  and portable embedded asset headers before changing unrelated assets.
+- If a native crash survives lightweight tracing, capture a WinDbg backtrace
+  early with `!analyze -v`, `.ecxr`, and `kv`.
