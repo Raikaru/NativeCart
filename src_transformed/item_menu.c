@@ -308,6 +308,16 @@ static const u8 sListItemTextColor_RegularItem[] = _("{COLOR_HIGHLIGHT_SHADOW DA
 
 static const u8 sListItemTextColor_TmCase_BerryPouch[] = _("{COLOR_HIGHLIGHT_SHADOW BLUE TRANSPARENT LIGHT_BLUE}");
 
+#ifdef PORTABLE
+static u8 *BagListMenuWriteColorControlCodes(u8 *dest, u8 fg, u8 bg, u8 shadow)
+{
+    dest = WriteColorChangeControlCode(dest, 0, fg);
+    dest = WriteColorChangeControlCode(dest, 2, bg);
+    dest = WriteColorChangeControlCode(dest, 1, shadow);
+    return dest;
+}
+#endif
+
 static const struct ScrollArrowsTemplate sPocketSwitchArrowPairTemplate = {
     .firstArrowType = SCROLL_ARROW_LEFT,
     .firstX = 8,
@@ -711,10 +721,17 @@ static void Bag_BuildListMenuTemplate(u8 pocket)
 
 static void BagListMenuGetItemNameColored(u8 *dest, u16 itemId)
 {
+#ifdef PORTABLE
+    if (itemId == ITEM_TM_CASE || itemId == ITEM_BERRY_POUCH)
+        BagListMenuWriteColorControlCodes(dest, TEXT_COLOR_BLUE, TEXT_COLOR_TRANSPARENT, TEXT_COLOR_LIGHT_BLUE);
+    else
+        BagListMenuWriteColorControlCodes(dest, TEXT_COLOR_DARK_GRAY, TEXT_COLOR_TRANSPARENT, TEXT_COLOR_LIGHT_GRAY);
+#else
     if (itemId == ITEM_TM_CASE || itemId == ITEM_BERRY_POUCH)
         StringCopy(dest, sListItemTextColor_TmCase_BerryPouch);
     else
         StringCopy(dest, sListItemTextColor_RegularItem);
+#endif
     StringAppend(dest, ItemId_GetName(itemId));
 }
 
