@@ -2357,6 +2357,10 @@ static void DexScreen_PrintControlInfo(const u8 *src)
 bool8 DexScreen_DrawMonPicInCategoryPage(u16 species, u8 slot, u8 numSlots)
 {
     struct WindowTemplate template;
+
+    if (numSlots == 0 || numSlots > 4 || slot >= numSlots || slot >= ARRAY_COUNT(sPokedexScreenData->categoryMonWindowIds))
+        return FALSE;
+
     numSlots--;
     CopyToBgTilemapBufferRect_ChangePalette(3, sCategoryPageIconWindowBg, sCategoryPageIconCoords[numSlots][slot][0], sCategoryPageIconCoords[numSlots][slot][1], 8, 8, slot + 5);
     if (sPokedexScreenData->categoryMonWindowIds[slot] == 0xFF)
@@ -2491,6 +2495,9 @@ static void DexScreen_CreateCategoryPageSelectionCursor(u8 cursorPos)
 
 static void DexScreen_UpdateCategoryPageCursorObject(u8 taskId, u8 cursorPos, u8 numMonsInPage)
 {
+    if (numMonsInPage == 0 || numMonsInPage > 4 || cursorPos >= numMonsInPage)
+        return;
+
     numMonsInPage--;
     ListMenuUpdateCursorObject(taskId, sCategoryPageIconCoords[numMonsInPage][cursorPos][2] * 8, sCategoryPageIconCoords[numMonsInPage][cursorPos][3] * 8, 0);
 }
