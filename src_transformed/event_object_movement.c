@@ -2559,12 +2559,15 @@ void SetObjectEventDirection(struct ObjectEvent *objectEvent, u8 direction)
 
 static const u8 *GetObjectEventScriptPointerByLocalIdAndMap(u8 localId, u8 mapNum, u8 mapGroup)
 {
-    const u8 *script = GetObjectEventTemplateByLocalIdAndMap(localId, mapNum, mapGroup)->script;
+    const struct ObjectEventTemplate *t = GetObjectEventTemplateByLocalIdAndMap(localId, mapNum, mapGroup);
 
+    if (t == NULL)
+        return NULL;
 #ifdef PORTABLE
-    script = ResolveMapEventScriptPointer(script);
+    return OBJ_EVENT_TEMPLATE_SCRIPT_DEREF(t);
+#else
+    return t->script;
 #endif
-    return script;
 }
 
 const u8 *GetObjectEventScriptPointerByObjectEventId(u8 objectEventId)

@@ -6,6 +6,8 @@
 #include_next "global.h"
 
 const void *firered_portable_resolve_script_ptr(uint32_t value);
+uint32_t firered_portable_ptr_to_save_u32(const void *ptr);
+uint32_t firered_portable_map_object_event_script_ptr_to_save_u32(const void *ptr);
 
 #undef T1_READ_PTR
 #undef T2_READ_PTR
