@@ -4,6 +4,18 @@ Current working Godot build
 - `cd gdextension`
 - `scons -Q platform=windows target=debug -j4`
 
+Current working SDL debug build
+- `cd engine/shells/sdl`
+- `scons -Q platform=windows target=debug -j4 sdl_include_dir="D:\Godot\SDL3-3.4.2\x86_64-w64-mingw32\include" sdl_lib_dir="D:\Godot\SDL3-3.4.2\x86_64-w64-mingw32\lib" sdl_bin_dir="D:\Godot\SDL3-3.4.2\x86_64-w64-mingw32\bin"`
+
+Preferred validation path
+- validate portable runtime, UI, and crash fixes on the SDL debug shell first
+- use the Godot shell as an integration check rather than the primary bug triage shell
+- if a native crash survives targeted tracing, use WinDbg early and capture:
+  - `!analyze -v`
+  - `.ecxr`
+  - `kv`
+
 Current transition behavior
 - Runtime/renderer/memory/audio/input/platform now build through canonical
   `engine/core/` translation units.
