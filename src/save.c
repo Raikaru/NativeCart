@@ -9,6 +9,7 @@
 #include "fieldmap.h"
 #include "pokemon_storage_system.h"
 #include "gba/flash_internal.h"
+#include <stddef.h>
 
 static u8 HandleWriteSector(u16 sectorId, const struct SaveSectorLocation *locations);
 static u8 TryWriteSector(u8 sectorNum, u8 *data);
@@ -17,6 +18,26 @@ static u8 CopySaveSlotData(u16 sectorId, const struct SaveSectorLocation *locati
 static u8 GetSaveValidStatus(const struct SaveSectorLocation *locations);
 static u8 ReadFlashSector(u8 sectorId, struct SaveSector *sector);
 static u16 CalculateChecksum(void *data, u16 size);
+
+#ifdef FIRERED
+/*
+ * PKHeX (SaveUtil.GetVersionG3SAV) treats Gen 3 saves as FRLG only when u32 LE at
+ * SaveBlock2+0xAC equals 1: unkFlag1=1, unkFlag2=0, and any padding before
+ * battleTower must be zero. Sav2_ClearSetDefault() sets this at boot, but normal
+ * in-game saves never run that path, so flash can keep 0xAC..0xAF = 0 (RS).
+ */
+static void EnsureSaveBlock2ExternalToolFingerprint(void)
+{
+    u8 *base = (u8 *)gSaveBlock2Ptr;
+    u8 *towerStart = (u8 *)&gSaveBlock2Ptr->battleTower;
+    u8 *q;
+
+    gSaveBlock2Ptr->unkFlag1 = TRUE;
+    gSaveBlock2Ptr->unkFlag2 = FALSE;
+    for (q = base + offsetof(struct SaveBlock2, unkFlag2) + 1; q < towerStart; q++)
+        *q = 0;
+}
+#endif
 
 /*
  * Sector Layout:
@@ -75,6 +96,12 @@ struct
 STATIC_ASSERT(sizeof(struct SaveBlock2) <= SECTOR_DATA_SIZE, SaveBlock2FreeSpace);
 STATIC_ASSERT(sizeof(struct SaveBlock1) <= SECTOR_DATA_SIZE * (SECTOR_ID_SAVEBLOCK1_END - SECTOR_ID_SAVEBLOCK1_START + 1), SaveBlock1FreeSpace);
 STATIC_ASSERT(sizeof(struct PokemonStorage) <= SECTOR_DATA_SIZE * (SECTOR_ID_PKMN_STORAGE_END - SECTOR_ID_PKMN_STORAGE_START + 1), PokemonStorageFreeSpace);
+#ifdef PORTABLE
+STATIC_ASSERT(sizeof(struct SaveBlock2) == 0xF24, SaveBlock2RetailSize);
+STATIC_ASSERT(sizeof(struct SaveBlock1) == 0x3D68, SaveBlock1RetailSize);
+STATIC_ASSERT(offsetof(struct SaveBlock2, encryptionKey) == 0xF20, SaveBlock2EncryptionKeyOffset);
+STATIC_ASSERT(offsetof(struct SaveBlock1, money) == 0x290, SaveBlock1MoneyOffset);
+#endif
 
 // Sector num to begin writing save data. Sectors are rotated each time the game is saved. (possibly to avoid wear on flash memory?)
 COMMON_DATA u16 gLastWrittenSector = 0;
@@ -642,6 +669,9 @@ u8 HandleSavingData(u8 saveType)
 
     gMain.vblankCounter1 = NULL;
     UpdateSaveAddresses();
+#ifdef FIRERED
+    EnsureSaveBlock2ExternalToolFingerprint();
+#endif
     switch (saveType)
     {
     case SAVE_HALL_OF_FAME_ERASE_BEFORE: // Unused
@@ -678,6 +708,10 @@ u8 HandleSavingData(u8 saveType)
         WriteSaveSectorOrSlot(FULL_SAVE_SLOT, gRamSaveSectorLocations);
         break;
     }
+#if defined(PORTABLE) && defined(FIRERED)
+    if (gDamagedSaveSectors == 0)
+        PortableFlash_PatchPkhexFrLgFingerprintAllSlots();
+#endif
     gMain.vblankCounter1 = backupPtr;
     return 0;
 }
@@ -710,6 +744,9 @@ bool8 LinkFullSave_Init(void)
         return TRUE;
 
     UpdateSaveAddresses();
+#ifdef FIRERED
+    EnsureSaveBlock2ExternalToolFingerprint();
+#endif
     SaveSerializedGame();
     RestoreSaveBackupVarsAndIncrement(gRamSaveSectorLocations);
     return FALSE;
@@ -751,6 +788,9 @@ bool8 WriteSaveBlock2(void)
         return TRUE;
 
     UpdateSaveAddresses();
+#ifdef FIRERED
+    EnsureSaveBlock2ExternalToolFingerprint();
+#endif
     SaveSerializedGame();
     RestoreSaveBackupVars(gRamSaveSectorLocations);
 
@@ -801,6 +841,14 @@ u8 LoadGameSave(u8 saveType)
     default:
         result = TryLoadSaveSlot(FULL_SAVE_SLOT, gRamSaveSectorLocations);
         LoadSerializedGame();
+#ifdef FIRERED
+        if (result == SAVE_STATUS_OK)
+            EnsureSaveBlock2ExternalToolFingerprint();
+#endif
+#if defined(PORTABLE) && defined(FIRERED)
+        if (result == SAVE_STATUS_OK)
+            PortableFlash_PatchPkhexFrLgFingerprintAllSlots();
+#endif
         gSaveFileStatus = result;
         gGameContinueCallback = NULL;
         break;

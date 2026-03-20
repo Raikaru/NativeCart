@@ -20,8 +20,10 @@
 #ifdef PORTABLE
 #include <stdio.h>
 #include <stdarg.h>
+#include <stdint.h>
 
 extern void firered_runtime_trace_external(const char *message);
+extern unsigned long firered_runtime_get_completed_frame_external(void);
 
 static void TraceMainLoop(const char *fmt, ...)
 {
@@ -359,6 +361,21 @@ void StartTimer1(void)
 void SeedRngAndSetTrainerId(void)
 {
     u16 val = REG_TM1CNT_L;
+#ifdef PORTABLE
+    /*
+     * IOREG TM1 is not clocked on portable; TM1CNT_L stays 0. InitPlayerTrainerId uses
+     * (Random() << 16) | gTrainerId, and the trainer card displays the low 16 bits — so
+     * a stuck 0 looks like "no ID" (00000).
+     */
+    {
+        unsigned long frames = firered_runtime_get_completed_frame_external();
+        val ^= (u16)frames;
+        val ^= (u16)(frames >> 16);
+        val ^= (u16)((uintptr_t)&val ^ ((uintptr_t)&val >> 16));
+        if (val == 0)
+            val = 0x9622;
+    }
+#endif
     SeedRng(val);
     REG_TM1CNT_H = 0;
     gTrainerId = val;

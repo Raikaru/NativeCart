@@ -89,6 +89,16 @@ void Sav2_ClearSetDefault(void)
 {
     ClearSav2();
     SetDefaultOptions();
+    /*
+     * PKHeX (and similar tools) infer FRLG vs RS/Emerald from the u32 at SaveBlock2+0x0AC:
+     *   1  => FireRed/LeafGreen (unkFlag1=TRUE, unkFlag2=FALSE, first u16 of battleTower==0)
+     *   0  => Ruby/Sapphire
+     * ClearSav2() zeroes everything, so that u32 is 0 and tools mis-detect as RS until
+     * NewGameInitData() runs (which sets these flags). Set them here so exported/flash
+     * data matches FRLG even between boot and first new-game save.
+     */
+    gSaveBlock2Ptr->unkFlag1 = TRUE;
+    gSaveBlock2Ptr->unkFlag2 = FALSE;
 }
 
 void ResetMenuAndMonGlobals(void)
