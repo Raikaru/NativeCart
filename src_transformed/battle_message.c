@@ -74,6 +74,59 @@ static u8 portable_ascii_to_gba(u8 c)
         return sAsciiToGba[c];
     return c; /* already a GBA char code */
 }
+
+static bool8 portable_try_decode_utf8(const u8 *src, u8 *outChar, u8 *outConsumed)
+{
+    if (src[0] == 0xC2)
+    {
+        switch (src[1])
+        {
+        case 0xA5:
+            *outChar = CHAR_CURRENCY;
+            *outConsumed = 2;
+            return TRUE;
+        }
+    }
+    else if (src[0] == 0xC3)
+    {
+        switch (src[1])
+        {
+        case 0x89:
+        case 0xA9:
+            *outChar = CHAR_E_ACUTE;
+            *outConsumed = 2;
+            return TRUE;
+        }
+    }
+    else if (src[0] == 0xE2 && src[1] == 0x80)
+    {
+        switch (src[2])
+        {
+        case 0x98:
+            *outChar = CHAR_SGL_QUOTE_LEFT;
+            *outConsumed = 3;
+            return TRUE;
+        case 0x99:
+            *outChar = CHAR_SGL_QUOTE_RIGHT;
+            *outConsumed = 3;
+            return TRUE;
+        case 0x9C:
+            *outChar = CHAR_DBL_QUOTE_LEFT;
+            *outConsumed = 3;
+            return TRUE;
+        case 0x9D:
+            *outChar = CHAR_DBL_QUOTE_RIGHT;
+            *outConsumed = 3;
+            return TRUE;
+        case 0xA6:
+            *outChar = CHAR_ELLIPSIS;
+            *outConsumed = 3;
+            return TRUE;
+        }
+    }
+
+    return FALSE;
+}
 #endif /* PORTABLE */
 
 #ifdef PORTABLE
@@ -307,6 +360,15 @@ static u32 portable_render_preprocess(const u8 *src, u8 *dst, u32 dstSize)
     while (*src != '\0' && *src != EOS)
     {
         u8 c = *src;
+        u8 decoded;
+        u8 consumed;
+
+        if (portable_try_decode_utf8(src, &decoded, &consumed))
+        {
+            EMIT(decoded);
+            src += consumed;
+            continue;
+        }
 
         if (c == '\\')
         {

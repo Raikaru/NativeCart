@@ -44,13 +44,255 @@ static bool8 IsRivalNamePointerValid(const u8 *ptr)
 
     return ptr >= base && ptr < end;
 }
+
+static const u8 sPortableAsciiToGba[128] = {
+    /* 0x00 */ 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    /* 0x08 */ 0x00, 0x00, 0xFE, 0x00, 0x00, 0x00, 0x00, 0x00,
+    /* 0x10 */ 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    /* 0x18 */ 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    /* 0x20 */ 0x00, 0xAB, 0x00, 0x00, 0x00, 0x5B, 0x2D, 0xB4,
+    /* 0x28 */ 0x5C, 0x5D, 0x00, 0x2E, 0xB8, 0xAE, 0xAD, 0xBA,
+    /* 0x30 */ 0xA1, 0xA2, 0xA3, 0xA4, 0xA5, 0xA6, 0xA7, 0xA8,
+    /* 0x38 */ 0xA9, 0xAA, 0xF0, 0x36, 0x85, 0x35, 0x86, 0xAC,
+    /* 0x40 */ 0x00, 0xBB, 0xBC, 0xBD, 0xBE, 0xBF, 0xC0, 0xC1,
+    /* 0x48 */ 0xC2, 0xC3, 0xC4, 0xC5, 0xC6, 0xC7, 0xC8, 0xC9,
+    /* 0x50 */ 0xCA, 0xCB, 0xCC, 0xCD, 0xCE, 0xCF, 0xD0, 0xD1,
+    /* 0x58 */ 0xD2, 0xD3, 0xD4, 0x00, 0x00, 0x00, 0x00, 0x00,
+    /* 0x60 */ 0x00, 0xD5, 0xD6, 0xD7, 0xD8, 0xD9, 0xDA, 0xDB,
+    /* 0x68 */ 0xDC, 0xDD, 0xDE, 0xDF, 0xE0, 0xE1, 0xE2, 0xE3,
+    /* 0x70 */ 0xE4, 0xE5, 0xE6, 0xE7, 0xE8, 0xE9, 0xEA, 0xEB,
+    /* 0x78 */ 0xEC, 0xED, 0xEE, 0x00, 0x00, 0x00, 0x00, 0x00,
+};
+
+static u8 PortableAsciiToGba(u8 c)
+{
+    if (c < 0x80)
+        return sPortableAsciiToGba[c];
+    return c;
+}
+
+static bool8 PortableTryDecodeUtf8Char(const u8 *src, u8 *outChar, u8 *outConsumed)
+{
+    if (src[0] == 0xC2)
+    {
+        switch (src[1])
+        {
+        case 0xA5:
+            *outChar = CHAR_CURRENCY;
+            *outConsumed = 2;
+            return TRUE;
+        }
+    }
+    else if (src[0] == 0xC3)
+    {
+        switch (src[1])
+        {
+        case 0x97:
+            *outChar = CHAR_MULT_SIGN;
+            *outConsumed = 2;
+            return TRUE;
+        case 0x89:
+        case 0xA9:
+            *outChar = CHAR_E_ACUTE;
+            *outConsumed = 2;
+            return TRUE;
+        }
+    }
+    else if (src[0] == 0xE2 && src[1] == 0x80)
+    {
+        switch (src[2])
+        {
+        case 0x98:
+            *outChar = CHAR_SGL_QUOTE_LEFT;
+            *outConsumed = 3;
+            return TRUE;
+        case 0x99:
+            *outChar = CHAR_SGL_QUOTE_RIGHT;
+            *outConsumed = 3;
+            return TRUE;
+        case 0x9C:
+            *outChar = CHAR_DBL_QUOTE_LEFT;
+            *outConsumed = 3;
+            return TRUE;
+        case 0x9D:
+            *outChar = CHAR_DBL_QUOTE_RIGHT;
+            *outConsumed = 3;
+            return TRUE;
+        case 0xA6:
+            *outChar = CHAR_ELLIPSIS;
+            *outConsumed = 3;
+            return TRUE;
+        }
+    }
+
+    return FALSE;
+}
+
+static bool8 PortableStringLooksLikeCString(const u8 *src)
+{
+    u32 i;
+
+    if (src == NULL)
+        return FALSE;
+    if (src[0] == '\0')
+        return FALSE;
+
+    for (i = 0; i < 128; )
+    {
+        u8 decoded;
+        u8 consumed;
+
+        if (src[i] == EOS)
+            return FALSE;
+        if (src[i] == '\0')
+            return TRUE;
+        if (src[i] < 0x80)
+        {
+            i++;
+            continue;
+        }
+        if (!PortableTryDecodeUtf8Char(&src[i], &decoded, &consumed))
+            return FALSE;
+        i += consumed;
+    }
+
+    return FALSE;
+}
+
+static bool8 PortableTryEncodePlaceholderToken(const u8 *src, u8 *outBytes, u8 *outConsumed, u8 *outProduced)
+{
+    struct PlaceholderToken
+    {
+        const char *token;
+        u8 id;
+    };
+    static const struct PlaceholderToken sTokens[] = {
+        { "{PLAYER}", PLACEHOLDER_ID_PLAYER },
+        { "{RIVAL}", PLACEHOLDER_ID_RIVAL },
+        { "{STR_VAR_1}", PLACEHOLDER_ID_STRING_VAR_1 },
+        { "{STR_VAR_2}", PLACEHOLDER_ID_STRING_VAR_2 },
+        { "{STR_VAR_3}", PLACEHOLDER_ID_STRING_VAR_3 },
+    };
+    u32 i;
+
+    if (strncmp((const char *)src, "{LV_2}", strlen("{LV_2}")) == 0)
+    {
+        outBytes[0] = CHAR_EXTRA_SYMBOL;
+        outBytes[1] = CHAR_LV_2;
+        *outConsumed = (u8)strlen("{LV_2}");
+        *outProduced = 2;
+        return TRUE;
+    }
+
+    for (i = 0; i < ARRAY_COUNT(sTokens); i++)
+    {
+        size_t len = strlen(sTokens[i].token);
+        if (strncmp((const char *)src, sTokens[i].token, len) == 0)
+        {
+            outBytes[0] = PLACEHOLDER_BEGIN;
+            outBytes[1] = sTokens[i].id;
+            *outConsumed = (u8)len;
+            *outProduced = 2;
+            return TRUE;
+        }
+    }
+
+    return FALSE;
+}
+
+static u8 *PortableNormalizeTemplateString(u8 *dest, const u8 *src)
+{
+    while (*src != '\0' && *src != EOS)
+    {
+        u8 decoded;
+        u8 consumed;
+        u8 produced;
+        u8 bytes[4];
+
+        if (*src == '{' && PortableTryEncodePlaceholderToken(src, bytes, &consumed, &produced))
+        {
+            u8 i;
+            for (i = 0; i < produced; i++)
+                *dest++ = bytes[i];
+            src += consumed;
+            continue;
+        }
+
+        if (PortableTryDecodeUtf8Char(src, &decoded, &consumed))
+        {
+            *dest++ = decoded;
+            src += consumed;
+            continue;
+        }
+
+        if (*src == '\n')
+        {
+            *dest++ = CHAR_NEWLINE;
+            src++;
+            continue;
+        }
+
+        if (*src == '\\')
+        {
+            if (src[1] == 'p')
+            {
+                *dest++ = CHAR_PROMPT_CLEAR;
+                src += 2;
+                continue;
+            }
+            if (src[1] == 'l')
+            {
+                *dest++ = CHAR_PROMPT_SCROLL;
+                src += 2;
+                continue;
+            }
+            if (src[1] == 'n')
+            {
+                *dest++ = CHAR_NEWLINE;
+                src += 2;
+                continue;
+            }
+        }
+
+        *dest++ = PortableAsciiToGba(*src++);
+    }
+
+    *dest = EOS;
+    return dest;
+}
+
+static u8 *PortableCopyCStringAsGba(u8 *dest, const u8 *src)
+{
+    while (*src != '\0' && *src != EOS)
+    {
+        u8 decoded;
+        u8 consumed;
+
+        if (PortableTryDecodeUtf8Char(src, &decoded, &consumed))
+        {
+            *dest++ = decoded;
+            src += consumed;
+            continue;
+        }
+
+        *dest++ = PortableAsciiToGba(*src++);
+    }
+
+    *dest = EOS;
+    return dest;
+}
+
+static u8 *PortableCopyGbaString(u8 *dest, const u8 *src)
+{
+    while (*src != EOS)
+        *dest++ = *src++;
+
+    *dest = EOS;
+    return dest;
+}
 #endif
 
-#ifdef PORTABLE
-#define STRING_IS_TERMINATOR(ch) ((ch) == EOS || (ch) == '\0')
-#else
 #define STRING_IS_TERMINATOR(ch) ((ch) == EOS)
-#endif
 
 EWRAM_DATA u8 gStringVar1[32] = {};
 EWRAM_DATA u8 gStringVar2[20] = {};
@@ -156,20 +398,8 @@ u8 *StringCopy_PlayerName(u8 *dest, const u8 *src)
 u8 *StringCopy(u8 *dest, const u8 *src)
 {
 #ifdef PORTABLE
-    /* ASCII heuristic: if the first byte is a plain ASCII character (< 0x80),
-       treat the source as a NUL-terminated C string so we don't read past the
-       NUL sentinel and overflow the destination buffer. */
-    if (*src != EOS && (u8)*src < 0x80)
-    {
-        while (*src != '\0' && *src != EOS)
-        {
-            *dest = *src;
-            dest++;
-            src++;
-        }
-        *dest = EOS;
-        return dest;
-    }
+    if (PortableStringLooksLikeCString(src))
+        return PortableCopyCStringAsGba(dest, src);
 #endif
     while (!STRING_IS_TERMINATOR(*src))
     {
@@ -184,19 +414,13 @@ u8 *StringCopy(u8 *dest, const u8 *src)
 
 u8 *StringAppend(u8 *dest, const u8 *src)
 {
-#ifdef PORTABLE
-    /* If dest starts with ASCII content, scan to NUL or EOS. */
-    if (*dest != EOS && (u8)*dest < 0x80)
-    {
-        while (*dest != '\0' && *dest != EOS)
-            dest++;
-        if (*dest == '\0')
-            *dest = EOS;
-    }
-    else
-#endif
     while (!STRING_IS_TERMINATOR(*dest))
         dest++;
+
+#ifdef PORTABLE
+    if (PortableStringLooksLikeCString(src))
+        return PortableCopyCStringAsGba(dest, src);
+#endif
 
     return StringCopy(dest, src);
 }
@@ -375,6 +599,15 @@ u8 *ConvertIntToHexStringN(u8 *dest, s32 value, enum StringConvertMode mode, u8 
 
 u8 *StringExpandPlaceholders(u8 *dest, const u8 *src)
 {
+#ifdef PORTABLE
+    static u8 sPortableExpandedTemplate[1000];
+
+    if (PortableStringLooksLikeCString(src))
+    {
+        PortableNormalizeTemplateString(sPortableExpandedTemplate, src);
+        src = sPortableExpandedTemplate;
+    }
+#endif
     for (;;)
     {
         u8 c = *src++;
@@ -397,7 +630,7 @@ u8 *StringExpandPlaceholders(u8 *dest, const u8 *src)
                  || placeholderId == PLACEHOLDER_ID_STRING_VAR_2
                  || placeholderId == PLACEHOLDER_ID_STRING_VAR_3)
                 {
-                    dest = StringCopy(dest, expandedString);
+                    dest = PortableCopyGbaString(dest, expandedString);
                     break;
                 }
 #endif

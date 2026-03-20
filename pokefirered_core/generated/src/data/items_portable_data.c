@@ -94,865 +94,313 @@ void ItemUseOutOfBattle_EnigmaBerry(u8);
 void ItemUseOutOfBattle_EscapeRope(u8);
 void ItemUseOutOfBattle_Itemfinder(u8);
 
-const u8 gItemDescription_ITEM_MASTER_BALL[] = _("The best BALL with the ultimate\
-performance. It will catch any wild\
-POKéMON without fail.");
-const u8 gItemDescription_ITEM_ULTRA_BALL[] = _("A very high-grade BALL that offers\
-a higher POKéMON catch rate than\
-a GREAT BALL.");
-const u8 gItemDescription_ITEM_GREAT_BALL[] = _("A good, quality BALL that offers\
-a higher POKéMON catch rate than\
-a standard POKé BALL.");
-const u8 gItemDescription_ITEM_POKE_BALL[] = _("A BALL thrown to catch a wild\
-POKéMON. It is designed in a\
-capsule style.");
-const u8 gItemDescription_ITEM_SAFARI_BALL[] = _("A special BALL that is used only in\
-the SAFARI ZONE. It is finished in\
-a camouflage pattern.");
-const u8 gItemDescription_ITEM_NET_BALL[] = _("A somewhat different BALL that\
-works especially well on WATER- and\
-BUG-type POKéMON.");
-const u8 gItemDescription_ITEM_DIVE_BALL[] = _("A somewhat different BALL that\
-works especially well on POKéMON\
-deep in the sea.");
-const u8 gItemDescription_ITEM_NEST_BALL[] = _("A somewhat different BALL that\
-works especially well on weaker\
-POKéMON.");
-const u8 gItemDescription_ITEM_REPEAT_BALL[] = _("A somewhat different BALL that\
-works especially well on POKéMON\
-caught before.");
-const u8 gItemDescription_ITEM_TIMER_BALL[] = _("A somewhat different BALL that\
-becomes progressively better the\
-more turns there are in a battle.");
-const u8 gItemDescription_ITEM_LUXURY_BALL[] = _("A comfortable BALL that makes a\
-captured wild POKéMON quickly grow\
-friendly.");
-const u8 gItemDescription_ITEM_PREMIER_BALL[] = _("A rare BALL that has been\
-specially made to commemorate an\
-event of some sort.");
-const u8 gItemDescription_ITEM_POTION[] = _("A spray-type wound medicine.\
-It restores the HP of one POKéMON\
-by 20 points.");
-const u8 gItemDescription_ITEM_ANTIDOTE[] = _("A spray-type medicine.\
-It heals one POKéMON from a\
-poisoning.");
-const u8 gItemDescription_ITEM_BURN_HEAL[] = _("A spray-type medicine.\
-It heals one POKéMON of a burn.");
-const u8 gItemDescription_ITEM_ICE_HEAL[] = _("A spray-type medicine.\
-It defrosts a frozen POKéMON.");
-const u8 gItemDescription_ITEM_AWAKENING[] = _("A spray-type medicine.\
-It awakens a sleeping POKéMON.");
-const u8 gItemDescription_ITEM_PARALYZE_HEAL[] = _("A spray-type medicine.\
-It heals one POKéMON from\
-paralysis.");
-const u8 gItemDescription_ITEM_FULL_RESTORE[] = _("A medicine that fully restores the\
-HP and heals any status problems\
-of one POKéMON.");
-const u8 gItemDescription_ITEM_MAX_POTION[] = _("A spray-type wound medicine.\
-It fully restores the HP of one\
-POKéMON.");
-const u8 gItemDescription_ITEM_HYPER_POTION[] = _("A spray-type wound medicine.\
-It restores the HP of one POKéMON\
-by 200 points.");
-const u8 gItemDescription_ITEM_SUPER_POTION[] = _("A spray-type wound medicine.\
-It restores the HP of one POKéMON\
-by 50 points.");
-const u8 gItemDescription_ITEM_FULL_HEAL[] = _("A spray-type medicine.\
-It heals all the status problems of\
-one POKéMON.");
-const u8 gItemDescription_ITEM_REVIVE[] = _("A medicine that revives a fainted\
-POKéMON, restoring HP by half the\
-maximum amount.");
-const u8 gItemDescription_ITEM_MAX_REVIVE[] = _("A medicine that revives a fainted\
-POKéMON, restoring HP fully.");
-const u8 gItemDescription_ITEM_FRESH_WATER[] = _("Water with a high mineral content.\
-It restores the HP of one POKéMON\
-by 50 points.");
-const u8 gItemDescription_ITEM_SODA_POP[] = _("A fizzy soda drink.\
-It restores the HP of one POKéMON\
-by 60 points.");
-const u8 gItemDescription_ITEM_LEMONADE[] = _("A very sweet drink.\
-It restores the HP of one POKéMON\
-by 80 points.");
-const u8 gItemDescription_ITEM_MOOMOO_MILK[] = _("Highly nutritious milk.\
-It restores the HP of one POKéMON\
-by 100 points.");
-const u8 gItemDescription_ITEM_ENERGY_POWDER[] = _("A very bitter medicine powder.\
-It restores the HP of one POKéMON\
-by 50 points.");
-const u8 gItemDescription_ITEM_ENERGY_ROOT[] = _("A very bitter root.\
-It restores the HP of one POKéMON\
-by 200 points.");
-const u8 gItemDescription_ITEM_HEAL_POWDER[] = _("A very bitter medicine powder.\
-It heals all the status problems of\
-one POKéMON.");
-const u8 gItemDescription_ITEM_REVIVAL_HERB[] = _("A very bitter medicinal herb.\
-It revives a fainted POKéMON,\
-restoring HP fully.");
-const u8 gItemDescription_ITEM_ETHER[] = _("Restores a selected move's PP by\
-10 points for one POKéMON.");
-const u8 gItemDescription_ITEM_MAX_ETHER[] = _("Fully restores a selected move's PP\
-for one POKéMON.");
-const u8 gItemDescription_ITEM_ELIXIR[] = _("Restores the PP of all moves for\
-one POKéMON by 10 points each.");
-const u8 gItemDescription_ITEM_MAX_ELIXIR[] = _("Fully restores the PP of all moves\
-for one POKéMON.");
-const u8 gItemDescription_ITEM_LAVA_COOKIE[] = _("LAVARIDGE TOWN's local specialty.\
-It heals all the status problems of\
-one POKéMON.");
-const u8 gItemDescription_ITEM_BLUE_FLUTE[] = _("A blue glass flute that awakens\
-a sleeping POKéMON.");
-const u8 gItemDescription_ITEM_YELLOW_FLUTE[] = _("A yellow glass flute that snaps one\
-POKéMON out of confusion.");
-const u8 gItemDescription_ITEM_RED_FLUTE[] = _("A red glass flute that snaps one\
-POKéMON out of infatuation.");
-const u8 gItemDescription_ITEM_BLACK_FLUTE[] = _("A black glass flute.\
-When blown, it makes wild POKéMON\
-less likely to appear.");
-const u8 gItemDescription_ITEM_WHITE_FLUTE[] = _("A white glass flute.\
-When blown, it makes wild POKéMON\
-more likely to appear.");
-const u8 gItemDescription_ITEM_BERRY_JUICE[] = _("A 100% pure juice.\
-It restores the HP of one POKéMON\
-by 20 points.");
-const u8 gItemDescription_ITEM_SACRED_ASH[] = _("Revives all fainted POKéMON,\
-restoring HP fully.");
-const u8 gItemDescription_ITEM_SHOAL_SALT[] = _("Pure salt obtained from deep inside\
-the SHOAL CAVE. It is extremely\
-salty.");
-const u8 gItemDescription_ITEM_SHOAL_SHELL[] = _("A pretty seashell found deep inside\
-the SHOAL CAVE. It is striped in\
-blue and white.");
-const u8 gItemDescription_ITEM_RED_SHARD[] = _("A small red shard.\
-It appears to be from some sort of\
-a tool made long ago.");
-const u8 gItemDescription_ITEM_BLUE_SHARD[] = _("A small blue shard.\
-It appears to be from some sort of\
-a tool made long ago.");
-const u8 gItemDescription_ITEM_YELLOW_SHARD[] = _("A small yellow shard.\
-It appears to be from some sort of\
-a tool made long ago.");
-const u8 gItemDescription_ITEM_GREEN_SHARD[] = _("A small green shard.\
-It appears to be from some sort of\
-a tool made long ago.");
-const u8 gItemDescription_ITEM_HP_UP[] = _("A nutritious drink for POKéMON.\
-It raises the base HP of one\
-POKéMON.");
-const u8 gItemDescription_ITEM_PROTEIN[] = _("A nutritious drink for POKéMON.\
-It raises the base ATTACK stat of\
-one POKéMON.");
-const u8 gItemDescription_ITEM_IRON[] = _("A nutritious drink for POKéMON.\
-It raises the base DEFENSE stat of\
-one POKéMON.");
-const u8 gItemDescription_ITEM_CARBOS[] = _("A nutritious drink for POKéMON.\
-It raises the base SPEED stat of\
-one POKéMON.");
-const u8 gItemDescription_ITEM_CALCIUM[] = _("A nutritious drink for POKéMON.\
-It raises the base SP. ATK stat\
-of one POKéMON.");
-const u8 gItemDescription_ITEM_RARE_CANDY[] = _("A candy that is packed with energy.\
-It raises the level of a POKéMON\
-by one.");
-const u8 gItemDescription_ITEM_PP_UP[] = _("Slightly raises the maximum PP of\
-a selected move for one POKéMON.");
-const u8 gItemDescription_ITEM_ZINC[] = _("A nutritious drink for POKéMON.\
-It raises the base SP. DEF stat\
-of one POKéMON.");
-const u8 gItemDescription_ITEM_PP_MAX[] = _("Raises the PP of a selected move\
-to its maximum level for one\
-POKéMON.");
-const u8 gItemDescription_ITEM_GUARD_SPEC[] = _("An item that prevents stat reduction\
-among party POKéMON for five turns\
-after use.");
-const u8 gItemDescription_ITEM_DIRE_HIT[] = _("Raises the critical-hit ratio of\
-POKéMON in battle. Wears off if the\
-POKéMON is withdrawn.");
-const u8 gItemDescription_ITEM_X_ATTACK[] = _("Raises the ATTACK stat of POKéMON\
-in battle. Wears off if the POKéMON\
-is withdrawn.");
-const u8 gItemDescription_ITEM_X_DEFEND[] = _("Raises the DEFENSE stat of POKéMON\
-in battle. Wears off if the POKéMON\
-is withdrawn.");
-const u8 gItemDescription_ITEM_X_SPEED[] = _("Raises the SPEED stat of POKéMON\
-in battle. Wears off if the POKéMON\
-is withdrawn.");
-const u8 gItemDescription_ITEM_X_ACCURACY[] = _("Raises the accuracy stat of\
-POKéMON in battle. Wears off if the\
-POKéMON is withdrawn.");
-const u8 gItemDescription_ITEM_X_SPECIAL[] = _("Raises the SP. ATK stat of\
-POKéMON in battle. Wears off if the\
-POKéMON is withdrawn.");
-const u8 gItemDescription_ITEM_POKE_DOLL[] = _("An attractive doll.\
-Use it to flee from any battle with\
-a wild POKéMON.");
-const u8 gItemDescription_ITEM_FLUFFY_TAIL[] = _("An attractive item.\
-Use it to flee from any battle with\
-a wild POKéMON.");
-const u8 gItemDescription_ITEM_SUPER_REPEL[] = _("Prevents weak wild POKéMON from\
-appearing for 200 steps.");
-const u8 gItemDescription_ITEM_MAX_REPEL[] = _("Prevents weak wild POKéMON from\
-appearing for 250 steps.");
-const u8 gItemDescription_ITEM_ESCAPE_ROPE[] = _("A long, durable rope.\
-Use it to escape instantly from a\
-cave or a dungeon.");
-const u8 gItemDescription_ITEM_REPEL[] = _("Prevents weak wild POKéMON from\
-appearing for 100 steps.");
-const u8 gItemDescription_ITEM_SUN_STONE[] = _("A peculiar stone that makes certain\
-species of POKéMON evolve.\
-It is as red as the sun.");
-const u8 gItemDescription_ITEM_MOON_STONE[] = _("A peculiar stone that makes certain\
-species of POKéMON evolve.\
-It is as black as the night sky.");
-const u8 gItemDescription_ITEM_FIRE_STONE[] = _("A peculiar stone that makes certain\
-species of POKéMON evolve.\
-It is colored orange.");
-const u8 gItemDescription_ITEM_THUNDER_STONE[] = _("A peculiar stone that makes certain\
-species of POKéMON evolve.\
-It has a thunderbolt pattern.");
-const u8 gItemDescription_ITEM_WATER_STONE[] = _("A peculiar stone that makes certain\
-species of POKéMON evolve.\
-It is a clear light blue.");
-const u8 gItemDescription_ITEM_LEAF_STONE[] = _("A peculiar stone that makes certain\
-species of POKéMON evolve.\
-It has a leaf pattern.");
-const u8 gItemDescription_ITEM_TINY_MUSHROOM[] = _("A small and rare mushroom.\
-It is quite popular among certain\
-people.");
-const u8 gItemDescription_ITEM_BIG_MUSHROOM[] = _("A large and rare mushroom.\
-It is very popular among certain\
-people.");
-const u8 gItemDescription_ITEM_PEARL[] = _("A relatively small pearl that\
-sparkles in a pretty silver color.\
-It can be sold cheaply.");
-const u8 gItemDescription_ITEM_BIG_PEARL[] = _("A quite-large pearl that sparkles\
-in a pretty silver color.\
-It can be sold at a high price.");
-const u8 gItemDescription_ITEM_STARDUST[] = _("A pretty red sand with a loose,\
-silky feel.\
-It can be sold at a high price.");
-const u8 gItemDescription_ITEM_STAR_PIECE[] = _("A shard of a pretty gem that\
-sparkles in a red color.\
-It can be sold at a high price.");
-const u8 gItemDescription_ITEM_NUGGET[] = _("A nugget of pure gold that gives\
-off a lustrous gleam.\
-It can be sold at a high price.");
-const u8 gItemDescription_ITEM_HEART_SCALE[] = _("A pretty, heart-shaped scale that\
-is extremely rare. It glows faintly\
-in the colors of a rainbow.");
-const u8 gItemDescription_ITEM_ORANGE_MAIL[] = _("A piece of MAIL featuring a cute\
-ZIGZAGOON print.\
-It is to be held by a POKéMON.");
-const u8 gItemDescription_ITEM_HARBOR_MAIL[] = _("A piece of MAIL featuring a cute\
-WINGULL print.\
-It is to be held by a POKéMON.");
-const u8 gItemDescription_ITEM_GLITTER_MAIL[] = _("A piece of MAIL featuring a cute\
-PIKACHU print.\
-It is to be held by a POKéMON.");
-const u8 gItemDescription_ITEM_MECH_MAIL[] = _("A piece of MAIL featuring a cute\
-MAGNEMITE print.\
-It is to be held by a POKéMON.");
-const u8 gItemDescription_ITEM_WOOD_MAIL[] = _("A piece of MAIL featuring a cute\
-SLAKOTH print.\
-It is to be held by a POKéMON.");
-const u8 gItemDescription_ITEM_WAVE_MAIL[] = _("A piece of MAIL featuring a cute\
-WAILMER print.\
-It is to be held by a POKéMON.");
-const u8 gItemDescription_ITEM_BEAD_MAIL[] = _("A piece of MAIL to be held by a\
-POKéMON. It will bear the print of\
-the POKéMON holding it.");
-const u8 gItemDescription_ITEM_SHADOW_MAIL[] = _("A piece of MAIL featuring a cute\
-DUSKULL print.\
-It is to be held by a POKéMON.");
-const u8 gItemDescription_ITEM_TROPIC_MAIL[] = _("A piece of MAIL featuring a cute\
-BELLOSSOM print.\
-It is to be held by a POKéMON.");
-const u8 gItemDescription_ITEM_DREAM_MAIL[] = _("A piece of MAIL to be held by a\
-POKéMON. It will bear the print of\
-the POKéMON holding it.");
-const u8 gItemDescription_ITEM_FAB_MAIL[] = _("A piece of MAIL featuring a\
-gorgeous, extravagant print.\
-It is to be held by a POKéMON.");
-const u8 gItemDescription_ITEM_RETRO_MAIL[] = _("A piece of MAIL featuring a print\
-of three cute POKéMON.\
-It is to be held by a POKéMON.");
-const u8 gItemDescription_ITEM_CHERI_BERRY[] = _("When held by a POKéMON, it will be\
-used in battle to heal paralysis.");
-const u8 gItemDescription_ITEM_CHESTO_BERRY[] = _("When held by a POKéMON, it will be\
-used in battle to wake up.");
-const u8 gItemDescription_ITEM_PECHA_BERRY[] = _("When held by a POKéMON, it will be\
-used in battle to cure poison.");
-const u8 gItemDescription_ITEM_RAWST_BERRY[] = _("When held by a POKéMON, it will be\
-used in battle to heal a burn.");
-const u8 gItemDescription_ITEM_ASPEAR_BERRY[] = _("When held by a POKéMON, it will be\
-used in battle for defrosting.");
-const u8 gItemDescription_ITEM_LEPPA_BERRY[] = _("When held by a POKéMON, it will be\
-used in battle to restore 10 PP.");
-const u8 gItemDescription_ITEM_ORAN_BERRY[] = _("When held by a POKéMON, it will be\
-used in battle to restore 10 HP.");
-const u8 gItemDescription_ITEM_PERSIM_BERRY[] = _("When held by a POKéMON, it will be\
-used in battle to lift confusion.");
-const u8 gItemDescription_ITEM_LUM_BERRY[] = _("When held by a POKéMON, it will be\
-used in battle to heal any problem.");
-const u8 gItemDescription_ITEM_SITRUS_BERRY[] = _("When held by a POKéMON, it will be\
-used in battle to restore 30 HP.");
-const u8 gItemDescription_ITEM_FIGY_BERRY[] = _("A hold item that restores HP but\
-may cause confusion when used.");
-const u8 gItemDescription_ITEM_WIKI_BERRY[] = _("A hold item that restores HP but\
-may cause confusion when used.");
-const u8 gItemDescription_ITEM_MAGO_BERRY[] = _("A hold item that restores HP but\
-may cause confusion when used.");
-const u8 gItemDescription_ITEM_AGUAV_BERRY[] = _("A hold item that restores HP but\
-may cause confusion when used.");
-const u8 gItemDescription_ITEM_IAPAPA_BERRY[] = _("A hold item that restores HP but\
-may cause confusion when used.");
-const u8 gItemDescription_ITEM_RAZZ_BERRY[] = _("Can be ground up into a powder as\
-an ingredient for medicine.");
-const u8 gItemDescription_ITEM_BLUK_BERRY[] = _("Can be ground up into a powder as\
-an ingredient for medicine.");
-const u8 gItemDescription_ITEM_NANAB_BERRY[] = _("Can be ground up into a powder as\
-an ingredient for medicine.");
-const u8 gItemDescription_ITEM_WEPEAR_BERRY[] = _("Can be ground up into a powder as\
-an ingredient for medicine.");
-const u8 gItemDescription_ITEM_PINAP_BERRY[] = _("Can be ground up into a powder as\
-an ingredient for medicine.");
-const u8 gItemDescription_ITEM_POMEG_BERRY[] = _("Can be ground up into a powder as\
-an ingredient for medicine.");
-const u8 gItemDescription_ITEM_KELPSY_BERRY[] = _("Can be ground up into a powder as\
-an ingredient for medicine.");
-const u8 gItemDescription_ITEM_QUALOT_BERRY[] = _("Can be ground up into a powder as\
-an ingredient for medicine.");
-const u8 gItemDescription_ITEM_HONDEW_BERRY[] = _("Can be ground up into a powder as\
-an ingredient for medicine.");
-const u8 gItemDescription_ITEM_GREPA_BERRY[] = _("Can be ground up into a powder as\
-an ingredient for medicine.");
-const u8 gItemDescription_ITEM_TAMATO_BERRY[] = _("Can be ground up into a powder as\
-an ingredient for medicine.");
-const u8 gItemDescription_ITEM_CORNN_BERRY[] = _("Can be ground up into a powder as\
-an ingredient for medicine.");
-const u8 gItemDescription_ITEM_MAGOST_BERRY[] = _("Can be ground up into a powder as\
-an ingredient for medicine.");
-const u8 gItemDescription_ITEM_RABUTA_BERRY[] = _("Can be ground up into a powder as\
-an ingredient for medicine.");
-const u8 gItemDescription_ITEM_NOMEL_BERRY[] = _("Can be ground up into a powder as\
-an ingredient for medicine.");
-const u8 gItemDescription_ITEM_SPELON_BERRY[] = _("Can be ground up into a powder as\
-an ingredient for medicine.");
-const u8 gItemDescription_ITEM_PAMTRE_BERRY[] = _("Can be ground up into a powder as\
-an ingredient for medicine.");
-const u8 gItemDescription_ITEM_WATMEL_BERRY[] = _("Can be ground up into a powder as\
-an ingredient for medicine.");
-const u8 gItemDescription_ITEM_DURIN_BERRY[] = _("Can be ground up into a powder as\
-an ingredient for medicine.");
-const u8 gItemDescription_ITEM_BELUE_BERRY[] = _("Can be ground up into a powder as\
-an ingredient for medicine.");
-const u8 gItemDescription_ITEM_LIECHI_BERRY[] = _("When held by a POKéMON, it raises\
-the ATTACK stat in a pinch.");
-const u8 gItemDescription_ITEM_GANLON_BERRY[] = _("When held by a POKéMON, it raises\
-the DEFENSE stat in a pinch.");
-const u8 gItemDescription_ITEM_SALAC_BERRY[] = _("When held by a POKéMON, it raises\
-the SPEED stat in a pinch.");
-const u8 gItemDescription_ITEM_PETAYA_BERRY[] = _("When held by a POKéMON, it raises\
-the SP. ATK stat in a pinch.");
-const u8 gItemDescription_ITEM_APICOT_BERRY[] = _("When held by a POKéMON, it raises\
-the SP. DEF stat in a pinch.");
-const u8 gItemDescription_ITEM_LANSAT_BERRY[] = _("When held by a POKéMON, it raises\
-the critical-hit ratio in a pinch.");
-const u8 gItemDescription_ITEM_STARF_BERRY[] = _("When held by a POKéMON, it sharply\
-raises one stat in a pinch.");
-const u8 gItemDescription_ITEM_ENIGMA_BERRY[] = _("Can be ground up into a powder as\
-an ingredient for medicine.");
-const u8 gItemDescription_ITEM_BRIGHT_POWDER[] = _("An item to be held by a POKéMON.\
-It casts a tricky glare that lowers\
-the opponent's accuracy.");
-const u8 gItemDescription_ITEM_WHITE_HERB[] = _("An item to be held by a POKéMON.\
-It restores any lowered stat in\
-battle. It can be used only once.");
-const u8 gItemDescription_ITEM_MACHO_BRACE[] = _("An item to be held by a POKéMON.\
-It promotes strong growth but\
-lowers SPEED while it is held.");
-const u8 gItemDescription_ITEM_EXP_SHARE[] = _("An item to be held by a POKéMON.\
-The holder gets a share of EXP.\
-points without having to battle.");
-const u8 gItemDescription_ITEM_QUICK_CLAW[] = _("An item to be held by a POKéMON.\
-A light and sharp claw. The holder\
-may be able to strike first.");
-const u8 gItemDescription_ITEM_SOOTHE_BELL[] = _("An item to be held by a POKéMON.\
-A bell with a comforting chime that\
-makes the holder calm and friendly.");
-const u8 gItemDescription_ITEM_MENTAL_HERB[] = _("An item to be held by a POKéMON.\
-It snaps the holder out of\
-infatuation. It can be used once.");
-const u8 gItemDescription_ITEM_CHOICE_BAND[] = _("An item to be held by a POKéMON.\
-It powers up one move, which\
-becomes the only usable one.");
-const u8 gItemDescription_ITEM_KINGS_ROCK[] = _("An item to be held by a POKéMON.\
-It may cause the foe to flinch\
-upon taking damage.");
-const u8 gItemDescription_ITEM_SILVER_POWDER[] = _("An item to be held by a POKéMON.\
-A shiny silver powder that boosts\
-the power of BUG-type moves.");
-const u8 gItemDescription_ITEM_AMULET_COIN[] = _("An item to be held by a POKéMON.\
-It doubles the battle money if the\
-holding POKéMON takes part.");
-const u8 gItemDescription_ITEM_CLEANSE_TAG[] = _("An item to be held by a POKéMON.\
-It repels wild POKéMON if the\
-holder is first in the party.");
-const u8 gItemDescription_ITEM_SOUL_DEW[] = _("An orb to be held by a LATIOS or\
-LATIAS. It raises the SP. ATK\
-and SP. DEF stats.");
-const u8 gItemDescription_ITEM_DEEP_SEA_TOOTH[] = _("An item to be held by a POKéMON.\
-A fang that gleams a sharp silver.\
-It raises the SP. ATK stat.");
-const u8 gItemDescription_ITEM_DEEP_SEA_SCALE[] = _("An item to be held by a POKéMON.\
-A scale that shines a faint pink.\
-It raises the SP. DEF stat.");
-const u8 gItemDescription_ITEM_SMOKE_BALL[] = _("An item to be held by a POKéMON.\
-The holding POKéMON can flee from\
-any wild POKéMON for sure.");
-const u8 gItemDescription_ITEM_EVERSTONE[] = _("An item to be held by a POKéMON.\
-The holding POKéMON is prevented\
-from evolving.");
-const u8 gItemDescription_ITEM_FOCUS_BAND[] = _("An item to be held by a POKéMON.\
-The holding POKéMON may endure an\
-attack, leaving just 1 HP.");
-const u8 gItemDescription_ITEM_LUCKY_EGG[] = _("An item to be held by a POKéMON.\
-An egg filled with happiness that\
-earns extra EXP. points in battle.");
-const u8 gItemDescription_ITEM_SCOPE_LENS[] = _("An item to be held by a POKéMON.\
-A lens that boosts the critical-hit\
-ratio of the holding POKéMON.");
-const u8 gItemDescription_ITEM_METAL_COAT[] = _("An item to be held by a POKéMON.\
-A special metallic film that boosts\
-the power of STEEL-type moves.");
-const u8 gItemDescription_ITEM_LEFTOVERS[] = _("An item to be held by a POKéMON.\
-The holding POKéMON gradually\
-regains HP during battle.");
-const u8 gItemDescription_ITEM_DRAGON_SCALE[] = _("A thick and tough scale.\
-A DRAGON-type POKéMON may be\
-holding it.");
-const u8 gItemDescription_ITEM_LIGHT_BALL[] = _("An orb to be held by a PIKACHU\
-that raises the SP. ATK stat.\
-Touching it may cause a shock.");
-const u8 gItemDescription_ITEM_SOFT_SAND[] = _("An item to be held by a POKéMON.\
-A loose, silky sand that boosts the\
-power of GROUND-type moves.");
-const u8 gItemDescription_ITEM_HARD_STONE[] = _("An item to be held by a POKéMON.\
-An unbreakable stone that boosts\
-the power of ROCK-type moves.");
-const u8 gItemDescription_ITEM_MIRACLE_SEED[] = _("An item to be held by a POKéMON.\
-A seed imbued with life that boosts\
-the power of GRASS-type moves.");
-const u8 gItemDescription_ITEM_BLACK_GLASSES[] = _("An item to be held by a POKéMON.\
-A shady-looking pair of glasses\
-that boosts DARK-type moves.");
-const u8 gItemDescription_ITEM_BLACK_BELT[] = _("An item to be held by a POKéMON.\
-A belt that boosts determination\
-and FIGHTING-type moves.");
-const u8 gItemDescription_ITEM_MAGNET[] = _("An item to be held by a POKéMON.\
-A powerful magnet that boosts the\
-power of ELECTRIC-type moves.");
-const u8 gItemDescription_ITEM_MYSTIC_WATER[] = _("An item to be held by a POKéMON.\
-A teardrop-shaped gem that boosts\
-the power of WATER-type moves.");
-const u8 gItemDescription_ITEM_SHARP_BEAK[] = _("An item to be held by a POKéMON.\
-A long, sharp beak that boosts the\
-power of FLYING-type moves.");
-const u8 gItemDescription_ITEM_POISON_BARB[] = _("An item to be held by a POKéMON.\
-A small, poisonous barb that boosts\
-the power of POISON-type moves.");
-const u8 gItemDescription_ITEM_NEVER_MELT_ICE[] = _("An item to be held by a POKéMON.\
-A piece of ice that repels heat\
-and boosts ICE-type moves.");
-const u8 gItemDescription_ITEM_SPELL_TAG[] = _("An item to be held by a POKéMON.\
-A sinister, eerie tag that boosts\
-GHOST-type moves.");
-const u8 gItemDescription_ITEM_TWISTED_SPOON[] = _("An item to be held by a POKéMON.\
-A spoon imbued with telekinetic\
-power boosts PSYCHIC-type moves.");
-const u8 gItemDescription_ITEM_CHARCOAL[] = _("An item to be held by a POKéMON.\
-A combustible fuel that boosts the\
-power of FIRE-type moves.");
-const u8 gItemDescription_ITEM_DRAGON_FANG[] = _("An item to be held by a POKéMON.\
-A hard and sharp fang that boosts\
-the power of DRAGON-type moves.");
-const u8 gItemDescription_ITEM_SILK_SCARF[] = _("An item to be held by a POKéMON.\
-A sumptuous scarf that boosts the\
-power of NORMAL-type moves.");
-const u8 gItemDescription_ITEM_UP_GRADE[] = _("A transparent device filled with all\
-sorts of data.\
-It is made by SILPH CO.");
-const u8 gItemDescription_ITEM_SHELL_BELL[] = _("An item to be held by a POKéMON.\
-The holding POKéMON regains some\
-HP upon striking the foe.");
-const u8 gItemDescription_ITEM_SEA_INCENSE[] = _("An item to be held by a POKéMON.\
-It slightly boosts the power of\
-WATER-type moves.");
-const u8 gItemDescription_ITEM_LAX_INCENSE[] = _("An item to be held by a POKéMON.\
-Its tricky aroma slightly reduces\
-the foe's accuracy.");
-const u8 gItemDescription_ITEM_LUCKY_PUNCH[] = _("A glove to be held by a CHANSEY.\
-It raises CHANSEY's critical-hit\
-ratio.");
-const u8 gItemDescription_ITEM_METAL_POWDER[] = _("A fine, hard powder to be held by\
-a DITTO.\
-It raises DITTO's DEFENSE stat.");
-const u8 gItemDescription_ITEM_THICK_CLUB[] = _("A hard bone of some sort to be\
-held by a CUBONE or MAROWAK.\
-It raises the ATTACK stat.");
-const u8 gItemDescription_ITEM_STICK[] = _("A stick of leek to be held by a\
-FARFETCH'D. It raises FARFETCH'D's\
-critical-hit ratio.");
-const u8 gItemDescription_ITEM_RED_SCARF[] = _("An item to be held by a POKéMON.\
-It boosts the holding POKéMON's\
-COOL condition in CONTESTS.");
-const u8 gItemDescription_ITEM_BLUE_SCARF[] = _("An item to be held by a POKéMON.\
-It boosts the holding POKéMON's\
-BEAUTY condition in CONTESTS.");
-const u8 gItemDescription_ITEM_PINK_SCARF[] = _("An item to be held by a POKéMON.\
-It boosts the holding POKéMON's\
-CUTE condition in CONTESTS.");
-const u8 gItemDescription_ITEM_GREEN_SCARF[] = _("An item to be held by a POKéMON.\
-It boosts the holding POKéMON's\
-SMART condition in CONTESTS.");
-const u8 gItemDescription_ITEM_YELLOW_SCARF[] = _("An item to be held by a POKéMON.\
-It boosts the holding POKéMON's\
-TOUGH condition in CONTESTS.");
-const u8 gItemDescription_ITEM_MACH_BIKE[] = _("A folding bicycle that is at least\
-twice as fast as walking.");
-const u8 gItemDescription_ITEM_COIN_CASE[] = _("A case for holding COINS obtained\
-at the GAME CORNER.\
-It holds up to 9,999 COINS.");
-const u8 gItemDescription_ITEM_ITEMFINDER[] = _("A device used for finding items.\
-If there is a hidden item nearby\
-when it is used, it emits a signal.");
-const u8 gItemDescription_ITEM_OLD_ROD[] = _("An old and beat-up fishing rod.\
-Use it by any body of water to \
-fish for wild POKéMON.");
-const u8 gItemDescription_ITEM_GOOD_ROD[] = _("A new, good-quality fishing rod.\
-Use it by any body of water to \
-fish for wild POKéMON.");
-const u8 gItemDescription_ITEM_SUPER_ROD[] = _("An awesome, high-tech fishing rod.\
-Use it by any body of water to fish\
-for wild POKéMON.");
-const u8 gItemDescription_ITEM_SS_TICKET[] = _("The ticket required for sailing on\
-the ferry S.S. ANNE.\
-It has a drawing of a ship on it.");
-const u8 gItemDescription_ITEM_CONTEST_PASS[] = _("The pass required for entering\
-POKéMON CONTESTS. It has a\
-drawing of an award ribbon on it.");
-const u8 gItemDescription_ITEM_WAILMER_PAIL[] = _("A nifty watering pail.\
-Use it to promote strong growth in\
-BERRIES planted in soft soil.");
-const u8 gItemDescription_ITEM_DEVON_GOODS[] = _("A package that contains mechanical\
-parts of some sort made by the\
-DEVON CORPORATION.");
-const u8 gItemDescription_ITEM_SOOT_SACK[] = _("A sack used to collect volcanic\
-ash automatically during walks\
-over deep ash.");
-const u8 gItemDescription_ITEM_BASEMENT_KEY[] = _("The key to NEW MAUVILLE, which\
-was constructed beneath MAUVILLE\
-CITY.");
-const u8 gItemDescription_ITEM_ACRO_BIKE[] = _("A folding bicycle that is capable\
-of stunts like jumps and wheelies.");
-const u8 gItemDescription_ITEM_POKEBLOCK_CASE[] = _("A case for holding {POKEBLOCK}S made\
-with a BERRY BLENDER. It releases\
-one {POKEBLOCK} when shaken.");
-const u8 gItemDescription_ITEM_LETTER[] = _("An extremely important letter to\
-STEVEN from the PRESIDENT of the\
-DEVON CORPORATION.");
-const u8 gItemDescription_ITEM_EON_TICKET[] = _("The ticket required for sailing on a\
-ferry to a distant southern island.\
-It features a drawing of an island.");
-const u8 gItemDescription_ITEM_RED_ORB[] = _("An orb that glows red.\
-It is said to contain an incredible\
-power from ancient times.");
-const u8 gItemDescription_ITEM_BLUE_ORB[] = _("An orb that glows blue.\
-It is said to contain an incredible\
-power from ancient times.");
-const u8 gItemDescription_ITEM_SCANNER[] = _("A device used to search for\
-life-forms in water.\
-It looks too difficult to use.");
-const u8 gItemDescription_ITEM_GO_GOGGLES[] = _("A pair of protective goggles.\
-They enable a TRAINER to travel\
-through even desert sandstorms.");
-const u8 gItemDescription_ITEM_METEORITE[] = _("A meteorite that fell from space\
-onto MT. MOON long ago.\
-It is very lumpy and hard.");
-const u8 gItemDescription_ITEM_ROOM_1_KEY[] = _("A key that opens the door to Room\
-1 inside the ABANDONED SHIP.\
-It is old and looks easily broken.");
-const u8 gItemDescription_ITEM_ROOM_2_KEY[] = _("A key that opens the door to Room\
-2 inside the ABANDONED SHIP.\
-It is old and looks easily broken.");
-const u8 gItemDescription_ITEM_ROOM_4_KEY[] = _("A key that opens the door to Room\
-4 inside the ABANDONED SHIP.\
-It is old and looks easily broken.");
-const u8 gItemDescription_ITEM_ROOM_6_KEY[] = _("A key that opens the door to Room\
-6 inside the ABANDONED SHIP.\
-It is old and looks easily broken.");
-const u8 gItemDescription_ITEM_STORAGE_KEY[] = _("A key that opens the storage hold\
-inside the ABANDONED SHIP.\
-It is old and looks easily broken.");
-const u8 gItemDescription_ITEM_ROOT_FOSSIL[] = _("A fossil of an ancient, seafloor-\
-dwelling POKéMON. It appears to be\
-part of a plant root.");
-const u8 gItemDescription_ITEM_CLAW_FOSSIL[] = _("A fossil of an ancient, seafloor-\
-dwelling POKéMON. It appears to be\
-part of a claw.");
-const u8 gItemDescription_ITEM_DEVON_SCOPE[] = _("A scope that signals the presence\
-of any unseeable POKéMON.\
-It is made by the DEVON CORP.");
-const u8 gItemDescription_ITEM_TM01[] = _("An extremely powerful attack.\
-However, if the user is hit before\
-using the move, they will flinch.");
-const u8 gItemDescription_ITEM_TM02[] = _("Sharp, huge claws hook and slash\
-the foe quickly and with great\
-power.");
-const u8 gItemDescription_ITEM_TM03[] = _("The foe is hit with a pulsing blast\
-of water. It may also confuse the\
-target.");
-const u8 gItemDescription_ITEM_TM04[] = _("The user calms its spirit and\
-focuses its mind to raise its\
-SP. ATK and SP. DEF stats.");
-const u8 gItemDescription_ITEM_TM05[] = _("A savage roar that causes the foe\
-to switch out of battle. In the\
-wild, ROAR ends the battle.");
-const u8 gItemDescription_ITEM_TM06[] = _("A move that leaves the foe badly\
-poisoned. Its poison damage worsens\
-every turn.");
-const u8 gItemDescription_ITEM_TM07[] = _("Summons a hailstorm that lasts for\
-five turns. The hailstorm damages\
-all types except the ICE type.");
-const u8 gItemDescription_ITEM_TM08[] = _("The user tightens all its muscles\
-and bulks up, boosting both its\
-ATTACK and DEFENSE stats.");
-const u8 gItemDescription_ITEM_TM09[] = _("The user shoots seeds at the foe\
-in rapid succession. Two to five\
-seeds are shot at once.");
-const u8 gItemDescription_ITEM_TM10[] = _("A variable move that changes type\
-and power depending on the POKéMON\
-using it.");
-const u8 gItemDescription_ITEM_TM11[] = _("The weather is turned sunny for\
-five turns. Over that time, FIRE-\
-type moves are powered up.");
-const u8 gItemDescription_ITEM_TM12[] = _("A taunted foe may become enraged.\
-It will then only be able to use\
-attack moves.");
-const u8 gItemDescription_ITEM_TM13[] = _("An icy-cold beam is shot at the\
-foe. It may leave the target\
-frozen.");
-const u8 gItemDescription_ITEM_TM14[] = _("A vicious snow-and-wind attack that\
-strikes all foes in battle. It may\
-cause freezing.");
-const u8 gItemDescription_ITEM_TM15[] = _("A harsh attack that inflicts severe\
-damage on the foe. However, the\
-user must rest the next turn.");
-const u8 gItemDescription_ITEM_TM16[] = _("A wall of light is created over\
-five turns. It reduces damage from\
-SP. ATK attacks.");
-const u8 gItemDescription_ITEM_TM17[] = _("The user is completely protected\
-from attack in the turn it is used.\
-It may fail if used in succession.");
-const u8 gItemDescription_ITEM_TM18[] = _("A heavy rain is summoned for five\
-turns. Over that time, WATER-type\
-moves are powered up.");
-const u8 gItemDescription_ITEM_TM19[] = _("The user strikes the foe with\
-tentacles or roots, stealing the\
-target's HP and healing itself.");
-const u8 gItemDescription_ITEM_TM20[] = _("Protects the party with a shield\
-against all status problems over\
-five turns.");
-const u8 gItemDescription_ITEM_TM21[] = _("This attack move grows more\
-powerful the more the POKéMON\
-dislikes its TRAINER.");
-const u8 gItemDescription_ITEM_TM22[] = _("A 2-turn attack that uses the first\
-turn for absorbing sunlight, then\
-blasting the foe in the next turn.");
-const u8 gItemDescription_ITEM_TM23[] = _("The foe is slammed with a sturdy\
-tail of steel. It may lower the\
-target's DEFENSE stat.");
-const u8 gItemDescription_ITEM_TM24[] = _("A massive jolt of electricity is\
-launched at the foe. It may cause\
-paralysis.");
-const u8 gItemDescription_ITEM_TM25[] = _("Strikes the foe with a huge\
-thunderbolt. It may cause\
-paralysis.");
-const u8 gItemDescription_ITEM_TM26[] = _("Causes an earthquake that strikes\
-all POKéMON in battle, excluding\
-the user.");
-const u8 gItemDescription_ITEM_TM27[] = _("This attack move grows more\
-powerful the more the POKéMON\
-likes its TRAINER.");
-const u8 gItemDescription_ITEM_TM28[] = _("A 2-turn attack in which the user\
-digs underground, then strikes.\
-It can be used to exit dungeons.");
-const u8 gItemDescription_ITEM_TM29[] = _("A powerful blast of telekinetic\
-energy strikes the foe. It may\
-lower the target's SP. DEF stat.");
-const u8 gItemDescription_ITEM_TM30[] = _("The foe is attacked with a shadowy\
-lump. It may lower the target's\
-SP. DEF stat.");
-const u8 gItemDescription_ITEM_TM31[] = _("Strikes the foe with a rock-hard\
-fist, etc. It shatters barriers such\
-as REFLECT and LIGHT SCREEN.");
-const u8 gItemDescription_ITEM_TM32[] = _("The user begins moving so quickly\
-that it creates illusory copies to\
-raise its evasiveness.");
-const u8 gItemDescription_ITEM_TM33[] = _("A tough barrier is put up over five\
-turns. It reduces damage from\
-physical attacks over that time.");
-const u8 gItemDescription_ITEM_TM34[] = _("A rapid jolt of electricity strikes\
-the foe. This attack is impossible\
-to evade.");
-const u8 gItemDescription_ITEM_TM35[] = _("The foe is roasted with a heavy\
-blast of fire. It may leave the\
-target with a burn.");
-const u8 gItemDescription_ITEM_TM36[] = _("Toxic sludge is hurled at the foe\
-with great force. It may also\
-poison the target.");
-const u8 gItemDescription_ITEM_TM37[] = _("Summons a sandstorm that lasts for\
-five turns. It damages all types\
-except ROCK, GROUND, and STEEL.");
-const u8 gItemDescription_ITEM_TM38[] = _("The foe is incinerated with an\
-intense flame. It may leave the\
-target with a burn.");
-const u8 gItemDescription_ITEM_TM39[] = _("Boulders are hurled at the foe.\
-It also lowers the target's SPEED\
-stat if it hits.");
-const u8 gItemDescription_ITEM_TM40[] = _("An extremely fast attack against\
-one target. It is impossible to\
-evade.");
-const u8 gItemDescription_ITEM_TM41[] = _("If enraged by this move, the target\
-becomes incapable of using the same\
-move twice in a row.");
-const u8 gItemDescription_ITEM_TM42[] = _("An attack move that becomes very\
-powerful if the user is poisoned,\
-burned, or paralyzed.");
-const u8 gItemDescription_ITEM_TM43[] = _("An attack move that may have an\
-additional effect depending on the\
-battle terrain.");
-const u8 gItemDescription_ITEM_TM44[] = _("A move that makes the user fall\
-asleep over two turns to restore HP\
-and heal any status problems.");
-const u8 gItemDescription_ITEM_TM45[] = _("The foe, if it is the opposite\
-gender as the user, becomes\
-infatuated and may not attack.");
-const u8 gItemDescription_ITEM_TM46[] = _("An attack that gives the user an\
-opportunity to steal the foe's hold\
-item.");
-const u8 gItemDescription_ITEM_TM47[] = _("The foe is struck with steel-hard\
-wings. It may also raise the user's\
-DEFENSE stat.");
-const u8 gItemDescription_ITEM_TM48[] = _("A special power is transmitted to\
-the foe, causing it to switch\
-abilities with the user.");
-const u8 gItemDescription_ITEM_TM49[] = _("A move that steals the effects of\
-any status-changing or healing move\
-that the foe tries to use.");
-const u8 gItemDescription_ITEM_TM50[] = _("A maximum-power attack of great\
-ferocity, but one that also sharply\
-reduces the user's SP. ATK stat.");
-const u8 gItemDescription_ITEM_HM01[] = _("Attacks the foe with sharp blades\
-or claws. It can also cut down thin\
-trees and grass outside of battle.");
-const u8 gItemDescription_ITEM_HM02[] = _("The user flies up on the first turn,\
-then attacks next turn. It can be\
-used to fly to any known town.");
-const u8 gItemDescription_ITEM_HM03[] = _("Creates a huge wave, then crashes\
-it down on the foe. It can be used\
-for traveling on water.");
-const u8 gItemDescription_ITEM_HM04[] = _("The user builds enormous power,\
-then slams the foe. It can be used\
-for moving large, round boulders.");
-const u8 gItemDescription_ITEM_HM05[] = _("Looses a powerful blast of light\
-that reduces the foe's accuracy.\
-It also lights up dark caves.");
-const u8 gItemDescription_ITEM_HM06[] = _("Hits the foe with a rock-crushingly\
-tough attack. It can smash cracked\
-boulders.");
-const u8 gItemDescription_ITEM_HM07[] = _("A powerful charge attack. It can\
-be used for climbing a torrential\
-waterfall.");
-const u8 gItemDescription_ITEM_HM08[] = _("A 2-turn attack in which the user\
-dives underwater on the first turn,\
-then strikes in the next turn.");
-const u8 gItemDescription_ITEM_OAKS_PARCEL[] = _("A parcel to be delivered to PROF.\
-OAK from VIRIDIAN CITY's POKéMON\
-MART.");
-const u8 gItemDescription_ITEM_POKE_FLUTE[] = _("A flute that is said to instantly\
-awaken any POKéMON. It has a\
-lovely tone.");
-const u8 gItemDescription_ITEM_SECRET_KEY[] = _("The key to CINNABAR ISLAND GYM's\
-front door. It is colored red and\
-decorated.");
-const u8 gItemDescription_ITEM_BIKE_VOUCHER[] = _("Take this voucher to the BIKE SHOP\
-in CERULEAN CITY and exchange it\
-for a bicycle.");
-const u8 gItemDescription_ITEM_GOLD_TEETH[] = _("A set of false teeth lost by the\
-SAFARI ZONE'S WARDEN. It makes his\
-smile sparkle.");
-const u8 gItemDescription_ITEM_OLD_AMBER[] = _("A piece of amber that contains\
-the genes of an ancient POKéMON.\
-It is clear with a reddish tint.");
-const u8 gItemDescription_ITEM_CARD_KEY[] = _("A card-type key that unlocks doors\
-in SILPH CO.'s HEAD OFFICE in\
-SAFFRON CITY.");
-const u8 gItemDescription_ITEM_LIFT_KEY[] = _("A key that operates the elevator\
-in TEAM ROCKET's HIDEOUT.\
-It bears the TEAM ROCKET logo.");
-const u8 gItemDescription_ITEM_HELIX_FOSSIL[] = _("A fossil of an ancient, seafloor-\
-dwelling POKéMON. It appears to be\
-part of a seashell.");
-const u8 gItemDescription_ITEM_DOME_FOSSIL[] = _("A fossil of an ancient, seafloor-\
-dwelling POKéMON. It appears to be\
-part of a shell.");
-const u8 gItemDescription_ITEM_SILPH_SCOPE[] = _("A scope that makes unseeable\
-POKéMON visible.\
-It is made by SILPH CO.");
-const u8 gItemDescription_ITEM_BICYCLE[] = _("A folding bicycle that allows\
-faster movement than the RUNNING\
-SHOES.");
-const u8 gItemDescription_ITEM_TOWN_MAP[] = _("A very convenient map that can be\
-viewed anytime. It even shows your \
-present location.");
-const u8 gItemDescription_ITEM_VS_SEEKER[] = _("A device that indicates TRAINERS\
-who want to battle. The battery\
-charges while traveling.");
-const u8 gItemDescription_ITEM_FAME_CHECKER[] = _("A device that enables you to\
-recall what you've heard and seen\
-about famous people.");
-const u8 gItemDescription_ITEM_TM_CASE[] = _("A case that holds TMs and HMs.\
-It is attached to the BAG's\
-compartment for important items.");
-const u8 gItemDescription_ITEM_BERRY_POUCH[] = _("A pouch for carrying BERRIES.\
-It is attached to the BAG's\
-compartment for important items.");
-const u8 gItemDescription_ITEM_TEACHY_TV[] = _("A television set that is tuned to\
-a program with useful tips for\
-novice TRAINERS.");
-const u8 gItemDescription_ITEM_TRI_PASS[] = _("A pass for ferries between ONE,\
-TWO, and THREE ISLAND.\
-It has a drawing of three islands.");
-const u8 gItemDescription_ITEM_RAINBOW_PASS[] = _("A pass for ferries between\
-VERMILION and the SEVII ISLANDS.\
-It features a drawing of a rainbow.");
-const u8 gItemDescription_ITEM_TEA[] = _("An aromatic tea prepared by an old\
-lady. It will slake even the worst\
-thirst.");
-const u8 gItemDescription_ITEM_MYSTIC_TICKET[] = _("A ticket required to board the ship\
-to NAVEL ROCK.\
-It glows with a mystic light.");
-const u8 gItemDescription_ITEM_AURORA_TICKET[] = _("A ticket required to board the ship\
-to BIRTH ISLAND.\
-It glows beautifully.");
-const u8 gItemDescription_ITEM_POWDER_JAR[] = _("A jar for storing BERRY POWDER\
-made using a BERRY CRUSHER.");
-const u8 gItemDescription_ITEM_RUBY[] = _("An exquisitely beautiful gem that\
-has a red glow.\
-It symbolizes passion.");
-const u8 gItemDescription_ITEM_SAPPHIRE[] = _("An exquisitely beautiful gem that\
-has a blue glow.\
-It symbolizes honesty.");
+const u8 gItemDescription_ITEM_MASTER_BALL[] = _("The best BALL with the ultimate\\nperformance. It will catch any wild\\nPOKéMON without fail.");
+const u8 gItemDescription_ITEM_ULTRA_BALL[] = _("A very high-grade BALL that offers\\na higher POKéMON catch rate than\\na GREAT BALL.");
+const u8 gItemDescription_ITEM_GREAT_BALL[] = _("A good, quality BALL that offers\\na higher POKéMON catch rate than\\na standard POKé BALL.");
+const u8 gItemDescription_ITEM_POKE_BALL[] = _("A BALL thrown to catch a wild\\nPOKéMON. It is designed in a\\ncapsule style.");
+const u8 gItemDescription_ITEM_SAFARI_BALL[] = _("A special BALL that is used only in\\nthe SAFARI ZONE. It is finished in\\na camouflage pattern.");
+const u8 gItemDescription_ITEM_NET_BALL[] = _("A somewhat different BALL that\\nworks especially well on WATER- and\\nBUG-type POKéMON.");
+const u8 gItemDescription_ITEM_DIVE_BALL[] = _("A somewhat different BALL that\\nworks especially well on POKéMON\\ndeep in the sea.");
+const u8 gItemDescription_ITEM_NEST_BALL[] = _("A somewhat different BALL that\\nworks especially well on weaker\\nPOKéMON.");
+const u8 gItemDescription_ITEM_REPEAT_BALL[] = _("A somewhat different BALL that\\nworks especially well on POKéMON\\ncaught before.");
+const u8 gItemDescription_ITEM_TIMER_BALL[] = _("A somewhat different BALL that\\nbecomes progressively better the\\nmore turns there are in a battle.");
+const u8 gItemDescription_ITEM_LUXURY_BALL[] = _("A comfortable BALL that makes a\\ncaptured wild POKéMON quickly grow\\nfriendly.");
+const u8 gItemDescription_ITEM_PREMIER_BALL[] = _("A rare BALL that has been\\nspecially made to commemorate an\\nevent of some sort.");
+const u8 gItemDescription_ITEM_POTION[] = _("A spray-type wound medicine.\\nIt restores the HP of one POKéMON\\nby 20 points.");
+const u8 gItemDescription_ITEM_ANTIDOTE[] = _("A spray-type medicine.\\nIt heals one POKéMON from a\\npoisoning.");
+const u8 gItemDescription_ITEM_BURN_HEAL[] = _("A spray-type medicine.\\nIt heals one POKéMON of a burn.");
+const u8 gItemDescription_ITEM_ICE_HEAL[] = _("A spray-type medicine.\\nIt defrosts a frozen POKéMON.");
+const u8 gItemDescription_ITEM_AWAKENING[] = _("A spray-type medicine.\\nIt awakens a sleeping POKéMON.");
+const u8 gItemDescription_ITEM_PARALYZE_HEAL[] = _("A spray-type medicine.\\nIt heals one POKéMON from\\nparalysis.");
+const u8 gItemDescription_ITEM_FULL_RESTORE[] = _("A medicine that fully restores the\\nHP and heals any status problems\\nof one POKéMON.");
+const u8 gItemDescription_ITEM_MAX_POTION[] = _("A spray-type wound medicine.\\nIt fully restores the HP of one\\nPOKéMON.");
+const u8 gItemDescription_ITEM_HYPER_POTION[] = _("A spray-type wound medicine.\\nIt restores the HP of one POKéMON\\nby 200 points.");
+const u8 gItemDescription_ITEM_SUPER_POTION[] = _("A spray-type wound medicine.\\nIt restores the HP of one POKéMON\\nby 50 points.");
+const u8 gItemDescription_ITEM_FULL_HEAL[] = _("A spray-type medicine.\\nIt heals all the status problems of\\none POKéMON.");
+const u8 gItemDescription_ITEM_REVIVE[] = _("A medicine that revives a fainted\\nPOKéMON, restoring HP by half the\\nmaximum amount.");
+const u8 gItemDescription_ITEM_MAX_REVIVE[] = _("A medicine that revives a fainted\\nPOKéMON, restoring HP fully.");
+const u8 gItemDescription_ITEM_FRESH_WATER[] = _("Water with a high mineral content.\\nIt restores the HP of one POKéMON\\nby 50 points.");
+const u8 gItemDescription_ITEM_SODA_POP[] = _("A fizzy soda drink.\\nIt restores the HP of one POKéMON\\nby 60 points.");
+const u8 gItemDescription_ITEM_LEMONADE[] = _("A very sweet drink.\\nIt restores the HP of one POKéMON\\nby 80 points.");
+const u8 gItemDescription_ITEM_MOOMOO_MILK[] = _("Highly nutritious milk.\\nIt restores the HP of one POKéMON\\nby 100 points.");
+const u8 gItemDescription_ITEM_ENERGY_POWDER[] = _("A very bitter medicine powder.\\nIt restores the HP of one POKéMON\\nby 50 points.");
+const u8 gItemDescription_ITEM_ENERGY_ROOT[] = _("A very bitter root.\\nIt restores the HP of one POKéMON\\nby 200 points.");
+const u8 gItemDescription_ITEM_HEAL_POWDER[] = _("A very bitter medicine powder.\\nIt heals all the status problems of\\none POKéMON.");
+const u8 gItemDescription_ITEM_REVIVAL_HERB[] = _("A very bitter medicinal herb.\\nIt revives a fainted POKéMON,\\nrestoring HP fully.");
+const u8 gItemDescription_ITEM_ETHER[] = _("Restores a selected move's PP by\\n10 points for one POKéMON.");
+const u8 gItemDescription_ITEM_MAX_ETHER[] = _("Fully restores a selected move's PP\\nfor one POKéMON.");
+const u8 gItemDescription_ITEM_ELIXIR[] = _("Restores the PP of all moves for\\none POKéMON by 10 points each.");
+const u8 gItemDescription_ITEM_MAX_ELIXIR[] = _("Fully restores the PP of all moves\\nfor one POKéMON.");
+const u8 gItemDescription_ITEM_LAVA_COOKIE[] = _("LAVARIDGE TOWN's local specialty.\\nIt heals all the status problems of\\none POKéMON.");
+const u8 gItemDescription_ITEM_BLUE_FLUTE[] = _("A blue glass flute that awakens\\na sleeping POKéMON.");
+const u8 gItemDescription_ITEM_YELLOW_FLUTE[] = _("A yellow glass flute that snaps one\\nPOKéMON out of confusion.");
+const u8 gItemDescription_ITEM_RED_FLUTE[] = _("A red glass flute that snaps one\\nPOKéMON out of infatuation.");
+const u8 gItemDescription_ITEM_BLACK_FLUTE[] = _("A black glass flute.\\nWhen blown, it makes wild POKéMON\\nless likely to appear.");
+const u8 gItemDescription_ITEM_WHITE_FLUTE[] = _("A white glass flute.\\nWhen blown, it makes wild POKéMON\\nmore likely to appear.");
+const u8 gItemDescription_ITEM_BERRY_JUICE[] = _("A 100% pure juice.\\nIt restores the HP of one POKéMON\\nby 20 points.");
+const u8 gItemDescription_ITEM_SACRED_ASH[] = _("Revives all fainted POKéMON,\\nrestoring HP fully.");
+const u8 gItemDescription_ITEM_SHOAL_SALT[] = _("Pure salt obtained from deep inside\\nthe SHOAL CAVE. It is extremely\\nsalty.");
+const u8 gItemDescription_ITEM_SHOAL_SHELL[] = _("A pretty seashell found deep inside\\nthe SHOAL CAVE. It is striped in\\nblue and white.");
+const u8 gItemDescription_ITEM_RED_SHARD[] = _("A small red shard.\\nIt appears to be from some sort of\\na tool made long ago.");
+const u8 gItemDescription_ITEM_BLUE_SHARD[] = _("A small blue shard.\\nIt appears to be from some sort of\\na tool made long ago.");
+const u8 gItemDescription_ITEM_YELLOW_SHARD[] = _("A small yellow shard.\\nIt appears to be from some sort of\\na tool made long ago.");
+const u8 gItemDescription_ITEM_GREEN_SHARD[] = _("A small green shard.\\nIt appears to be from some sort of\\na tool made long ago.");
+const u8 gItemDescription_ITEM_HP_UP[] = _("A nutritious drink for POKéMON.\\nIt raises the base HP of one\\nPOKéMON.");
+const u8 gItemDescription_ITEM_PROTEIN[] = _("A nutritious drink for POKéMON.\\nIt raises the base ATTACK stat of\\none POKéMON.");
+const u8 gItemDescription_ITEM_IRON[] = _("A nutritious drink for POKéMON.\\nIt raises the base DEFENSE stat of\\none POKéMON.");
+const u8 gItemDescription_ITEM_CARBOS[] = _("A nutritious drink for POKéMON.\\nIt raises the base SPEED stat of\\none POKéMON.");
+const u8 gItemDescription_ITEM_CALCIUM[] = _("A nutritious drink for POKéMON.\\nIt raises the base SP. ATK stat\\nof one POKéMON.");
+const u8 gItemDescription_ITEM_RARE_CANDY[] = _("A candy that is packed with energy.\\nIt raises the level of a POKéMON\\nby one.");
+const u8 gItemDescription_ITEM_PP_UP[] = _("Slightly raises the maximum PP of\\na selected move for one POKéMON.");
+const u8 gItemDescription_ITEM_ZINC[] = _("A nutritious drink for POKéMON.\\nIt raises the base SP. DEF stat\\nof one POKéMON.");
+const u8 gItemDescription_ITEM_PP_MAX[] = _("Raises the PP of a selected move\\nto its maximum level for one\\nPOKéMON.");
+const u8 gItemDescription_ITEM_GUARD_SPEC[] = _("An item that prevents stat reduction\\namong party POKéMON for five turns\\nafter use.");
+const u8 gItemDescription_ITEM_DIRE_HIT[] = _("Raises the critical-hit ratio of\\nPOKéMON in battle. Wears off if the\\nPOKéMON is withdrawn.");
+const u8 gItemDescription_ITEM_X_ATTACK[] = _("Raises the ATTACK stat of POKéMON\\nin battle. Wears off if the POKéMON\\nis withdrawn.");
+const u8 gItemDescription_ITEM_X_DEFEND[] = _("Raises the DEFENSE stat of POKéMON\\nin battle. Wears off if the POKéMON\\nis withdrawn.");
+const u8 gItemDescription_ITEM_X_SPEED[] = _("Raises the SPEED stat of POKéMON\\nin battle. Wears off if the POKéMON\\nis withdrawn.");
+const u8 gItemDescription_ITEM_X_ACCURACY[] = _("Raises the accuracy stat of\\nPOKéMON in battle. Wears off if the\\nPOKéMON is withdrawn.");
+const u8 gItemDescription_ITEM_X_SPECIAL[] = _("Raises the SP. ATK stat of\\nPOKéMON in battle. Wears off if the\\nPOKéMON is withdrawn.");
+const u8 gItemDescription_ITEM_POKE_DOLL[] = _("An attractive doll.\\nUse it to flee from any battle with\\na wild POKéMON.");
+const u8 gItemDescription_ITEM_FLUFFY_TAIL[] = _("An attractive item.\\nUse it to flee from any battle with\\na wild POKéMON.");
+const u8 gItemDescription_ITEM_SUPER_REPEL[] = _("Prevents weak wild POKéMON from\\nappearing for 200 steps.");
+const u8 gItemDescription_ITEM_MAX_REPEL[] = _("Prevents weak wild POKéMON from\\nappearing for 250 steps.");
+const u8 gItemDescription_ITEM_ESCAPE_ROPE[] = _("A long, durable rope.\\nUse it to escape instantly from a\\ncave or a dungeon.");
+const u8 gItemDescription_ITEM_REPEL[] = _("Prevents weak wild POKéMON from\\nappearing for 100 steps.");
+const u8 gItemDescription_ITEM_SUN_STONE[] = _("A peculiar stone that makes certain\\nspecies of POKéMON evolve.\\nIt is as red as the sun.");
+const u8 gItemDescription_ITEM_MOON_STONE[] = _("A peculiar stone that makes certain\\nspecies of POKéMON evolve.\\nIt is as black as the night sky.");
+const u8 gItemDescription_ITEM_FIRE_STONE[] = _("A peculiar stone that makes certain\\nspecies of POKéMON evolve.\\nIt is colored orange.");
+const u8 gItemDescription_ITEM_THUNDER_STONE[] = _("A peculiar stone that makes certain\\nspecies of POKéMON evolve.\\nIt has a thunderbolt pattern.");
+const u8 gItemDescription_ITEM_WATER_STONE[] = _("A peculiar stone that makes certain\\nspecies of POKéMON evolve.\\nIt is a clear light blue.");
+const u8 gItemDescription_ITEM_LEAF_STONE[] = _("A peculiar stone that makes certain\\nspecies of POKéMON evolve.\\nIt has a leaf pattern.");
+const u8 gItemDescription_ITEM_TINY_MUSHROOM[] = _("A small and rare mushroom.\\nIt is quite popular among certain\\npeople.");
+const u8 gItemDescription_ITEM_BIG_MUSHROOM[] = _("A large and rare mushroom.\\nIt is very popular among certain\\npeople.");
+const u8 gItemDescription_ITEM_PEARL[] = _("A relatively small pearl that\\nsparkles in a pretty silver color.\\nIt can be sold cheaply.");
+const u8 gItemDescription_ITEM_BIG_PEARL[] = _("A quite-large pearl that sparkles\\nin a pretty silver color.\\nIt can be sold at a high price.");
+const u8 gItemDescription_ITEM_STARDUST[] = _("A pretty red sand with a loose,\\nsilky feel.\\nIt can be sold at a high price.");
+const u8 gItemDescription_ITEM_STAR_PIECE[] = _("A shard of a pretty gem that\\nsparkles in a red color.\\nIt can be sold at a high price.");
+const u8 gItemDescription_ITEM_NUGGET[] = _("A nugget of pure gold that gives\\noff a lustrous gleam.\\nIt can be sold at a high price.");
+const u8 gItemDescription_ITEM_HEART_SCALE[] = _("A pretty, heart-shaped scale that\\nis extremely rare. It glows faintly\\nin the colors of a rainbow.");
+const u8 gItemDescription_ITEM_ORANGE_MAIL[] = _("A piece of MAIL featuring a cute\\nZIGZAGOON print.\\nIt is to be held by a POKéMON.");
+const u8 gItemDescription_ITEM_HARBOR_MAIL[] = _("A piece of MAIL featuring a cute\\nWINGULL print.\\nIt is to be held by a POKéMON.");
+const u8 gItemDescription_ITEM_GLITTER_MAIL[] = _("A piece of MAIL featuring a cute\\nPIKACHU print.\\nIt is to be held by a POKéMON.");
+const u8 gItemDescription_ITEM_MECH_MAIL[] = _("A piece of MAIL featuring a cute\\nMAGNEMITE print.\\nIt is to be held by a POKéMON.");
+const u8 gItemDescription_ITEM_WOOD_MAIL[] = _("A piece of MAIL featuring a cute\\nSLAKOTH print.\\nIt is to be held by a POKéMON.");
+const u8 gItemDescription_ITEM_WAVE_MAIL[] = _("A piece of MAIL featuring a cute\\nWAILMER print.\\nIt is to be held by a POKéMON.");
+const u8 gItemDescription_ITEM_BEAD_MAIL[] = _("A piece of MAIL to be held by a\\nPOKéMON. It will bear the print of\\nthe POKéMON holding it.");
+const u8 gItemDescription_ITEM_SHADOW_MAIL[] = _("A piece of MAIL featuring a cute\\nDUSKULL print.\\nIt is to be held by a POKéMON.");
+const u8 gItemDescription_ITEM_TROPIC_MAIL[] = _("A piece of MAIL featuring a cute\\nBELLOSSOM print.\\nIt is to be held by a POKéMON.");
+const u8 gItemDescription_ITEM_DREAM_MAIL[] = _("A piece of MAIL to be held by a\\nPOKéMON. It will bear the print of\\nthe POKéMON holding it.");
+const u8 gItemDescription_ITEM_FAB_MAIL[] = _("A piece of MAIL featuring a\\ngorgeous, extravagant print.\\nIt is to be held by a POKéMON.");
+const u8 gItemDescription_ITEM_RETRO_MAIL[] = _("A piece of MAIL featuring a print\\nof three cute POKéMON.\\nIt is to be held by a POKéMON.");
+const u8 gItemDescription_ITEM_CHERI_BERRY[] = _("When held by a POKéMON, it will be\\nused in battle to heal paralysis.");
+const u8 gItemDescription_ITEM_CHESTO_BERRY[] = _("When held by a POKéMON, it will be\\nused in battle to wake up.");
+const u8 gItemDescription_ITEM_PECHA_BERRY[] = _("When held by a POKéMON, it will be\\nused in battle to cure poison.");
+const u8 gItemDescription_ITEM_RAWST_BERRY[] = _("When held by a POKéMON, it will be\\nused in battle to heal a burn.");
+const u8 gItemDescription_ITEM_ASPEAR_BERRY[] = _("When held by a POKéMON, it will be\\nused in battle for defrosting.");
+const u8 gItemDescription_ITEM_LEPPA_BERRY[] = _("When held by a POKéMON, it will be\\nused in battle to restore 10 PP.");
+const u8 gItemDescription_ITEM_ORAN_BERRY[] = _("When held by a POKéMON, it will be\\nused in battle to restore 10 HP.");
+const u8 gItemDescription_ITEM_PERSIM_BERRY[] = _("When held by a POKéMON, it will be\\nused in battle to lift confusion.");
+const u8 gItemDescription_ITEM_LUM_BERRY[] = _("When held by a POKéMON, it will be\\nused in battle to heal any problem.");
+const u8 gItemDescription_ITEM_SITRUS_BERRY[] = _("When held by a POKéMON, it will be\\nused in battle to restore 30 HP.");
+const u8 gItemDescription_ITEM_FIGY_BERRY[] = _("A hold item that restores HP but\\nmay cause confusion when used.");
+const u8 gItemDescription_ITEM_WIKI_BERRY[] = _("A hold item that restores HP but\\nmay cause confusion when used.");
+const u8 gItemDescription_ITEM_MAGO_BERRY[] = _("A hold item that restores HP but\\nmay cause confusion when used.");
+const u8 gItemDescription_ITEM_AGUAV_BERRY[] = _("A hold item that restores HP but\\nmay cause confusion when used.");
+const u8 gItemDescription_ITEM_IAPAPA_BERRY[] = _("A hold item that restores HP but\\nmay cause confusion when used.");
+const u8 gItemDescription_ITEM_RAZZ_BERRY[] = _("Can be ground up into a powder as\\nan ingredient for medicine.");
+const u8 gItemDescription_ITEM_BLUK_BERRY[] = _("Can be ground up into a powder as\\nan ingredient for medicine.");
+const u8 gItemDescription_ITEM_NANAB_BERRY[] = _("Can be ground up into a powder as\\nan ingredient for medicine.");
+const u8 gItemDescription_ITEM_WEPEAR_BERRY[] = _("Can be ground up into a powder as\\nan ingredient for medicine.");
+const u8 gItemDescription_ITEM_PINAP_BERRY[] = _("Can be ground up into a powder as\\nan ingredient for medicine.");
+const u8 gItemDescription_ITEM_POMEG_BERRY[] = _("Can be ground up into a powder as\\nan ingredient for medicine.");
+const u8 gItemDescription_ITEM_KELPSY_BERRY[] = _("Can be ground up into a powder as\\nan ingredient for medicine.");
+const u8 gItemDescription_ITEM_QUALOT_BERRY[] = _("Can be ground up into a powder as\\nan ingredient for medicine.");
+const u8 gItemDescription_ITEM_HONDEW_BERRY[] = _("Can be ground up into a powder as\\nan ingredient for medicine.");
+const u8 gItemDescription_ITEM_GREPA_BERRY[] = _("Can be ground up into a powder as\\nan ingredient for medicine.");
+const u8 gItemDescription_ITEM_TAMATO_BERRY[] = _("Can be ground up into a powder as\\nan ingredient for medicine.");
+const u8 gItemDescription_ITEM_CORNN_BERRY[] = _("Can be ground up into a powder as\\nan ingredient for medicine.");
+const u8 gItemDescription_ITEM_MAGOST_BERRY[] = _("Can be ground up into a powder as\\nan ingredient for medicine.");
+const u8 gItemDescription_ITEM_RABUTA_BERRY[] = _("Can be ground up into a powder as\\nan ingredient for medicine.");
+const u8 gItemDescription_ITEM_NOMEL_BERRY[] = _("Can be ground up into a powder as\\nan ingredient for medicine.");
+const u8 gItemDescription_ITEM_SPELON_BERRY[] = _("Can be ground up into a powder as\\nan ingredient for medicine.");
+const u8 gItemDescription_ITEM_PAMTRE_BERRY[] = _("Can be ground up into a powder as\\nan ingredient for medicine.");
+const u8 gItemDescription_ITEM_WATMEL_BERRY[] = _("Can be ground up into a powder as\\nan ingredient for medicine.");
+const u8 gItemDescription_ITEM_DURIN_BERRY[] = _("Can be ground up into a powder as\\nan ingredient for medicine.");
+const u8 gItemDescription_ITEM_BELUE_BERRY[] = _("Can be ground up into a powder as\\nan ingredient for medicine.");
+const u8 gItemDescription_ITEM_LIECHI_BERRY[] = _("When held by a POKéMON, it raises\\nthe ATTACK stat in a pinch.");
+const u8 gItemDescription_ITEM_GANLON_BERRY[] = _("When held by a POKéMON, it raises\\nthe DEFENSE stat in a pinch.");
+const u8 gItemDescription_ITEM_SALAC_BERRY[] = _("When held by a POKéMON, it raises\\nthe SPEED stat in a pinch.");
+const u8 gItemDescription_ITEM_PETAYA_BERRY[] = _("When held by a POKéMON, it raises\\nthe SP. ATK stat in a pinch.");
+const u8 gItemDescription_ITEM_APICOT_BERRY[] = _("When held by a POKéMON, it raises\\nthe SP. DEF stat in a pinch.");
+const u8 gItemDescription_ITEM_LANSAT_BERRY[] = _("When held by a POKéMON, it raises\\nthe critical-hit ratio in a pinch.");
+const u8 gItemDescription_ITEM_STARF_BERRY[] = _("When held by a POKéMON, it sharply\\nraises one stat in a pinch.");
+const u8 gItemDescription_ITEM_ENIGMA_BERRY[] = _("Can be ground up into a powder as\\nan ingredient for medicine.");
+const u8 gItemDescription_ITEM_BRIGHT_POWDER[] = _("An item to be held by a POKéMON.\\nIt casts a tricky glare that lowers\\nthe opponent's accuracy.");
+const u8 gItemDescription_ITEM_WHITE_HERB[] = _("An item to be held by a POKéMON.\\nIt restores any lowered stat in\\nbattle. It can be used only once.");
+const u8 gItemDescription_ITEM_MACHO_BRACE[] = _("An item to be held by a POKéMON.\\nIt promotes strong growth but\\nlowers SPEED while it is held.");
+const u8 gItemDescription_ITEM_EXP_SHARE[] = _("An item to be held by a POKéMON.\\nThe holder gets a share of EXP.\\npoints without having to battle.");
+const u8 gItemDescription_ITEM_QUICK_CLAW[] = _("An item to be held by a POKéMON.\\nA light and sharp claw. The holder\\nmay be able to strike first.");
+const u8 gItemDescription_ITEM_SOOTHE_BELL[] = _("An item to be held by a POKéMON.\\nA bell with a comforting chime that\\nmakes the holder calm and friendly.");
+const u8 gItemDescription_ITEM_MENTAL_HERB[] = _("An item to be held by a POKéMON.\\nIt snaps the holder out of\\ninfatuation. It can be used once.");
+const u8 gItemDescription_ITEM_CHOICE_BAND[] = _("An item to be held by a POKéMON.\\nIt powers up one move, which\\nbecomes the only usable one.");
+const u8 gItemDescription_ITEM_KINGS_ROCK[] = _("An item to be held by a POKéMON.\\nIt may cause the foe to flinch\\nupon taking damage.");
+const u8 gItemDescription_ITEM_SILVER_POWDER[] = _("An item to be held by a POKéMON.\\nA shiny silver powder that boosts\\nthe power of BUG-type moves.");
+const u8 gItemDescription_ITEM_AMULET_COIN[] = _("An item to be held by a POKéMON.\\nIt doubles the battle money if the\\nholding POKéMON takes part.");
+const u8 gItemDescription_ITEM_CLEANSE_TAG[] = _("An item to be held by a POKéMON.\\nIt repels wild POKéMON if the\\nholder is first in the party.");
+const u8 gItemDescription_ITEM_SOUL_DEW[] = _("An orb to be held by a LATIOS or\\nLATIAS. It raises the SP. ATK\\nand SP. DEF stats.");
+const u8 gItemDescription_ITEM_DEEP_SEA_TOOTH[] = _("An item to be held by a POKéMON.\\nA fang that gleams a sharp silver.\\nIt raises the SP. ATK stat.");
+const u8 gItemDescription_ITEM_DEEP_SEA_SCALE[] = _("An item to be held by a POKéMON.\\nA scale that shines a faint pink.\\nIt raises the SP. DEF stat.");
+const u8 gItemDescription_ITEM_SMOKE_BALL[] = _("An item to be held by a POKéMON.\\nThe holding POKéMON can flee from\\nany wild POKéMON for sure.");
+const u8 gItemDescription_ITEM_EVERSTONE[] = _("An item to be held by a POKéMON.\\nThe holding POKéMON is prevented\\nfrom evolving.");
+const u8 gItemDescription_ITEM_FOCUS_BAND[] = _("An item to be held by a POKéMON.\\nThe holding POKéMON may endure an\\nattack, leaving just 1 HP.");
+const u8 gItemDescription_ITEM_LUCKY_EGG[] = _("An item to be held by a POKéMON.\\nAn egg filled with happiness that\\nearns extra EXP. points in battle.");
+const u8 gItemDescription_ITEM_SCOPE_LENS[] = _("An item to be held by a POKéMON.\\nA lens that boosts the critical-hit\\nratio of the holding POKéMON.");
+const u8 gItemDescription_ITEM_METAL_COAT[] = _("An item to be held by a POKéMON.\\nA special metallic film that boosts\\nthe power of STEEL-type moves.");
+const u8 gItemDescription_ITEM_LEFTOVERS[] = _("An item to be held by a POKéMON.\\nThe holding POKéMON gradually\\nregains HP during battle.");
+const u8 gItemDescription_ITEM_DRAGON_SCALE[] = _("A thick and tough scale.\\nA DRAGON-type POKéMON may be\\nholding it.");
+const u8 gItemDescription_ITEM_LIGHT_BALL[] = _("An orb to be held by a PIKACHU\\nthat raises the SP. ATK stat.\\nTouching it may cause a shock.");
+const u8 gItemDescription_ITEM_SOFT_SAND[] = _("An item to be held by a POKéMON.\\nA loose, silky sand that boosts the\\npower of GROUND-type moves.");
+const u8 gItemDescription_ITEM_HARD_STONE[] = _("An item to be held by a POKéMON.\\nAn unbreakable stone that boosts\\nthe power of ROCK-type moves.");
+const u8 gItemDescription_ITEM_MIRACLE_SEED[] = _("An item to be held by a POKéMON.\\nA seed imbued with life that boosts\\nthe power of GRASS-type moves.");
+const u8 gItemDescription_ITEM_BLACK_GLASSES[] = _("An item to be held by a POKéMON.\\nA shady-looking pair of glasses\\nthat boosts DARK-type moves.");
+const u8 gItemDescription_ITEM_BLACK_BELT[] = _("An item to be held by a POKéMON.\\nA belt that boosts determination\\nand FIGHTING-type moves.");
+const u8 gItemDescription_ITEM_MAGNET[] = _("An item to be held by a POKéMON.\\nA powerful magnet that boosts the\\npower of ELECTRIC-type moves.");
+const u8 gItemDescription_ITEM_MYSTIC_WATER[] = _("An item to be held by a POKéMON.\\nA teardrop-shaped gem that boosts\\nthe power of WATER-type moves.");
+const u8 gItemDescription_ITEM_SHARP_BEAK[] = _("An item to be held by a POKéMON.\\nA long, sharp beak that boosts the\\npower of FLYING-type moves.");
+const u8 gItemDescription_ITEM_POISON_BARB[] = _("An item to be held by a POKéMON.\\nA small, poisonous barb that boosts\\nthe power of POISON-type moves.");
+const u8 gItemDescription_ITEM_NEVER_MELT_ICE[] = _("An item to be held by a POKéMON.\\nA piece of ice that repels heat\\nand boosts ICE-type moves.");
+const u8 gItemDescription_ITEM_SPELL_TAG[] = _("An item to be held by a POKéMON.\\nA sinister, eerie tag that boosts\\nGHOST-type moves.");
+const u8 gItemDescription_ITEM_TWISTED_SPOON[] = _("An item to be held by a POKéMON.\\nA spoon imbued with telekinetic\\npower boosts PSYCHIC-type moves.");
+const u8 gItemDescription_ITEM_CHARCOAL[] = _("An item to be held by a POKéMON.\\nA combustible fuel that boosts the\\npower of FIRE-type moves.");
+const u8 gItemDescription_ITEM_DRAGON_FANG[] = _("An item to be held by a POKéMON.\\nA hard and sharp fang that boosts\\nthe power of DRAGON-type moves.");
+const u8 gItemDescription_ITEM_SILK_SCARF[] = _("An item to be held by a POKéMON.\\nA sumptuous scarf that boosts the\\npower of NORMAL-type moves.");
+const u8 gItemDescription_ITEM_UP_GRADE[] = _("A transparent device filled with all\\nsorts of data.\\nIt is made by SILPH CO.");
+const u8 gItemDescription_ITEM_SHELL_BELL[] = _("An item to be held by a POKéMON.\\nThe holding POKéMON regains some\\nHP upon striking the foe.");
+const u8 gItemDescription_ITEM_SEA_INCENSE[] = _("An item to be held by a POKéMON.\\nIt slightly boosts the power of\\nWATER-type moves.");
+const u8 gItemDescription_ITEM_LAX_INCENSE[] = _("An item to be held by a POKéMON.\\nIts tricky aroma slightly reduces\\nthe foe's accuracy.");
+const u8 gItemDescription_ITEM_LUCKY_PUNCH[] = _("A glove to be held by a CHANSEY.\\nIt raises CHANSEY's critical-hit\\nratio.");
+const u8 gItemDescription_ITEM_METAL_POWDER[] = _("A fine, hard powder to be held by\\na DITTO.\\nIt raises DITTO's DEFENSE stat.");
+const u8 gItemDescription_ITEM_THICK_CLUB[] = _("A hard bone of some sort to be\\nheld by a CUBONE or MAROWAK.\\nIt raises the ATTACK stat.");
+const u8 gItemDescription_ITEM_STICK[] = _("A stick of leek to be held by a\\nFARFETCH'D. It raises FARFETCH'D's\\ncritical-hit ratio.");
+const u8 gItemDescription_ITEM_RED_SCARF[] = _("An item to be held by a POKéMON.\\nIt boosts the holding POKéMON's\\nCOOL condition in CONTESTS.");
+const u8 gItemDescription_ITEM_BLUE_SCARF[] = _("An item to be held by a POKéMON.\\nIt boosts the holding POKéMON's\\nBEAUTY condition in CONTESTS.");
+const u8 gItemDescription_ITEM_PINK_SCARF[] = _("An item to be held by a POKéMON.\\nIt boosts the holding POKéMON's\\nCUTE condition in CONTESTS.");
+const u8 gItemDescription_ITEM_GREEN_SCARF[] = _("An item to be held by a POKéMON.\\nIt boosts the holding POKéMON's\\nSMART condition in CONTESTS.");
+const u8 gItemDescription_ITEM_YELLOW_SCARF[] = _("An item to be held by a POKéMON.\\nIt boosts the holding POKéMON's\\nTOUGH condition in CONTESTS.");
+const u8 gItemDescription_ITEM_MACH_BIKE[] = _("A folding bicycle that is at least\\ntwice as fast as walking.");
+const u8 gItemDescription_ITEM_COIN_CASE[] = _("A case for holding COINS obtained\\nat the GAME CORNER.\\nIt holds up to 9,999 COINS.");
+const u8 gItemDescription_ITEM_ITEMFINDER[] = _("A device used for finding items.\\nIf there is a hidden item nearby\\nwhen it is used, it emits a signal.");
+const u8 gItemDescription_ITEM_OLD_ROD[] = _("An old and beat-up fishing rod.\\nUse it by any body of water to \\nfish for wild POKéMON.");
+const u8 gItemDescription_ITEM_GOOD_ROD[] = _("A new, good-quality fishing rod.\\nUse it by any body of water to \\nfish for wild POKéMON.");
+const u8 gItemDescription_ITEM_SUPER_ROD[] = _("An awesome, high-tech fishing rod.\\nUse it by any body of water to fish\\nfor wild POKéMON.");
+const u8 gItemDescription_ITEM_SS_TICKET[] = _("The ticket required for sailing on\\nthe ferry S.S. ANNE.\\nIt has a drawing of a ship on it.");
+const u8 gItemDescription_ITEM_CONTEST_PASS[] = _("The pass required for entering\\nPOKéMON CONTESTS. It has a\\ndrawing of an award ribbon on it.");
+const u8 gItemDescription_ITEM_WAILMER_PAIL[] = _("A nifty watering pail.\\nUse it to promote strong growth in\\nBERRIES planted in soft soil.");
+const u8 gItemDescription_ITEM_DEVON_GOODS[] = _("A package that contains mechanical\\nparts of some sort made by the\\nDEVON CORPORATION.");
+const u8 gItemDescription_ITEM_SOOT_SACK[] = _("A sack used to collect volcanic\\nash automatically during walks\\nover deep ash.");
+const u8 gItemDescription_ITEM_BASEMENT_KEY[] = _("The key to NEW MAUVILLE, which\\nwas constructed beneath MAUVILLE\\nCITY.");
+const u8 gItemDescription_ITEM_ACRO_BIKE[] = _("A folding bicycle that is capable\\nof stunts like jumps and wheelies.");
+const u8 gItemDescription_ITEM_POKEBLOCK_CASE[] = _("A case for holding {POKEBLOCK}S made\\nwith a BERRY BLENDER. It releases\\none {POKEBLOCK} when shaken.");
+const u8 gItemDescription_ITEM_LETTER[] = _("An extremely important letter to\\nSTEVEN from the PRESIDENT of the\\nDEVON CORPORATION.");
+const u8 gItemDescription_ITEM_EON_TICKET[] = _("The ticket required for sailing on a\\nferry to a distant southern island.\\nIt features a drawing of an island.");
+const u8 gItemDescription_ITEM_RED_ORB[] = _("An orb that glows red.\\nIt is said to contain an incredible\\npower from ancient times.");
+const u8 gItemDescription_ITEM_BLUE_ORB[] = _("An orb that glows blue.\\nIt is said to contain an incredible\\npower from ancient times.");
+const u8 gItemDescription_ITEM_SCANNER[] = _("A device used to search for\\nlife-forms in water.\\nIt looks too difficult to use.");
+const u8 gItemDescription_ITEM_GO_GOGGLES[] = _("A pair of protective goggles.\\nThey enable a TRAINER to travel\\nthrough even desert sandstorms.");
+const u8 gItemDescription_ITEM_METEORITE[] = _("A meteorite that fell from space\\nonto MT. MOON long ago.\\nIt is very lumpy and hard.");
+const u8 gItemDescription_ITEM_ROOM_1_KEY[] = _("A key that opens the door to Room\\n1 inside the ABANDONED SHIP.\\nIt is old and looks easily broken.");
+const u8 gItemDescription_ITEM_ROOM_2_KEY[] = _("A key that opens the door to Room\\n2 inside the ABANDONED SHIP.\\nIt is old and looks easily broken.");
+const u8 gItemDescription_ITEM_ROOM_4_KEY[] = _("A key that opens the door to Room\\n4 inside the ABANDONED SHIP.\\nIt is old and looks easily broken.");
+const u8 gItemDescription_ITEM_ROOM_6_KEY[] = _("A key that opens the door to Room\\n6 inside the ABANDONED SHIP.\\nIt is old and looks easily broken.");
+const u8 gItemDescription_ITEM_STORAGE_KEY[] = _("A key that opens the storage hold\\ninside the ABANDONED SHIP.\\nIt is old and looks easily broken.");
+const u8 gItemDescription_ITEM_ROOT_FOSSIL[] = _("A fossil of an ancient, seafloor-\\ndwelling POKéMON. It appears to be\\npart of a plant root.");
+const u8 gItemDescription_ITEM_CLAW_FOSSIL[] = _("A fossil of an ancient, seafloor-\\ndwelling POKéMON. It appears to be\\npart of a claw.");
+const u8 gItemDescription_ITEM_DEVON_SCOPE[] = _("A scope that signals the presence\\nof any unseeable POKéMON.\\nIt is made by the DEVON CORP.");
+const u8 gItemDescription_ITEM_TM01[] = _("An extremely powerful attack.\\nHowever, if the user is hit before\\nusing the move, they will flinch.");
+const u8 gItemDescription_ITEM_TM02[] = _("Sharp, huge claws hook and slash\\nthe foe quickly and with great\\npower.");
+const u8 gItemDescription_ITEM_TM03[] = _("The foe is hit with a pulsing blast\\nof water. It may also confuse the\\ntarget.");
+const u8 gItemDescription_ITEM_TM04[] = _("The user calms its spirit and\\nfocuses its mind to raise its\\nSP. ATK and SP. DEF stats.");
+const u8 gItemDescription_ITEM_TM05[] = _("A savage roar that causes the foe\\nto switch out of battle. In the\\nwild, ROAR ends the battle.");
+const u8 gItemDescription_ITEM_TM06[] = _("A move that leaves the foe badly\\npoisoned. Its poison damage worsens\\nevery turn.");
+const u8 gItemDescription_ITEM_TM07[] = _("Summons a hailstorm that lasts for\\nfive turns. The hailstorm damages\\nall types except the ICE type.");
+const u8 gItemDescription_ITEM_TM08[] = _("The user tightens all its muscles\\nand bulks up, boosting both its\\nATTACK and DEFENSE stats.");
+const u8 gItemDescription_ITEM_TM09[] = _("The user shoots seeds at the foe\\nin rapid succession. Two to five\\nseeds are shot at once.");
+const u8 gItemDescription_ITEM_TM10[] = _("A variable move that changes type\\nand power depending on the POKéMON\\nusing it.");
+const u8 gItemDescription_ITEM_TM11[] = _("The weather is turned sunny for\\nfive turns. Over that time, FIRE-\\ntype moves are powered up.");
+const u8 gItemDescription_ITEM_TM12[] = _("A taunted foe may become enraged.\\nIt will then only be able to use\\nattack moves.");
+const u8 gItemDescription_ITEM_TM13[] = _("An icy-cold beam is shot at the\\nfoe. It may leave the target\\nfrozen.");
+const u8 gItemDescription_ITEM_TM14[] = _("A vicious snow-and-wind attack that\\nstrikes all foes in battle. It may\\ncause freezing.");
+const u8 gItemDescription_ITEM_TM15[] = _("A harsh attack that inflicts severe\\ndamage on the foe. However, the\\nuser must rest the next turn.");
+const u8 gItemDescription_ITEM_TM16[] = _("A wall of light is created over\\nfive turns. It reduces damage from\\nSP. ATK attacks.");
+const u8 gItemDescription_ITEM_TM17[] = _("The user is completely protected\\nfrom attack in the turn it is used.\\nIt may fail if used in succession.");
+const u8 gItemDescription_ITEM_TM18[] = _("A heavy rain is summoned for five\\nturns. Over that time, WATER-type\\nmoves are powered up.");
+const u8 gItemDescription_ITEM_TM19[] = _("The user strikes the foe with\\ntentacles or roots, stealing the\\ntarget's HP and healing itself.");
+const u8 gItemDescription_ITEM_TM20[] = _("Protects the party with a shield\\nagainst all status problems over\\nfive turns.");
+const u8 gItemDescription_ITEM_TM21[] = _("This attack move grows more\\npowerful the more the POKéMON\\ndislikes its TRAINER.");
+const u8 gItemDescription_ITEM_TM22[] = _("A 2-turn attack that uses the first\\nturn for absorbing sunlight, then\\nblasting the foe in the next turn.");
+const u8 gItemDescription_ITEM_TM23[] = _("The foe is slammed with a sturdy\\ntail of steel. It may lower the\\ntarget's DEFENSE stat.");
+const u8 gItemDescription_ITEM_TM24[] = _("A massive jolt of electricity is\\nlaunched at the foe. It may cause\\nparalysis.");
+const u8 gItemDescription_ITEM_TM25[] = _("Strikes the foe with a huge\\nthunderbolt. It may cause\\nparalysis.");
+const u8 gItemDescription_ITEM_TM26[] = _("Causes an earthquake that strikes\\nall POKéMON in battle, excluding\\nthe user.");
+const u8 gItemDescription_ITEM_TM27[] = _("This attack move grows more\\npowerful the more the POKéMON\\nlikes its TRAINER.");
+const u8 gItemDescription_ITEM_TM28[] = _("A 2-turn attack in which the user\\ndigs underground, then strikes.\\nIt can be used to exit dungeons.");
+const u8 gItemDescription_ITEM_TM29[] = _("A powerful blast of telekinetic\\nenergy strikes the foe. It may\\nlower the target's SP. DEF stat.");
+const u8 gItemDescription_ITEM_TM30[] = _("The foe is attacked with a shadowy\\nlump. It may lower the target's\\nSP. DEF stat.");
+const u8 gItemDescription_ITEM_TM31[] = _("Strikes the foe with a rock-hard\\nfist, etc. It shatters barriers such\\nas REFLECT and LIGHT SCREEN.");
+const u8 gItemDescription_ITEM_TM32[] = _("The user begins moving so quickly\\nthat it creates illusory copies to\\nraise its evasiveness.");
+const u8 gItemDescription_ITEM_TM33[] = _("A tough barrier is put up over five\\nturns. It reduces damage from\\nphysical attacks over that time.");
+const u8 gItemDescription_ITEM_TM34[] = _("A rapid jolt of electricity strikes\\nthe foe. This attack is impossible\\nto evade.");
+const u8 gItemDescription_ITEM_TM35[] = _("The foe is roasted with a heavy\\nblast of fire. It may leave the\\ntarget with a burn.");
+const u8 gItemDescription_ITEM_TM36[] = _("Toxic sludge is hurled at the foe\\nwith great force. It may also\\npoison the target.");
+const u8 gItemDescription_ITEM_TM37[] = _("Summons a sandstorm that lasts for\\nfive turns. It damages all types\\nexcept ROCK, GROUND, and STEEL.");
+const u8 gItemDescription_ITEM_TM38[] = _("The foe is incinerated with an\\nintense flame. It may leave the\\ntarget with a burn.");
+const u8 gItemDescription_ITEM_TM39[] = _("Boulders are hurled at the foe.\\nIt also lowers the target's SPEED\\nstat if it hits.");
+const u8 gItemDescription_ITEM_TM40[] = _("An extremely fast attack against\\none target. It is impossible to\\nevade.");
+const u8 gItemDescription_ITEM_TM41[] = _("If enraged by this move, the target\\nbecomes incapable of using the same\\nmove twice in a row.");
+const u8 gItemDescription_ITEM_TM42[] = _("An attack move that becomes very\\npowerful if the user is poisoned,\\nburned, or paralyzed.");
+const u8 gItemDescription_ITEM_TM43[] = _("An attack move that may have an\\nadditional effect depending on the\\nbattle terrain.");
+const u8 gItemDescription_ITEM_TM44[] = _("A move that makes the user fall\\nasleep over two turns to restore HP\\nand heal any status problems.");
+const u8 gItemDescription_ITEM_TM45[] = _("The foe, if it is the opposite\\ngender as the user, becomes\\ninfatuated and may not attack.");
+const u8 gItemDescription_ITEM_TM46[] = _("An attack that gives the user an\\nopportunity to steal the foe's hold\\nitem.");
+const u8 gItemDescription_ITEM_TM47[] = _("The foe is struck with steel-hard\\nwings. It may also raise the user's\\nDEFENSE stat.");
+const u8 gItemDescription_ITEM_TM48[] = _("A special power is transmitted to\\nthe foe, causing it to switch\\nabilities with the user.");
+const u8 gItemDescription_ITEM_TM49[] = _("A move that steals the effects of\\nany status-changing or healing move\\nthat the foe tries to use.");
+const u8 gItemDescription_ITEM_TM50[] = _("A maximum-power attack of great\\nferocity, but one that also sharply\\nreduces the user's SP. ATK stat.");
+const u8 gItemDescription_ITEM_HM01[] = _("Attacks the foe with sharp blades\\nor claws. It can also cut down thin\\ntrees and grass outside of battle.");
+const u8 gItemDescription_ITEM_HM02[] = _("The user flies up on the first turn,\\nthen attacks next turn. It can be\\nused to fly to any known town.");
+const u8 gItemDescription_ITEM_HM03[] = _("Creates a huge wave, then crashes\\nit down on the foe. It can be used\\nfor traveling on water.");
+const u8 gItemDescription_ITEM_HM04[] = _("The user builds enormous power,\\nthen slams the foe. It can be used\\nfor moving large, round boulders.");
+const u8 gItemDescription_ITEM_HM05[] = _("Looses a powerful blast of light\\nthat reduces the foe's accuracy.\\nIt also lights up dark caves.");
+const u8 gItemDescription_ITEM_HM06[] = _("Hits the foe with a rock-crushingly\\ntough attack. It can smash cracked\\nboulders.");
+const u8 gItemDescription_ITEM_HM07[] = _("A powerful charge attack. It can\\nbe used for climbing a torrential\\nwaterfall.");
+const u8 gItemDescription_ITEM_HM08[] = _("A 2-turn attack in which the user\\ndives underwater on the first turn,\\nthen strikes in the next turn.");
+const u8 gItemDescription_ITEM_OAKS_PARCEL[] = _("A parcel to be delivered to PROF.\\nOAK from VIRIDIAN CITY's POKéMON\\nMART.");
+const u8 gItemDescription_ITEM_POKE_FLUTE[] = _("A flute that is said to instantly\\nawaken any POKéMON. It has a\\nlovely tone.");
+const u8 gItemDescription_ITEM_SECRET_KEY[] = _("The key to CINNABAR ISLAND GYM's\\nfront door. It is colored red and\\ndecorated.");
+const u8 gItemDescription_ITEM_BIKE_VOUCHER[] = _("Take this voucher to the BIKE SHOP\\nin CERULEAN CITY and exchange it\\nfor a bicycle.");
+const u8 gItemDescription_ITEM_GOLD_TEETH[] = _("A set of false teeth lost by the\\nSAFARI ZONE'S WARDEN. It makes his\\nsmile sparkle.");
+const u8 gItemDescription_ITEM_OLD_AMBER[] = _("A piece of amber that contains\\nthe genes of an ancient POKéMON.\\nIt is clear with a reddish tint.");
+const u8 gItemDescription_ITEM_CARD_KEY[] = _("A card-type key that unlocks doors\\nin SILPH CO.'s HEAD OFFICE in\\nSAFFRON CITY.");
+const u8 gItemDescription_ITEM_LIFT_KEY[] = _("A key that operates the elevator\\nin TEAM ROCKET's HIDEOUT.\\nIt bears the TEAM ROCKET logo.");
+const u8 gItemDescription_ITEM_HELIX_FOSSIL[] = _("A fossil of an ancient, seafloor-\\ndwelling POKéMON. It appears to be\\npart of a seashell.");
+const u8 gItemDescription_ITEM_DOME_FOSSIL[] = _("A fossil of an ancient, seafloor-\\ndwelling POKéMON. It appears to be\\npart of a shell.");
+const u8 gItemDescription_ITEM_SILPH_SCOPE[] = _("A scope that makes unseeable\\nPOKéMON visible.\\nIt is made by SILPH CO.");
+const u8 gItemDescription_ITEM_BICYCLE[] = _("A folding bicycle that allows\\nfaster movement than the RUNNING\\nSHOES.");
+const u8 gItemDescription_ITEM_TOWN_MAP[] = _("A very convenient map that can be\\nviewed anytime. It even shows your \\npresent location.");
+const u8 gItemDescription_ITEM_VS_SEEKER[] = _("A device that indicates TRAINERS\\nwho want to battle. The battery\\ncharges while traveling.");
+const u8 gItemDescription_ITEM_FAME_CHECKER[] = _("A device that enables you to\\nrecall what you've heard and seen\\nabout famous people.");
+const u8 gItemDescription_ITEM_TM_CASE[] = _("A case that holds TMs and HMs.\\nIt is attached to the BAG's\\ncompartment for important items.");
+const u8 gItemDescription_ITEM_BERRY_POUCH[] = _("A pouch for carrying BERRIES.\\nIt is attached to the BAG's\\ncompartment for important items.");
+const u8 gItemDescription_ITEM_TEACHY_TV[] = _("A television set that is tuned to\\na program with useful tips for\\nnovice TRAINERS.");
+const u8 gItemDescription_ITEM_TRI_PASS[] = _("A pass for ferries between ONE,\\nTWO, and THREE ISLAND.\\nIt has a drawing of three islands.");
+const u8 gItemDescription_ITEM_RAINBOW_PASS[] = _("A pass for ferries between\\nVERMILION and the SEVII ISLANDS.\\nIt features a drawing of a rainbow.");
+const u8 gItemDescription_ITEM_TEA[] = _("An aromatic tea prepared by an old\\nlady. It will slake even the worst\\nthirst.");
+const u8 gItemDescription_ITEM_MYSTIC_TICKET[] = _("A ticket required to board the ship\\nto NAVEL ROCK.\\nIt glows with a mystic light.");
+const u8 gItemDescription_ITEM_AURORA_TICKET[] = _("A ticket required to board the ship\\nto BIRTH ISLAND.\\nIt glows beautifully.");
+const u8 gItemDescription_ITEM_POWDER_JAR[] = _("A jar for storing BERRY POWDER\\nmade using a BERRY CRUSHER.");
+const u8 gItemDescription_ITEM_RUBY[] = _("An exquisitely beautiful gem that\\nhas a red glow.\\nIt symbolizes passion.");
+const u8 gItemDescription_ITEM_SAPPHIRE[] = _("An exquisitely beautiful gem that\\nhas a blue glow.\\nIt symbolizes honesty.");
 const u8 gItemDescription_ITEM_NONE[] = _("?????");
 
 const struct Item gItems[] = {
