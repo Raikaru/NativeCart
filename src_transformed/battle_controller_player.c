@@ -246,10 +246,6 @@ static void PlayerBufferRunCommand(void)
     {
         if (gBattleBufferA[gActiveBattler][0] < NELEMS(sPlayerBufferCommands))
         {
-#ifdef PORTABLE
-            printf("PlayerBufferRunCommand: cmd=0x%02X\n", gBattleBufferA[gActiveBattler][0]);
-            fflush(stdout);
-#endif
             sPlayerBufferCommands[gBattleBufferA[gActiveBattler][0]]();
         }
         else
@@ -1581,8 +1577,6 @@ static void PlayerHandleGetMonData(void)
         {
             int seen = 0;
 
-            printf("WARN: PlayerHandleGetMonData mon count=%d clamped to 2\n", count);
-            fflush(stdout);
             for (b = 0; b < 6; b++)
             {
                 if (bits & (1 << b))
@@ -2710,10 +2704,9 @@ static void PlayerHandleDMA3Transfer(void)
 #ifdef PORTABLE
     if (dst == NULL || size == 0 || size > 0x2000)
     {
-        printf("WARN: battle DMA copy skipped bad dst=%p size=%u\n", dst, size);
-        fflush(stdout);
+        PlayerBufferExecCompleted();
+        return;
     }
-    else
 #endif
     while (TRUE)
     {
