@@ -4,6 +4,11 @@
 #include "mon_markings.h"
 #include "graphics.h"
 #include "constants/songs.h"
+#ifdef PORTABLE
+#include "pokemon_storage_system_portable_assets.h"
+#define sMonMarkings_Pal sMonMarkings_Pal_Portable
+#define sMonMarkings_Gfx ((const u16 *)sMonMarkings_Gfx_Portable)
+#endif
 
 #define ANIM_CURSOR (NUM_MON_MARKINGS * 2)
 #define ANIM_TEXT   (ANIM_CURSOR + 1)
@@ -16,8 +21,10 @@ static void SpriteCB_Dummy(struct Sprite *);
 static void SpriteCB_Marking(struct Sprite *);
 static void SpriteCB_Cursor(struct Sprite *);
 static struct Sprite *CreateMarkingComboSprite(u16, u16, const u16 *, u16);
+#ifndef PORTABLE
 #define sMonMarkings_Pal ((const u16 *)NULL)
 #define sMonMarkings_Gfx ((const u16 *)NULL)
+#endif
 static const u8 sJPText_Confirm[] = _("けってい");
 
 static const struct OamData sOamData_MenuWindow =
@@ -601,4 +608,3 @@ void UpdateMonMarkingTiles(u8 markings, void *dest)
 {
     RequestDma3Copy(&sMonMarkings_Gfx[64 * markings], dest, 0x80, DMA3_32BIT);
 }
-
