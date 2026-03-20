@@ -20,6 +20,7 @@
 
 #ifdef PORTABLE
 #include <stdio.h>
+#include "main.h"
 #include "oak_speech_portable_assets.h"
 extern void firered_runtime_trace_external(const char *message);
 #define sOakSpeech_Background_Pals sOakSpeech_Background_Pals_Portable
@@ -934,7 +935,12 @@ static void ControlsGuide_LoadPage1(void)
 #ifdef PORTABLE
 static void PortableStartDirectNewGame(u8 taskId)
 {
-    SetSaveBlocksPointers();
+    /*
+     * Do not call SetSaveBlocksPointers() here: title screen already set the offset and
+     * loaded SAVE_NORMAL into that slice. Re-randomizing without copying save data
+     * desyncs pointers from RAM (wrong rivalName snapshot, stale save2 window).
+     */
+    SeedRngAndSetTrainerId();
     gSaveBlock2Ptr->playerGender = MALE;
     sOakSpeechResources->hasPlayerBeenNamed = FALSE;
     GetDefaultName(FALSE, 0);

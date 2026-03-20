@@ -2,6 +2,7 @@
 #include "gba/flash_internal.h"
 #include "save.h"
 
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -137,6 +138,107 @@ void PortableFlash_Flush(void)
         fclose(file);
     }
 }
+
+#ifdef PORTABLE
+void PortableFlash_Export(const char *path)
+{
+    FILE *file;
+
+    if (path == NULL || path[0] == '\0')
+        return;
+
+    PortableFlash_Load();
+    PortableFlash_EnsureParentDirExists(path);
+
+    file = fopen(path, "wb");
+    if (file == NULL)
+        return;
+
+    // FireRed (and this portable build) uses a 1Mbit flash chip:
+    // export the raw 128KiB image so mGBA can treat it as battery-backed flash.
+    fwrite(sPortableFlashData, sizeof(sPortableFlashData), 1, file);
+    fclose(file);
+}
+
+#ifdef FIRERED
+/*
+ * PKHeX's SaveUtil.IsG3 returns the *first* main slot that has all 14 sectors, not the newest.
+ * GetVersionG3SAV then reads u32 LE at SaveBlock2+0xAC from that slot. If slot 0 was saved
+ * before we wrote the FRLG fingerprint but slot 1 is newer, PKHeX still inspects slot 0 and
+ * mis-detects Ruby/Sapphire. Patch every SaveBlock2 sector (footer id == 0) in both slots.
+ */
+static u16 PortableFlash_CalculateSectorPayloadChecksum(const u8 *data, u16 size)
+{
+    u32 checksum = 0;
+    u16 i;
+    u16 n = (u16)(size / 4);
+
+    for (i = 0; i < n; i++)
+    {
+        u32 word;
+        memcpy(&word, data + i * 4, sizeof(word));
+        checksum += word;
+    }
+
+    return (u16)((checksum >> 16) + checksum);
+}
+
+void PortableFlash_PatchPkhexFrLgFingerprintAllSlots(void)
+{
+    const u32 sizeMain = NUM_SECTORS_PER_SLOT * SECTOR_SIZE;
+    u32 slot;
+    bool8 modified = FALSE;
+
+    PortableFlash_Load();
+
+    for (slot = 0; slot < NUM_SAVE_SLOTS; slot++)
+    {
+        u32 base = slot * sizeMain;
+        u16 i;
+
+        for (i = 0; i < NUM_SECTORS_PER_SLOT; i++)
+        {
+            u8 *sector = sPortableFlashData + base + (u32)i * SECTOR_SIZE;
+            u16 secId = sector[offsetof(struct SaveSector, id)]
+                      | ((u16)sector[offsetof(struct SaveSector, id) + 1] << 8);
+            u32 sig = sector[offsetof(struct SaveSector, signature)]
+                    | ((u32)sector[offsetof(struct SaveSector, signature) + 1] << 8)
+                    | ((u32)sector[offsetof(struct SaveSector, signature) + 2] << 16)
+                    | ((u32)sector[offsetof(struct SaveSector, signature) + 3] << 24);
+            u16 payloadSize = (u16)sizeof(struct SaveBlock2);
+
+            if (payloadSize > SECTOR_DATA_SIZE)
+                payloadSize = SECTOR_DATA_SIZE;
+
+            if (secId != SECTOR_ID_SAVEBLOCK2)
+                continue;
+            if (sig != SECTOR_SIGNATURE)
+                continue;
+
+            if (sector[0xAC] != 1 || sector[0xAD] != 0 || sector[0xAE] != 0 || sector[0xAF] != 0)
+                modified = TRUE;
+
+            sector[0xAC] = 1;
+            sector[0xAD] = 0;
+            sector[0xAE] = 0;
+            sector[0xAF] = 0;
+
+            {
+                u16 chk = PortableFlash_CalculateSectorPayloadChecksum(sector, payloadSize);
+                u16 *chkField = (u16 *)(sector + offsetof(struct SaveSector, checksum));
+
+                if (*chkField != chk)
+                    modified = TRUE;
+                *chkField = chk;
+            }
+        }
+    }
+
+    if (modified)
+        PortableFlash_Flush();
+}
+#endif /* FIRERED */
+#endif /* PORTABLE */
 
 u8 *PortableFlash_GetSectorPointer(u16 sectorNum)
 {
