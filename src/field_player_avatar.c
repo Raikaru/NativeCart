@@ -1299,7 +1299,7 @@ void InitPlayerAvatar(s16 x, s16 y, u8 direction, u8 gender)
     playerObjEventTemplate.objUnion.normal.movementRangeY = 0;
     playerObjEventTemplate.objUnion.normal.trainerType = TRAINER_TYPE_NONE;
     playerObjEventTemplate.objUnion.normal.trainerRange_berryTreeId = 0;
-    playerObjEventTemplate.script = NULL;
+    OBJ_EVENT_TEMPLATE_SCRIPT_SET_U32(&playerObjEventTemplate, 0);
     playerObjEventTemplate.flagId = 0;
     objectEventId = SpawnSpecialObjectEvent(&playerObjEventTemplate);
     objectEvent = &gObjectEvents[objectEventId];

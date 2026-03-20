@@ -473,11 +473,12 @@ static void LoadSaveblockObjEventScripts(void)
 
     for (i = 0; i < objectEventCount; i++)
     {
-#ifdef PORTABLE
-        savObjTemplates[i].script = ResolveMapEventScriptPointer(src[i].script);
-#else
+        /*
+         * Map templates already carry retail script words (ROM address or portable token).
+         * Do not run ResolveMapEventScriptPointer here — that yields host VAs that must not be
+         * truncated into the save field.
+         */
         savObjTemplates[i].script = src[i].script;
-#endif
     }
 }
 

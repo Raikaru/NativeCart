@@ -79,6 +79,7 @@ extern bool8 (*gFieldCallback2)(void);
 #ifdef PORTABLE
 extern MainCallback firered_portable_get_cb2_overworld(void);
 extern MainCallback firered_portable_get_cb2_overworld_basic(void);
+extern void firered_portable_init_map_object_event_script_words(void);
 #endif
 
 uint32_t intr_main[0x200];
@@ -696,6 +697,10 @@ int engine_backend_init(const uint8_t *rom, size_t rom_size) {
         engine_backend_shutdown();
         return 0;
     }
+
+#ifdef PORTABLE
+    firered_portable_init_map_object_event_script_words();
+#endif
 
     engine_backend_input_reset();
     engine_audio_reset();

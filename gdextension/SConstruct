@@ -152,6 +152,7 @@ core_sources = [
     os.path.join(firered_generated_data_dir, "event_scripts_portable_data.c"),
     os.path.join(firered_generated_data_dir, "field_effect_scripts_portable_data.c"),
     os.path.join(firered_generated_data_dir, "map_data_portable.c"),
+    os.path.join(firered_generated_data_dir, "map_object_event_scripts_portable_data.c"),
 ]
 
 c_env = env.Clone()
