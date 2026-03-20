@@ -68,6 +68,7 @@ static void MovePartySpriteToNextSlot(struct Sprite *sprite, u16 idx);
 static void SpriteCB_MovePartySpriteToNextSlot(struct Sprite *sprite);
 static void DestroyBoxMonIcon(struct Sprite *sprite);
 static void SpriteCB_HeldMon(struct Sprite *sprite);
+static bool8 IsStorageSpritePtrValid(struct Sprite *sprite);
 static void Task_InitBox(u8 taskId);
 static s8 DetermineBoxScrollDirection(u8 boxId);
 static void LoadWallpaperGfx(u8 wallpaperId, s8 direction);
@@ -328,6 +329,15 @@ static const struct SpriteTemplate sSpriteTemplate_BoxScrollArrow = {
     .callback = SpriteCB_BoxScrollArrow,
 };
 
+static bool8 IsStorageSpritePtrValid(struct Sprite *sprite)
+{
+    return sprite != NULL
+        && sprite >= gSprites
+        && sprite < gSprites + MAX_SPRITES
+        && sprite->inUse
+        && sprite->spriteTemplate != NULL;
+}
+
 void InitMonIconFields(void)
 {
     u16 i;
@@ -392,7 +402,8 @@ static void InitBoxMonSprites(u8 boxId)
     {
         for (boxPosition = 0; boxPosition < IN_BOX_COUNT; boxPosition++)
         {
-            if (GetBoxMonDataAt(boxId, boxPosition, MON_DATA_HELD_ITEM) == 0)
+            if (gStorage->boxMonsSprites[boxPosition] != NULL
+                && GetBoxMonDataAt(boxId, boxPosition, MON_DATA_HELD_ITEM) == 0)
                 gStorage->boxMonsSprites[boxPosition]->oam.objMode = ST_OAM_OBJ_BLEND;
         }
     }
@@ -673,8 +684,10 @@ void CreatePartyMonsSprites(bool8 visible)
 
     if (!visible)
     {
-        for (i = 0; i < count; i++)
+        for (i = 0; i < PARTY_SIZE; i++)
         {
+            if (!IsStorageSpritePtrValid(gStorage->partySprites[i]))
+                continue;
             gStorage->partySprites[i]->y -= 160;
             gStorage->partySprites[i]->invisible = TRUE;
         }
@@ -697,7 +710,7 @@ void CompactPartySprites(void)
     gStorage->numPartySpritesToCompact = 0;
     for (i = 0, targetPartyId = 0; i < PARTY_SIZE; i++)
     {
-        if (gStorage->partySprites[i] != NULL)
+        if (IsStorageSpritePtrValid(gStorage->partySprites[i]))
         {
             if (i != targetPartyId)
             {
@@ -790,7 +803,7 @@ void MovePartySprites(s16 yDelta)
 
     for (i = 0; i < PARTY_SIZE; i++)
     {
-        if (gStorage->partySprites[i] != NULL)
+        if (IsStorageSpritePtrValid(gStorage->partySprites[i]))
         {
             gStorage->partySprites[i]->y += yDelta;
             posY = gStorage->partySprites[i]->y + gStorage->partySprites[i]->y2 + gStorage->partySprites[i]->centerToCornerVecY;
@@ -805,9 +818,13 @@ void MovePartySprites(s16 yDelta)
 
 void DestroyPartyMonIcon(u8 partyId)
 {
-    if (gStorage->partySprites[partyId] != NULL)
+    if (IsStorageSpritePtrValid(gStorage->partySprites[partyId]))
     {
         DestroyBoxMonIcon(gStorage->partySprites[partyId]);
+        gStorage->partySprites[partyId] = NULL;
+    }
+    else
+    {
         gStorage->partySprites[partyId] = NULL;
     }
 }
@@ -818,9 +835,13 @@ void DestroyAllPartyMonIcons(void)
 
     for (i = 0; i < PARTY_SIZE; i++)
     {
-        if (gStorage->partySprites[i] != NULL)
+        if (IsStorageSpritePtrValid(gStorage->partySprites[i]))
         {
             DestroyBoxMonIcon(gStorage->partySprites[i]);
+            gStorage->partySprites[i] = NULL;
+        }
+        else
+        {
             gStorage->partySprites[i] = NULL;
         }
     }
@@ -828,7 +849,7 @@ void DestroyAllPartyMonIcons(void)
 
 void SetPartyMonIconObjMode(u8 partyId, u8 objMode)
 {
-    if (gStorage->partySprites[partyId] != NULL)
+    if (IsStorageSpritePtrValid(gStorage->partySprites[partyId]))
         gStorage->partySprites[partyId]->oam.objMode = objMode;
 }
 
@@ -846,6 +867,15 @@ void SetMovingMonSprite(u8 mode, u8 id)
     }
     else
         return;
+
+    // Portable builds can reach move mode with a missing cached icon pointer.
+    // Recreate the held icon from movingMon instead of dereferencing NULL.
+    if (gStorage->movingMonSprite == NULL)
+    {
+        CreateMovingMonIcon();
+        if (gStorage->movingMonSprite == NULL)
+            return;
+    }
 
     gStorage->movingMonSprite->callback = SpriteCB_HeldMon;
     gStorage->movingMonSprite->oam.priority = GetMonIconPriorityByCursorArea();
@@ -985,11 +1015,15 @@ bool8 ResetReleaseMonSpritePtr(void)
 
 void SetMovingMonPriority(u8 priority)
 {
+    if (gStorage->movingMonSprite == NULL)
+        return;
     gStorage->movingMonSprite->oam.priority = priority;
 }
 
 static void SpriteCB_HeldMon(struct Sprite *sprite)
 {
+    if (gStorage->cursorSprite == NULL)
+        return;
     sprite->x = gStorage->cursorSprite->x;
     sprite->y = gStorage->cursorSprite->y + gStorage->cursorSprite->y2 + 4;
 }
@@ -1462,6 +1496,8 @@ static void CreateBoxScrollArrows(void)
 {
     u16 i;
 
+    gStorage->arrowSprites[0] = NULL;
+    gStorage->arrowSprites[1] = NULL;
     LoadSpriteSheet(&sSpriteSheet_BoxScrollArrow);
     for (i = 0; i < 2; i++)
     {
@@ -1485,6 +1521,8 @@ static void StartBoxScrollArrowsSlide(s8 direction)
 
     for (i = 0; i < 2; i++)
     {
+        if (gStorage->arrowSprites[i] == NULL)
+            return;
         gStorage->arrowSprites[i]->x2 = 0;
         gStorage->arrowSprites[i]->sState = 2;
     }
@@ -1513,6 +1551,8 @@ static void StopBoxScrollArrowsSlide(void)
 
     for (i = 0; i < 2; i++)
     {
+        if (gStorage->arrowSprites[i] == NULL)
+            return;
         gStorage->arrowSprites[i]->x = 136 * i + 92;
         gStorage->arrowSprites[i]->x2 = 0;
         gStorage->arrowSprites[i]->invisible = FALSE;
@@ -1530,6 +1570,8 @@ void AnimateBoxScrollArrows(bool8 animate)
         // Start arrows moving
         for (i = 0; i < 2; i++)
         {
+            if (gStorage->arrowSprites[i] == NULL)
+                continue;
             gStorage->arrowSprites[i]->sState = 1;
             gStorage->arrowSprites[i]->sTimer = 0;
             gStorage->arrowSprites[i]->data[2] = 0;
@@ -1540,7 +1582,10 @@ void AnimateBoxScrollArrows(bool8 animate)
     {
         // Stop arrows moving
         for (i = 0; i < 2; i++)
-            gStorage->arrowSprites[i]->sState = 0;
+        {
+            if (gStorage->arrowSprites[i] != NULL)
+                gStorage->arrowSprites[i]->sState = 0;
+        }
     }
 }
 
