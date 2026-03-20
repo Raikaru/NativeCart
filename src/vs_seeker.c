@@ -814,8 +814,8 @@ static void GatherNearbyTrainerInfo(void)
     {
         if (templates[objectEventIdx].objUnion.normal.trainerType == TRAINER_TYPE_NORMAL || templates[objectEventIdx].objUnion.normal.trainerType == TRAINER_TYPE_BURIED)
         {
-            sVsSeeker->trainerInfo[vsSeekerObjectIdx].script = templates[objectEventIdx].script;
-            sVsSeeker->trainerInfo[vsSeekerObjectIdx].trainerIdx = GetTrainerFlagFromScript(templates[objectEventIdx].script);
+            sVsSeeker->trainerInfo[vsSeekerObjectIdx].script = OBJ_EVENT_TEMPLATE_SCRIPT_DEREF(&templates[objectEventIdx]);
+            sVsSeeker->trainerInfo[vsSeekerObjectIdx].trainerIdx = GetTrainerFlagFromScript(OBJ_EVENT_TEMPLATE_SCRIPT_DEREF(&templates[objectEventIdx]));
             sVsSeeker->trainerInfo[vsSeekerObjectIdx].localId = templates[objectEventIdx].localId;
             TryGetObjectEventIdByLocalIdAndMap(templates[objectEventIdx].localId, gSaveBlock1Ptr->location.mapNum, gSaveBlock1Ptr->location.mapGroup, &objectEventId);
             sVsSeeker->trainerInfo[vsSeekerObjectIdx].objectEventId = objectEventId;
@@ -948,7 +948,7 @@ void ClearRematchStateByTrainerId(void)
         {
             if ((objectEventTemplates[i].objUnion.normal.trainerType == TRAINER_TYPE_NORMAL 
               || objectEventTemplates[i].objUnion.normal.trainerType == TRAINER_TYPE_BURIED)
-              && vsSeekerDataIdx == LookupVsSeekerOpponentInArray(sRematches, GetTrainerFlagFromScript(objectEventTemplates[i].script)))
+              && vsSeekerDataIdx == LookupVsSeekerOpponentInArray(sRematches, GetTrainerFlagFromScript(OBJ_EVENT_TEMPLATE_SCRIPT_DEREF(&objectEventTemplates[i]))))
             {
                 struct ObjectEvent *objectEvent;
 

@@ -1,6 +1,8 @@
 #ifndef GUARD_GLOBAL_FIELDMAP_H
 #define GUARD_GLOBAL_FIELDMAP_H
 
+#include <stddef.h>
+
 // Masks/shifts for blocks in the map grid
 // Map grid blocks consist of a 10 bit metatile id, a 2 bit collision value, and a 4 bit elevation value
 // This is the data stored in each data/layouts/*/map.bin file
@@ -75,6 +77,21 @@ enum
 #define GET_HIDDEN_ITEM_QUANTITY(raw) (((raw) >> HIDDEN_ITEM_QUANTITY_SHIFT)  & ((1 << HIDDEN_ITEM_QUANTITY_BITS) - 1))
 #define GET_HIDDEN_ITEM_UNDERFOOT(raw)(((raw) >> HIDDEN_ITEM_UNDERFOOT_SHIFT) & ((1 << HIDDEN_ITEM_UNDERFOOT_BITS) - 1))
 
+#ifdef PORTABLE
+/* Save blocks embed ObjectEventTemplate; script must be 4 bytes like GBA (not host pointers). */
+#define OBJ_EVENT_TEMPLATE_SCRIPT_GET(_t) ((const u8 *)(uintptr_t)((_t)->script))
+/* After reading from save (or map data as u32 words): resolve tokens / ROM bus addr → host pointer. */
+#define OBJ_EVENT_TEMPLATE_SCRIPT_DEREF(_t) ((const u8 *)firered_portable_resolve_script_ptr((_t)->script))
+/* Use for arbitrary host pointers; maps ROM mirror, token tables, or ROM string scan → save u32. */
+#define OBJ_EVENT_TEMPLATE_SCRIPT_SET(_t, _p) ((_t)->script = firered_portable_ptr_to_save_u32((const void *)(_p)))
+#define OBJ_EVENT_TEMPLATE_SCRIPT_SET_U32(_t, _v) ((_t)->script = (u32)(_v))
+#else
+#define OBJ_EVENT_TEMPLATE_SCRIPT_GET(_t) ((_t)->script)
+#define OBJ_EVENT_TEMPLATE_SCRIPT_DEREF(_t) ((_t)->script)
+#define OBJ_EVENT_TEMPLATE_SCRIPT_SET(_t, _p) ((_t)->script = (_p))
+#define OBJ_EVENT_TEMPLATE_SCRIPT_SET_U32(_t, _v) ((_t)->script = (const u8 *)(uintptr_t)(_v))
+#endif
+
 typedef void (*TilesetCB)(void);
 
 struct Tileset
@@ -129,7 +146,11 @@ struct ObjectEventTemplate
             u16 targetMapGroup;
         } clone;
     } objUnion;
+#ifdef PORTABLE
+    u32 script;
+#else
     const u8 *script;
+#endif
     u16 flagId;
 };  /*size = 0x18*/
 
@@ -265,7 +286,12 @@ struct ObjectEvent
     /*0x21*/        u8 directionSequenceIndex;
     /*0x22*/        u8 playerCopyableMovement;
     /*size = 0x24*/
+#ifdef PORTABLE
+} __attribute__((packed));
+#else
 };
+
+#endif
 
 struct ObjectEventGraphicsInfo
 {

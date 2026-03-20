@@ -923,11 +923,37 @@ const struct BerryTree gBlankBerryTree = {};
 
 static u32 GetEnigmaBerryChecksum(struct EnigmaBerry *);
 
+#ifdef PORTABLE
+static void CopyBerryToPortableSaveBerry2(struct Berry2 *dst, const struct Berry *src)
+{
+    memcpy(dst->name, src->name, sizeof(dst->name));
+    dst->firmness = src->firmness;
+    dst->size = src->size;
+    dst->maxYield = src->maxYield;
+    dst->minYield = src->minYield;
+    dst->description1 = firered_portable_ptr_to_save_u32((const void *)src->description1);
+    dst->description2 = firered_portable_ptr_to_save_u32((const void *)src->description2);
+    dst->stageDuration = src->stageDuration;
+    dst->spicy = src->spicy;
+    dst->dry = src->dry;
+    dst->sweet = src->sweet;
+    dst->bitter = src->bitter;
+    dst->sour = src->sour;
+    dst->smoothness = src->smoothness;
+    dst->paddingToGbaSize0x1C = 0;
+}
+#endif
+
 void InitEnigmaBerry(void)
 {
     s32 i;
 
+#ifdef PORTABLE
+    CopyBerryToPortableSaveBerry2(&gSaveBlock1Ptr->enigmaBerry.berry,
+        &gBerries[ITEM_ENIGMA_BERRY - FIRST_BERRY_INDEX]);
+#else
     gSaveBlock1Ptr->enigmaBerry.berry = ENIGMA_BERRY_STRUCT;
+#endif
     for (i = 0; i < 18; i++)
         gSaveBlock1Ptr->enigmaBerry.itemEffect[i] = 0;
     gSaveBlock1Ptr->enigmaBerry.holdEffect = 0;
@@ -961,7 +987,11 @@ void SetEnigmaBerry(u8 * berry)
     src2 = (struct ReceivedEnigmaBerry *)berry;
     enigmaBerry = &gSaveBlock1Ptr->enigmaBerry;
 
+#ifdef PORTABLE
+    memcpy(&enigmaBerry->berry, &src2->berry, sizeof(struct Berry2));
+#else
     enigmaBerry->berry = src2->berry;
+#endif
     for (i = 0; i < 18; i++)
         enigmaBerry->itemEffect[i] = src2->itemEffect[i];
     enigmaBerry->holdEffect = src2->holdEffect;
@@ -996,7 +1026,30 @@ bool32 IsEnigmaBerryValid(void)
 const struct Berry * GetBerryInfo(u8 berryIdx)
 {
     if (berryIdx == ITEM_TO_BERRY(ITEM_ENIGMA_BERRY) && IsEnigmaBerryValid())
+    {
+#ifdef PORTABLE
+        static struct Berry sPortableEnigmaBerryRuntime;
+        const struct Berry2 *br = &gSaveBlock1Ptr->enigmaBerry.berry;
+
+        memcpy((void *)sPortableEnigmaBerryRuntime.name, br->name, sizeof(br->name));
+        sPortableEnigmaBerryRuntime.firmness = br->firmness;
+        sPortableEnigmaBerryRuntime.size = br->size;
+        sPortableEnigmaBerryRuntime.maxYield = br->maxYield;
+        sPortableEnigmaBerryRuntime.minYield = br->minYield;
+        sPortableEnigmaBerryRuntime.description1 = (const u8 *)firered_portable_resolve_script_ptr(br->description1);
+        sPortableEnigmaBerryRuntime.description2 = (const u8 *)firered_portable_resolve_script_ptr(br->description2);
+        sPortableEnigmaBerryRuntime.stageDuration = br->stageDuration;
+        sPortableEnigmaBerryRuntime.spicy = br->spicy;
+        sPortableEnigmaBerryRuntime.dry = br->dry;
+        sPortableEnigmaBerryRuntime.sweet = br->sweet;
+        sPortableEnigmaBerryRuntime.bitter = br->bitter;
+        sPortableEnigmaBerryRuntime.sour = br->sour;
+        sPortableEnigmaBerryRuntime.smoothness = br->smoothness;
+        return &sPortableEnigmaBerryRuntime;
+#else
         return (struct Berry *)&gSaveBlock1Ptr->enigmaBerry.berry;
+#endif
+    }
 
     if (berryIdx == 0 || berryIdx > ITEM_TO_BERRY(ITEM_ENIGMA_BERRY))
         berryIdx = 1;
