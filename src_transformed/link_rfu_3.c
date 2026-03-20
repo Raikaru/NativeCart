@@ -30,8 +30,29 @@ struct RfuUnusedQueue
 };
 
 static EWRAM_DATA u8 sWirelessStatusIndicatorSpriteId = 0;
+#ifdef PORTABLE
+static const u32 sWirelessLinkIconPalette_Portable[] = {
+    0x52507ED5, 0x5ED67BDD, 0x001F3569, 0x7FFF42DF, 0x7BDD0000, 0x7BDD7BDD, 0x00007BDD, 0x00000000,
+};
+
+static const u32 sWirelessLinkIconPic_Portable[] = {
+    0x00038010, 0x44444000, 0x77773444, 0xF0747577, 0x00032003, 0x0600041E, 0x48030043, 0x7C03F047,
+    0xA92B604C, 0x7430777A, 0x10030079, 0x7777A907, 0x0700E034, 0x23105B10, 0x4CCC7777, 0x7BB73377,
+    0x03000700, 0x37007BB7, 0xB71F0300, 0x5B10437B, 0x7FF07FF0, 0x7FF07FF0, 0x44770080, 0x324A7974,
+    0x4A02A974, 0x47A97411, 0x447FD044, 0x337F0080, 0x114C7B74, 0x471F7BB4, 0x7FF07444, 0x7FF07BF0,
+    0x7F2003F0, 0x7FF0576E, 0xF0757F70, 0xF07FF07F, 0x740D5577, 0xF0765777, 0x55033007, 0x673E0300,
+    0xF07FF075, 0xF07FF07F, 0x577F507F, 0x65730086, 0x60577477, 0x55FFA07F, 0x566F10AB, 0x20757310,
+    0x7FF0777F, 0xF0FC7FF0, 0xF07FF07F, 0xF17FF1FF, 0xA9FFF17F, 0x74550A7A, 0x7F005A79, 0x577F005A,
+    0xFFD15554, 0x757F1055, 0x7BB57F00, 0x75554710, 0x55547FB0, 0xF0F75555, 0x10033003, 0x45060023,
+    0x033003F0, 0x00972B80, 0x00324547, 0x03001103, 0x5B105320, 0x002750CE, 0x70334508, 0x0000001C,
+    0x0000005B,
+};
+#define sWirelessLinkIconPalette ((const u16 *)sWirelessLinkIconPalette_Portable)
+#define sWirelessLinkIconPic ((const u32 *)sWirelessLinkIconPic_Portable)
+#else
 #define sWirelessLinkIconPalette ((const u16 *)NULL)
 #define sWirelessLinkIconPic ((const u32 *)NULL)
+#endif
 
 // Most of the below two tables won't make sense with ASCII encoding.
 static const u8 sWireless_ASCIItoRSETable[] = {

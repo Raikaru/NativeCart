@@ -52,8 +52,19 @@ static void SpriteCB_LevelUpVertical(struct Sprite *sprite);
 #define sBg_TmHm_Pal ((const u16 *)NULL)
 #define sBg_Gfx ((const u32 *)NULL)
 #define sBg_Tilemap ((const u32 *)NULL)
+#ifdef PORTABLE
+static const u32 sLevelUp_Pal_Portable[] = {
+    0x7FFF0000, 0x7F5A7F9C, 0x7ED67F18, 0x7E527E94, 0x7DCE7E10, 0x7D4A7D8C, 0x7CC67D08, 0x7C427C84,
+};
+static const u32 sLevelUp_Gfx_Portable[] = {
+    0x00004010, 0x00800001, 0x09890000, 0xF0C803F0, 0x0903B003, 0x00380008, 0x00000000,
+};
+#define sLevelUp_Pal ((const u16 *)sLevelUp_Pal_Portable)
+#define sLevelUp_Gfx ((const u32 *)sLevelUp_Gfx_Portable)
+#else
 #define sLevelUp_Pal ((const u16 *)NULL)
 #define sLevelUp_Gfx ((const u32 *)NULL)
+#endif
 #define sStar_Pal ((const u16 *)NULL)
 #define sStar_Gfx ((const u32 *)NULL)
 #define sOutwardSpiralDots_Pal ((const u16 *)NULL)
@@ -1489,6 +1500,14 @@ static const u8 *const sLevelUpWindowStatNames[] = {
     gText_LevelUp_Speed
 };
 
+static const u8 sLevelUpPlusBinary[] = {
+    EXT_CTRL_CODE_BEGIN, EXT_CTRL_CODE_FONT, FONT_SMALL, CHAR_PLUS, EOS
+};
+
+static const u8 sLevelUpMinusBinary[] = {
+    EXT_CTRL_CODE_BEGIN, EXT_CTRL_CODE_FONT, FONT_SMALL, CHAR_HYPHEN, EOS
+};
+
 void DrawLevelUpWindowPg1(u16 windowId, u16 *beforeStats, u16 *afterStats, u8 bgColor, u8 fgColor, u8 shadowColor)
 {
     s16 diffStats[6];
@@ -1513,7 +1532,7 @@ void DrawLevelUpWindowPg1(u16 windowId, u16 *beforeStats, u16 *afterStats, u8 bg
     for (i = 0; i < 6; i++)
     {
         AddTextPrinterParameterized3(windowId, FONT_NORMAL, 0, i * 15, textColor, TEXT_SKIP_DRAW, sLevelUpWindowStatNames[i]);
-        StringCopy(textbuf, diffStats[i] >= 0 ? gText_LevelUp_Plus : gText_LevelUp_Minus);
+        StringCopy(textbuf, diffStats[i] >= 0 ? sLevelUpPlusBinary : sLevelUpMinusBinary);
         AddTextPrinterParameterized3(windowId, FONT_NORMAL, 56, i * 15, textColor, TEXT_SKIP_DRAW, textbuf);
         textbuf[0] = CHAR_SPACE;
         x = abs(diffStats[i]) < 10 ? 12 : 6;
