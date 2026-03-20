@@ -6,6 +6,12 @@
 #include "menu.h"
 #include "new_menu_helpers.h"
 #include "pokemon_storage_system_internal.h"
+#ifdef PORTABLE
+#include "pokemon_storage_system_portable_assets.h"
+#define sPokeStorageMisc1Pal sPokeStorageMisc1Pal_Portable
+#define sHandCursorTiles ((const u16 *)sHandCursorTiles_Portable)
+#define sHandCursorShadowTiles ((const u16 *)sHandCursorShadowTiles_Portable)
+#endif
 #include "pokemon_summary_screen.h"
 #include "strings.h"
 #include "constants/items.h"
@@ -47,9 +53,11 @@ static bool8 SetMenuTextsForMon(void);
 static bool8 SetMenuTextsForItem(void);
 static void CreateCursorSprites(void);
 static void ToggleCursorMultiMoveMode(void);
+#ifndef PORTABLE
 #define sPokeStorageMisc1Pal ((const u16 *)NULL)
 #define sHandCursorTiles ((const u16 *)NULL)
 #define sHandCursorShadowTiles ((const u16 *)NULL)
+#endif
 
 // Modes for selecting and moving Pokémon in the box. Multiple Pokémon can be
 // selected by pressing the Select button to change the cursor, then holding
@@ -270,6 +278,9 @@ static void InitCursorMove(void)
 
 static void SetCursorPosition(u8 newCursorArea, u8 newCursorPosition)
 {
+    if (gStorage->cursorSprite == NULL)
+        return;
+
     InitNewCursorPos(newCursorArea, newCursorPosition);
     InitCursorMove();
     if (gStorage->boxOption != OPTION_MOVE_ITEMS)
@@ -299,7 +310,8 @@ static void SetCursorPosition(u8 newCursorArea, u8 newCursorPosition)
     if (newCursorArea == CURSOR_AREA_IN_PARTY && sCursorArea != CURSOR_AREA_IN_PARTY)
     {
         gStorage->cursorPrevPartyPos = 1;
-        gStorage->cursorShadowSprite->invisible = TRUE;
+        if (gStorage->cursorShadowSprite != NULL)
+            gStorage->cursorShadowSprite->invisible = TRUE;
     }
 
     switch (newCursorArea)
@@ -308,14 +320,18 @@ static void SetCursorPosition(u8 newCursorArea, u8 newCursorPosition)
     case CURSOR_AREA_BOX_TITLE:
     case CURSOR_AREA_BUTTONS:
         gStorage->cursorSprite->oam.priority = 1;
-        gStorage->cursorShadowSprite->invisible = TRUE;
-        gStorage->cursorShadowSprite->oam.priority = 1;
+        if (gStorage->cursorShadowSprite != NULL)
+        {
+            gStorage->cursorShadowSprite->invisible = TRUE;
+            gStorage->cursorShadowSprite->oam.priority = 1;
+        }
         break;
     case CURSOR_AREA_IN_BOX:
         if (gStorage->inBoxMovingMode != MOVE_MODE_NORMAL)
         {
             gStorage->cursorSprite->oam.priority = 0;
-            gStorage->cursorShadowSprite->invisible = TRUE;
+            if (gStorage->cursorShadowSprite != NULL)
+                gStorage->cursorShadowSprite->invisible = TRUE;
         }
         else
         {
@@ -329,6 +345,9 @@ static void SetCursorPosition(u8 newCursorArea, u8 newCursorPosition)
 
 static void DoCursorNewPosUpdate(void)
 {
+    if (gStorage->cursorSprite == NULL)
+        return;
+
     sCursorArea = gStorage->newCursorArea;
     sCursorPosition = gStorage->newCursorPosition;
     if (gStorage->boxOption != OPTION_MOVE_ITEMS)
@@ -349,16 +368,20 @@ static void DoCursorNewPosUpdate(void)
         AnimateBoxScrollArrows(TRUE);
         break;
     case CURSOR_AREA_IN_PARTY:
-        gStorage->cursorShadowSprite->subpriority = 13;
+        if (gStorage->cursorShadowSprite != NULL)
+            gStorage->cursorShadowSprite->subpriority = 13;
         SetMovingMonPriority(1);
         break;
     case CURSOR_AREA_IN_BOX:
         if (gStorage->inBoxMovingMode == MOVE_MODE_NORMAL)
         {
             gStorage->cursorSprite->oam.priority = 1;
-            gStorage->cursorShadowSprite->oam.priority = 2;
-            gStorage->cursorShadowSprite->subpriority = 21;
-            gStorage->cursorShadowSprite->invisible = FALSE;
+            if (gStorage->cursorShadowSprite != NULL)
+            {
+                gStorage->cursorShadowSprite->oam.priority = 2;
+                gStorage->cursorShadowSprite->subpriority = 21;
+                gStorage->cursorShadowSprite->invisible = FALSE;
+            }
             SetMovingMonPriority(2);
         }
         break;
@@ -1853,6 +1876,11 @@ static bool8 SetMenuTextsForItem(void)
 
 static void SpriteCB_CursorShadow(struct Sprite *sprite)
 {
+    if (gStorage->cursorSprite == NULL)
+    {
+        sprite->invisible = TRUE;
+        return;
+    }
     sprite->x = gStorage->cursorSprite->x;
     sprite->y = gStorage->cursorSprite->y + 20;
 }
@@ -1974,7 +2002,8 @@ static void CreateCursorSprites(void)
 static void ToggleCursorMultiMoveMode(void)
 {
     sInMultiMoveMode = !sInMultiMoveMode;
-    gStorage->cursorSprite->oam.paletteNum = gStorage->cursorPalNums[sInMultiMoveMode];
+    if (gStorage->cursorSprite != NULL)
+        gStorage->cursorSprite->oam.paletteNum = gStorage->cursorPalNums[sInMultiMoveMode];
 }
 
 u8 GetBoxCursorPosition(void)

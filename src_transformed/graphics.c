@@ -4,6 +4,9 @@
 #define BATTLE_INTERFACE_TEXTBOX_DEFINE_GLOBALS
 #include "battle_interface_portable_assets.h"
 #undef BATTLE_INTERFACE_TEXTBOX_DEFINE_GLOBALS
+#define POKEMON_STORAGE_GRAPHICS_DEFINE_GLOBALS
+#include "pokemon_storage_system_portable_assets.h"
+#undef POKEMON_STORAGE_GRAPHICS_DEFINE_GLOBALS
 #endif
 
 #ifndef PORTABLE
@@ -27,7 +30,20 @@ const u32 gSmokescreenImpactPalette[] = INCBIN_U32("graphics/battle_anims/sprite
 
 #include "data/graphics/interface_pokeballs.h"
 
+#ifdef PORTABLE
+const u32 gBlankGfxCompressed[] = {
+    0x00080010, 0xF000003F, 0xF001F001, 0xF001F001, 0xFF01F001, 0x01F001F0, 0x01F001F0, 0x01F001F0,
+    0x01F001F0, 0xF001F0FF, 0xF001F001, 0xF001F001, 0xF001F001, 0x01F0FF01, 0x01F001F0, 0x01F001F0,
+    0x01F001F0, 0xF0FF01F0, 0xF001F001, 0xF001F001, 0xF001F001, 0xFF01F001, 0x01F001F0, 0x01F001F0,
+    0x01F001F0, 0x01F001F0, 0xF001F0FF, 0xF001F001, 0xF001F001, 0xF001F001, 0x01F0FF01, 0x01F001F0,
+    0x01F001F0, 0x01F001F0, 0xF0FF01F0, 0xF001F001, 0xF001F001, 0xF001F001, 0xFF01F001, 0x01F001F0,
+    0x01F001F0, 0x01F001F0, 0x01F001F0, 0xF001F0FF, 0xF001F001, 0xF001F001, 0xF001F001, 0x01F0FF01,
+    0x01F001F0, 0x01F001F0, 0x01F001F0, 0xF0FF01F0, 0xF001F001, 0xF001F001, 0xF001F001, 0xFF01F001,
+    0x01F001F0, 0x01F001F0, 0x01F001F0, 0x01F001F0, 0xF001F0F0, 0x9001F001, 0x00000001,
+};
+#else
 const u32 gBlankGfxCompressed[] = INCBIN_U32("graphics/interface/blank.4bpp.lz");
+#endif
 
 const u32 gBattleAnimSpriteGfx_Bubble[] = INCBIN_U32("graphics/battle_anims/sprites/bubble.4bpp.lz");
 const u32 gBattleAnimSpriteGfx_Bone[] = INCBIN_U32("graphics/battle_anims/sprites/bone.4bpp.lz");
@@ -1221,11 +1237,13 @@ const u32 gSummaryScreen_StatusAilmentIcon_Gfx[] = INCBIN_U32("graphics/summary_
 const u16 gDexScreen_TopMenuIconPals_AtoZ[] = INCBIN_U16("graphics/pokedex/cat_icon_abc.gbapal");
 const u32 gDexScreen_TopMenuIconTiles_AtoZ[] = INCBIN_U32("graphics/pokedex/cat_icon_abc.4bpp.lz");
 
+#ifndef PORTABLE
 const u16 gPokeStoragePartyMenu_Pal[] = INCBIN_U16("graphics/pokemon_storage/party_menu.gbapal");
 const u16 gPokeStorageInterface_Pal[] = INCBIN_U16("graphics/pokemon_storage/interface.gbapal");
 const u16 gPokeStorageInterface_NoDisplayMon_Pal[] = INCBIN_U16("graphics/pokemon_storage/interface_no_display_mon.gbapal");
 const u32 gPokeStorageMenu_Gfx[] = INCBIN_U32("graphics/pokemon_storage/menu.4bpp.lz");
 const u32 gPokeStoragePartyMenu_Tilemap[] = INCBIN_U32("graphics/pokemon_storage/party_menu.bin.lz");
+#endif
 const u16 gMonMarkingsMenu_Pal[] = INCBIN_U16("graphics/misc/markings2.gbapal");
 const u16 gMonMarkingsMenu_Gfx[] = INCBIN_U16("graphics/misc/markings2.4bpp");
 

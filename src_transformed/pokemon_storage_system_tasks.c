@@ -26,6 +26,22 @@
 #include "constants/help_system.h"
 #include "constants/songs.h"
 
+#ifdef PORTABLE
+#include "pokemon_storage_system_portable_assets.h"
+#define sScrollingBg_Gfx sScrollingBg_Gfx_Portable
+#define sScrollingBg_Tilemap sScrollingBg_Tilemap_Portable
+#define sMenu_Tilemap sMenu_Tilemap_Portable
+#define sPkmnData_Tilemap sPkmnData_Tilemap_Portable
+#define sScrollingBg_Pal sScrollingBg_Pal_Portable
+#define sScrollingBgMoveItems_Pal sScrollingBgMoveItems_Pal_Portable
+#define sCloseBoxButton_Tilemap sCloseBoxButton_Tilemap_Portable
+#define sPartySlotFilled_Tilemap sPartySlotFilled_Tilemap_Portable
+#define sPartySlotEmpty_Tilemap sPartySlotEmpty_Tilemap_Portable
+#define sPokeStorageMisc2Pal sPokeStorageMisc2Pal_Portable
+#define sWaveform_Gfx sWaveform_Gfx_Portable
+#define sItemInfoFrame_Pal sItemInfoFrame_Pal_Portable
+#endif
+
 EWRAM_DATA struct PokemonStorageSystemData *gStorage = NULL;
 static EWRAM_DATA bool8 sInPartyMenu = 0;
 static EWRAM_DATA u8 sCurrentBoxOption = 0;
@@ -82,6 +98,9 @@ static void CreateDisplayMonSprite(void);
 static void LoadDisplayMonGfx(u16 species, u32 personality);
 static void PrintDisplayMonInfo(void);
 static void UpdateWaveformAnimation(void);
+static bool8 IsStorageLiveSprite(struct Sprite *sprite);
+static bool8 ValidateDisplayMonSprite(void);
+static bool8 ValidateMarkingComboSprite(void);
 static void InitSupplementalTilemaps(void);
 static void SetUpHidePartyMenu(void);
 static bool8 HidePartyMenu(void);
@@ -165,6 +184,7 @@ enum
     MSG_FMT_RELEASE_MON_3,
     MSG_FMT_ITEM_NAME,
 };
+#ifndef PORTABLE
 #define sScrollingBg_Gfx ((const u32 *)NULL)
 #define sScrollingBg_Tilemap ((const u32 *)NULL)
 
@@ -183,6 +203,7 @@ enum
 // Unused
 #define sUnused_Pal ((const u16 *)NULL)
 #define sItemInfoFrame_Pal ((const u16 *)NULL)
+#endif
 
 static const struct WindowTemplate sWindowTemplates[] = {
     {
@@ -388,6 +409,8 @@ static const struct SpriteTemplate sSpriteTemplate_Waveform = {
 
 static void VBlankCB_PokeStorage(void)
 {
+    if (gStorage == NULL)
+        return;
     LoadOam();
     ProcessSpriteCopyRequests();
     UnkUtil_Run();
@@ -398,6 +421,8 @@ static void VBlankCB_PokeStorage(void)
 static void CB2_PokeStorage(void)
 {
     RunTasks();
+    if (gStorage == NULL)
+        return;
     DoScheduledBgTilemapCopiesToVram();
     ScrollBackground();
     UpdateCloseBoxButtonFlash();
@@ -640,7 +665,9 @@ static void Task_PokeStorageMain(u8 taskId)
     switch (gStorage->state)
     {
     case 0:
-        switch (HandleInput())
+        {
+        u8 input = HandleInput();
+        switch (input)
         {
         case INPUT_MOVE_CURSOR:
             PlaySE(SE_SELECT);
@@ -800,6 +827,7 @@ static void Task_PokeStorageMain(u8 taskId)
             PlaySE(SE_FAILURE);
             break;
         }
+        }
         break;
     case 1:
         if (!UpdateCursorPos())
@@ -923,6 +951,25 @@ static void Task_HidePartyPokemon(u8 taskId)
         {
             if (gStorage->setMosaic)
                 StartDisplayMonMosaic();
+            if (gStorage->boxOption == OPTION_MOVE_ITEMS)
+            {
+                gStorage->state++;
+            }
+            else
+            {
+                gMain.newKeys = 0;
+                gMain.newAndRepeatedKeys = 0;
+                SetPokeStorageTask(Task_PokeStorageMain);
+            }
+        }
+        break;
+    case 3:
+        if (!JOY_HELD(B_BUTTON)
+            && !IsDma3ManagerBusyWithBgCopy()
+            && !IsItemIconAnimActive())
+        {
+            gMain.newKeys = 0;
+            gMain.newAndRepeatedKeys = 0;
             SetPokeStorageTask(Task_PokeStorageMain);
         }
         break;
@@ -958,7 +1005,18 @@ static void Task_OnSelectedMon(u8 taskId)
         case MENU_B_PRESSED:
         case MENU_TEXT_CANCEL:
             ClearBottomWindow();
-            SetPokeStorageTask(Task_PokeStorageMain);
+            if (gStorage->boxOption == OPTION_MOVE_ITEMS)
+            {
+                gMain.newKeys = 0;
+                gMain.newAndRepeatedKeys = 0;
+                gStorage->state = 7;
+            }
+            else
+            {
+                gMain.newKeys = 0;
+                gMain.newAndRepeatedKeys = 0;
+                SetPokeStorageTask(Task_PokeStorageMain);
+            }
             break;
         case MENU_TEXT_MOVE:
             if (CanMovePartyMon())
@@ -1066,6 +1124,10 @@ static void Task_OnSelectedMon(u8 taskId)
             ClearBottomWindow();
             SetPokeStorageTask(Task_PokeStorageMain);
         }
+        break;
+    case 7:
+        if (!JOY_HELD(B_BUTTON) && !IsDma3ManagerBusyWithBgCopy())
+            SetPokeStorageTask(Task_PokeStorageMain);
         break;
     }
 }
@@ -2083,22 +2145,35 @@ static void Task_ChangeScreen(u8 taskId)
 static void GiveChosenBagItem(void)
 {
     u16 item = gSpecialVar_ItemId;
+    u8 id = GetBoxCursorPosition();
 
-    if (item != ITEM_NONE)
+    // Returning from the bag on cancel can leave the handoff in a
+    // "no item selected" or otherwise stale state. Only apply the
+    // bag result when both the item id and target slot are valid.
+    gSpecialVar_ItemId = ITEM_NONE;
+
+    if (item == ITEM_NONE || item >= ITEMS_COUNT)
+        return;
+
+    if (sInPartyMenu)
     {
-        u8 id = GetBoxCursorPosition();
-
-        if (sInPartyMenu)
-            SetMonData(&gPlayerParty[id], MON_DATA_HELD_ITEM, &item);
-        else
-            SetCurrentBoxMonData(id, MON_DATA_HELD_ITEM, &item);
-
-        RemoveBagItem(item, 1);
+        if (id >= PARTY_SIZE)
+            return;
+        SetMonData(&gPlayerParty[id], MON_DATA_HELD_ITEM, &item);
     }
+    else
+    {
+        if (id >= IN_BOX_COUNT)
+            return;
+        SetCurrentBoxMonData(id, MON_DATA_HELD_ITEM, &item);
+    }
+
+    RemoveBagItem(item, 1);
 }
 
 static void FreePokeStorageData(void)
 {
+    SetVBlankCallback(NULL);
     TilemapUtil_Free();
     MultiMove_Free();
     FREE_AND_SET_NULL(gStorage);
@@ -2162,6 +2237,11 @@ static void InitPalettesAndSprites(void)
 static void CreateMarkingComboSprite(void)
 {
     gStorage->markingComboSprite = CreateMonMarkingComboSprite(GFXTAG_MARKING_COMBO, PALTAG_MARKING_COMBO, NULL);
+    if (gStorage->markingComboSprite == NULL)
+    {
+        gStorage->markingComboTilesPtr = NULL;
+        return;
+    }
     gStorage->markingComboSprite->oam.priority = 1;
     gStorage->markingComboSprite->subpriority = 1;
     gStorage->markingComboSprite->x = 40;
@@ -2178,8 +2258,45 @@ static void CreateWaveformSprites(void)
     for (i = 0; i < 2; i++)
     {
         u8 spriteId = CreateSprite(&sSpriteTemplate_Waveform, i * 63 + 8, 9, 2);
-        gStorage->waveformSprites[i] = &gSprites[spriteId];
+        if (spriteId != MAX_SPRITES)
+            gStorage->waveformSprites[i] = &gSprites[spriteId];
+        else
+            gStorage->waveformSprites[i] = NULL;
     }
+}
+
+static bool8 IsStorageLiveSprite(struct Sprite *sprite)
+{
+    return sprite != NULL
+        && sprite >= gSprites
+        && sprite < gSprites + MAX_SPRITES
+        && sprite->inUse
+        && sprite->spriteTemplate != NULL;
+}
+
+static bool8 ValidateDisplayMonSprite(void)
+{
+    if (!IsStorageLiveSprite(gStorage->displayMonSprite))
+    {
+        gStorage->displayMonSprite = NULL;
+        gStorage->displayMonTilePtr = NULL;
+        gStorage->displayMonPalOffset = 0;
+        return FALSE;
+    }
+
+    return TRUE;
+}
+
+static bool8 ValidateMarkingComboSprite(void)
+{
+    if (!IsStorageLiveSprite(gStorage->markingComboSprite))
+    {
+        gStorage->markingComboSprite = NULL;
+        gStorage->markingComboTilesPtr = NULL;
+        return FALSE;
+    }
+
+    return TRUE;
 }
 
 static void RefreshDisplayMonData(void)
@@ -2193,7 +2310,7 @@ static void RefreshDisplayMonData(void)
 static void StartDisplayMonMosaic(void)
 {
     RefreshDisplayMonData();
-    if (gStorage->displayMonSprite)
+    if (ValidateDisplayMonSprite())
     {
         gStorage->displayMonSprite->oam.mosaic = TRUE;
         gStorage->displayMonSprite->data[0] = 10;
@@ -2205,6 +2322,9 @@ static void StartDisplayMonMosaic(void)
 
 static u8 IsDisplayMonMosaicActive(void)
 {
+    if (!ValidateDisplayMonSprite())
+        return FALSE;
+
     return gStorage->displayMonSprite->oam.mosaic;
 }
 
@@ -2266,7 +2386,7 @@ static void CreateDisplayMonSprite(void)
 
 static void LoadDisplayMonGfx(u16 species, u32 personality)
 {
-    if (gStorage->displayMonSprite == NULL)
+    if (!ValidateDisplayMonSprite() || gStorage->displayMonTilePtr == NULL)
         return;
 
     if (species != SPECIES_NONE)
@@ -2301,12 +2421,12 @@ static void PrintDisplayMonInfo(void)
     }
 
     CopyWindowToVram(0, COPYWIN_GFX);
-    if (gStorage->displayMonSpecies != SPECIES_NONE)
+    if (ValidateMarkingComboSprite() && gStorage->markingComboTilesPtr != NULL && gStorage->displayMonSpecies != SPECIES_NONE)
     {
         UpdateMonMarkingTiles(gStorage->displayMonMarkings, gStorage->markingComboTilesPtr);
         gStorage->markingComboSprite->invisible = FALSE;
     }
-    else
+    else if (ValidateMarkingComboSprite())
         gStorage->markingComboSprite->invisible = TRUE;
 }
 
@@ -2318,13 +2438,15 @@ static void UpdateWaveformAnimation(void)
     {
         TilemapUtil_SetRect(TILEMAP_PKMN_DATA, 0, 0, 8, 2);
         for (i = 0; i < 2; i++)
-            StartSpriteAnimIfDifferent(gStorage->waveformSprites[i], i * 2 + 1);
+            if (gStorage->waveformSprites[i] != NULL)
+                StartSpriteAnimIfDifferent(gStorage->waveformSprites[i], i * 2 + 1);
     }
     else
     {
         TilemapUtil_SetRect(TILEMAP_PKMN_DATA, 0, 2, 8, 2);
         for (i = 0; i < 2; i++)
-            StartSpriteAnim(gStorage->waveformSprites[i], i * 2);
+            if (gStorage->waveformSprites[i] != NULL)
+                StartSpriteAnim(gStorage->waveformSprites[i], i * 2);
     }
 
     TilemapUtil_Update(TILEMAP_PKMN_DATA);
