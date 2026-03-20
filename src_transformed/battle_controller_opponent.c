@@ -23,18 +23,6 @@
 
 #ifdef PORTABLE
 #include <stdio.h>
-#include <stdarg.h>
-extern void firered_runtime_trace_external(const char *message);
-static void TraceOpponentSendout(const char *fmt, ...)
-{
-    char buffer[256];
-    va_list args;
-
-    va_start(args, fmt);
-    vsnprintf(buffer, sizeof(buffer), fmt, args);
-    va_end(args);
-    firered_runtime_trace_external(buffer);
-}
 
 static bool8 IsPortableLiveSprite(u8 spriteId)
 {
@@ -190,10 +178,6 @@ static void OpponentBufferRunCommand(void)
     {
         if (gBattleBufferA[gActiveBattler][0] < NELEMS(sOpponentBufferCommands))
         {
-#ifdef PORTABLE
-            printf("OpponentBufferRunCommand: cmd=0x%02X\n", gBattleBufferA[gActiveBattler][0]);
-            fflush(stdout);
-#endif
             sOpponentBufferCommands[gBattleBufferA[gActiveBattler][0]]();
         }
         else
@@ -308,24 +292,12 @@ static void TryShinyAnimAfterMonAnim(void)
         OpponentBufferExecCompleted();
         return;
     }
-    TraceOpponentSendout("OpponentSendout: animEnded=%u x2=%d tried=%u finished=%u sprite=%u",
-                         gSprites[gBattlerSpriteIds[gActiveBattler]].animEnded,
-                         gSprites[gBattlerSpriteIds[gActiveBattler]].x2,
-                         gBattleSpritesDataPtr->healthBoxesData[gActiveBattler].triedShinyMonAnim,
-                         gBattleSpritesDataPtr->healthBoxesData[gActiveBattler].finishedShinyMonAnim,
-                         gBattlerSpriteIds[gActiveBattler]);
 #endif
     if (gSprites[gBattlerSpriteIds[gActiveBattler]].animEnded == TRUE
      && gSprites[gBattlerSpriteIds[gActiveBattler]].x2 == 0)
     {
         if (!gBattleSpritesDataPtr->healthBoxesData[gActiveBattler].triedShinyMonAnim)
         {
-#ifdef PORTABLE
-            TraceOpponentSendout("OpponentSendout: pre-TryShinyAnimation battler=%u party=%u species=%u",
-                                 gActiveBattler,
-                                 gBattlerPartyIndexes[gActiveBattler],
-                                 GetMonData(&gEnemyParty[gBattlerPartyIndexes[gActiveBattler]], MON_DATA_SPECIES));
-#endif
             TryShinyAnimation(gActiveBattler, &gEnemyParty[gBattlerPartyIndexes[gActiveBattler]]);
         }
         else if (gBattleSpritesDataPtr->healthBoxesData[gActiveBattler].finishedShinyMonAnim)
@@ -334,9 +306,6 @@ static void TryShinyAnimAfterMonAnim(void)
             gBattleSpritesDataPtr->healthBoxesData[gActiveBattler].finishedShinyMonAnim = FALSE;
             FreeSpriteTilesByTag(ANIM_TAG_GOLD_STARS);
             FreeSpritePaletteByTag(ANIM_TAG_GOLD_STARS);
-#ifdef PORTABLE
-            TraceOpponentSendout("OpponentSendout: shiny path complete");
-#endif
             OpponentBufferExecCompleted();
         }
     }
@@ -455,19 +424,9 @@ static void SwitchIn_TryShinyAnim(void)
       || gSprites[gBattleControllerData[gActiveBattler]].callback == SpriteCallbackDummy)
      && !gBattleSpritesDataPtr->healthBoxesData[gActiveBattler].ballAnimActive)
     {
-#ifdef PORTABLE
-        TraceOpponentSendout("OpponentSwitchIn: pre-destroy ctrl=%u sprite=%u shadow=%u",
-                             gBattleControllerData[gActiveBattler],
-                             gBattlerSpriteIds[gActiveBattler],
-                             gBattleSpritesDataPtr->healthBoxesData[gActiveBattler].shadowSpriteId);
-#endif
         if (IsPortableLiveSprite(gBattleControllerData[gActiveBattler]))
             DestroySprite(&gSprites[gBattleControllerData[gActiveBattler]]);
         SetBattlerShadowSpriteCallback(gActiveBattler, GetMonData(&gEnemyParty[gBattlerPartyIndexes[gActiveBattler]], MON_DATA_SPECIES));
-#ifdef PORTABLE
-        TraceOpponentSendout("OpponentSwitchIn: post-shadow-callback healthbox=%u",
-                             gHealthboxSpriteIds[gActiveBattler]);
-#endif
         gBattlerControllerFuncs[gActiveBattler] = SwitchIn_ShowHealthbox;
     }
 }
@@ -1135,15 +1094,6 @@ static void StartSendOutAnim(u8 battlerId, bool8 dontClearSubstituteBit)
                                                 GetBattlerSpriteCoord(battlerId, BATTLER_COORD_X_2),
                                                 GetBattlerSpriteDefault_Y(battlerId),
                                                 GetBattlerSpriteSubpriority(battlerId));
-#ifdef PORTABLE
-    TraceOpponentSendout("OpponentStartSendout: battler=%u species=%u ctrl=%u sprite=%u x=%d y=%d",
-                         battlerId,
-                         species,
-                         gBattleControllerData[battlerId],
-                         gBattlerSpriteIds[battlerId],
-                         gSprites[gBattlerSpriteIds[battlerId]].x,
-                         gSprites[gBattlerSpriteIds[battlerId]].y);
-#endif
     gSprites[gBattlerSpriteIds[battlerId]].data[0] = battlerId;
     gSprites[gBattlerSpriteIds[battlerId]].data[2] = species;
     gSprites[gBattleControllerData[battlerId]].data[1] = gBattlerSpriteIds[battlerId];

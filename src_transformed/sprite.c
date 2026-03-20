@@ -1,6 +1,5 @@
 #include "global.h"
 #include "gflib.h"
-
 #ifdef PORTABLE
 #include <stdio.h>
 extern void firered_runtime_trace_external(const char *message);
@@ -94,27 +93,7 @@ static void DoLoadSpritePalette(const u16 *src, u16 paletteOffset);
 static void UpdateSpriteMatrixAnchorPos(struct Sprite* sprite, s32 a1, s32 a2);
 
 #ifdef PORTABLE
-static bool8 IsBattleUiSpriteTag(u16 tag)
-{
-    return tag >= 55039 && tag <= 55061;
-}
-
-static void TraceBattleUiSpriteTag(const char *action, u16 tag, u16 start, u16 count)
-{
-    char buffer[160];
-
-    if (!IsBattleUiSpriteTag(tag))
-        return;
-
-    snprintf(buffer, sizeof(buffer),
-             "BattleSpriteTiles: %s tag=%u start=%u count=%u bytes=%u",
-             action,
-             tag,
-             start,
-             count,
-             count * TILE_SIZE_4BPP);
-    firered_runtime_trace_external(buffer);
-}
+#define TraceBattleUiSpriteTag(...) ((void)0)
 #endif
 
 typedef void (*AnimFunc)(struct Sprite *);
@@ -332,9 +311,6 @@ void ResetSpriteData(void)
 
 void AnimateSprites(void)
 {
-#ifdef PORTABLE
-    firered_runtime_trace_external("CrashTrace: AnimateSprites enter");
-#endif
     u8 i;
     for (i = 0; i < MAX_SPRITES; i++)
     {
@@ -352,9 +328,6 @@ void AnimateSprites(void)
 
 void BuildOamBuffer(void)
 {
-#ifdef PORTABLE
-    firered_runtime_trace_external("CrashTrace: BuildOamBuffer enter");
-#endif
     u8 temp;
     UpdateOamCoords();
     BuildSpritePriorities();
@@ -708,20 +681,6 @@ void LoadOam(void)
                     struct OamData *src = &gMain.oamBuffer[i];
 
                     if (src->x > 176 && src->x < 240 && src->y > 20 && src->y < 160) {
-                        printf("BattleOAMUpload: i=%u x=%u y=%u tile=%u shape=%u size=%u prio=%u pal=%u aff=%u obj=%u bpp=%u matrix=%u\n",
-                               i,
-                               src->x,
-                               src->y,
-                               src->tileNum,
-                               src->shape,
-                               src->size,
-                               src->priority,
-                               src->paletteNum,
-                               src->affineMode,
-                               src->objMode,
-                               src->bpp,
-                               src->matrixNum);
-                        fflush(stdout);
                         printed++;
                     }
                 }
@@ -903,8 +862,6 @@ void ProcessSpriteCopyRequests(void)
                 if (gSpriteCopyRequests[i].dest < (u8 *)OBJ_VRAM0
                  || gSpriteCopyRequests[i].dest + gSpriteCopyRequests[i].size > vramEnd)
                 {
-                    printf("WARN: ProcessSpriteCopyRequests dest out of bounds, skipping\n");
-                    fflush(stdout);
                     gSpriteCopyRequestCount--;
                     i++;
                     continue;
@@ -927,8 +884,6 @@ void RequestSpriteFrameImageCopy(u16 index, u16 tileNum, const struct SpriteFram
 #ifdef PORTABLE
         if (tileNum >= TOTAL_OBJ_TILE_COUNT)
         {
-            printf("WARN: RequestSpriteFrameImageCopy tileNum=%u out of bounds, clamping\n", tileNum);
-            fflush(stdout);
             tileNum = TOTAL_OBJ_TILE_COUNT - 1;
         }
 #endif
