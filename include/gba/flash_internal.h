@@ -70,6 +70,17 @@ u32 ProgramFlashSectorAndVerify(u16 sectorNum, u8 *src);
 void ReadFlash(u16 sectorNum, u32 offset, void *dest, u32 size);
 u32 ProgramFlashSectorAndVerifyNBytes(u16 sectorNum, void *dataSrc, u32 n);
 
+// Portable builds keep the flash chip contents in host memory and persist them
+// to a .sav file. Expose an explicit export hook so other tooling (e.g.
+// mGBA) can consume the latest save data.
+#ifdef PORTABLE
+void PortableFlash_Export(const char *path);
+#if defined(FIRERED)
+/* After writes: fix SaveBlock2+0xAC in BOTH GBA save slots (PKHeX uses the first valid slot). */
+void PortableFlash_PatchPkhexFrLgFingerprintAllSlots(void);
+#endif
+#endif
+
 u16 WaitForFlashWrite_Common(u8 phase, u8 *addr, u8 lastData);
 
 u16 EraseFlashChip_MX(void);
