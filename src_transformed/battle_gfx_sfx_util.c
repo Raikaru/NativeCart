@@ -18,30 +18,16 @@
 #include "constants/songs.h"
 
 #ifdef PORTABLE
-#include <stdarg.h>
 #include <stdio.h>
+#include <stddef.h>
 #include "battle_interface_portable_assets.h"
 #include "trainer_graphics_portable_paths.h"
-
-extern void firered_runtime_trace_external(const char *message);
-
-static u8 sBattleSpriteInitTraceCount;
-
-static void TraceBattleSpriteInit(const char *fmt, ...)
-{
-    char buffer[256];
-    va_list args;
-
-    if (sBattleSpriteInitTraceCount >= 96)
-        return;
-
-    va_start(args, fmt);
-    vsnprintf(buffer, sizeof(buffer), fmt, args);
-    va_end(args);
-    firered_runtime_trace_external(buffer);
-    fflush(stdout);
-    sBattleSpriteInitTraceCount++;
-}
+#undef malloc
+#undef calloc
+#undef free
+extern void *malloc(size_t size);
+extern void free(void *ptr);
+#define TraceBattleSpriteInit(...) ((void)0)
 
 static const char *const sPortableBattleAssetPrefixes[] = {
     "",
@@ -94,7 +80,7 @@ static void *LoadPortableBattleAssetFile(const char *relativePath)
 
     rewind(file);
     allocSize = (u32)size;
-    data = Alloc(allocSize);
+    data = malloc(allocSize);
     if (data == NULL)
     {
         fclose(file);
@@ -105,7 +91,7 @@ static void *LoadPortableBattleAssetFile(const char *relativePath)
     fclose(file);
     if (bytesRead != (size_t)size)
     {
-        Free(data);
+        free(data);
         return NULL;
     }
 
