@@ -19,7 +19,7 @@ def write_if_changed(path, text):
 
 
 def c_string(value):
-    return json.dumps(value, ensure_ascii=False).replace('\\n', '\n')
+    return json.dumps(value, ensure_ascii=False)
 
 
 def load_items(path):

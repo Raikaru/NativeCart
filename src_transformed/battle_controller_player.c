@@ -35,6 +35,9 @@ static bool8 IsPortableLiveSprite(u8 spriteId)
 }
 #endif
 
+static const u8 sMoveInterfacePPBinary[] = { CHAR_P, CHAR_P, CHAR_SPACE, EOS };
+static const u8 sMoveInterfaceTypeBinary[] = { CHAR_T, CHAR_Y, CHAR_P, CHAR_E, CHAR_SLASH, EOS };
+
 static void PlayerHandleGetMonData(void);
 static void PlayerHandleSetMonData(void);
 static void PlayerHandleSetRawMonData(void);
@@ -101,6 +104,7 @@ static void MoveSelectionDisplayMoveNames(void);
 static void HandleMoveSwitching(void);
 static void WaitForMonSelection(void);
 static void CompleteWhenChoseItem(void);
+static u8 *AppendMoveInterfaceDynamicColors(u8 *dst);
 static void Task_LaunchLvlUpAnim(u8 taskId);
 static void Task_PrepareToGiveExpWithExpBar(u8 taskId);
 static void DestroyExpTaskAndCompleteOnInactiveTextPrinter(u8 taskId);
@@ -1409,6 +1413,20 @@ static void DoHitAnimBlinkSpriteEffect(void)
     }
 }
 
+static u8 *AppendMoveInterfaceDynamicColors(u8 *dst)
+{
+    *dst++ = EXT_CTRL_CODE_BEGIN;
+    *dst++ = EXT_CTRL_CODE_PALETTE;
+    *dst++ = 5;
+    *dst++ = EXT_CTRL_CODE_BEGIN;
+    *dst++ = EXT_CTRL_CODE_COLOR_HIGHLIGHT_SHADOW;
+    *dst++ = 13;
+    *dst++ = 14;
+    *dst++ = 15;
+    *dst = EOS;
+    return dst;
+}
+
 static void MoveSelectionDisplayMoveNames(void)
 {
     s32 i;
@@ -1418,13 +1436,14 @@ static void MoveSelectionDisplayMoveNames(void)
     for (i = 0; i < MAX_MON_MOVES; ++i)
     {
         u16 move = GetSafeChooseMoveId(moveInfo, i);
+        u8 *txtPtr;
 
         MoveSelectionDestroyCursorAt(i);
-        StringCopy(gDisplayedStringBattle, gText_MoveInterfaceDynamicColors);
+        txtPtr = AppendMoveInterfaceDynamicColors(gDisplayedStringBattle);
         if (move == MOVE_NONE)
-            StringAppend(gDisplayedStringBattle, gText_ThreeHyphens);
+            StringCopy(txtPtr, gText_ThreeHyphens);
         else
-            StringAppend(gDisplayedStringBattle, gMoveNames[move]);
+            StringCopy(txtPtr, gMoveNames[move]);
         BattlePutTextOnWindow(gDisplayedStringBattle, i + 3);
         if (move != MOVE_NONE)
             ++gNumberOfMovesToChoose;
@@ -1433,7 +1452,7 @@ static void MoveSelectionDisplayMoveNames(void)
 
 static void MoveSelectionDisplayPpString(void)
 {
-    StringCopy(gDisplayedStringBattle, gText_MoveInterfacePP);
+    StringCopy(gDisplayedStringBattle, sMoveInterfacePPBinary);
     BattlePutTextOnWindow(gDisplayedStringBattle, B_WIN_PP);
 }
 
@@ -1458,11 +1477,11 @@ static void MoveSelectionDisplayMoveType(void)
     struct ChooseMoveStruct *moveInfo = (struct ChooseMoveStruct *)(&gBattleBufferA[gActiveBattler][4]);
     u16 move = GetSafeChooseMoveId(moveInfo, gMoveSelectionCursor[gActiveBattler]);
 
-    txtPtr = StringCopy(gDisplayedStringBattle, gText_MoveInterfaceType);
+    txtPtr = StringCopy(gDisplayedStringBattle, sMoveInterfaceTypeBinary);
     *txtPtr++ = EXT_CTRL_CODE_BEGIN;
     *txtPtr++ = 6;
     *txtPtr++ = 1;
-    txtPtr = StringCopy(txtPtr, gText_MoveInterfaceDynamicColors);
+    txtPtr = AppendMoveInterfaceDynamicColors(txtPtr);
     if (move == MOVE_NONE)
         StringCopy(txtPtr, gText_ThreeHyphens);
     else
