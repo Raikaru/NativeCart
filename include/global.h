@@ -122,6 +122,15 @@ void Free(void *pointer);
 // each of the files that were worked on.
 #ifdef PORTABLE
 extern const void *firered_portable_resolve_script_ptr(u32 value);
+/* Host pointer / token → u32 for SaveBlock fields (ROM addrs, portable tokens, not truncated VAs). */
+extern u32 firered_portable_ptr_to_save_u32(const void *ptr);
+/*
+ * Map object-event scripts: exact table + known tokens only (no ROM string scan — avoids
+ * mis-binding duplicate script bytes).
+ */
+extern u32 firered_portable_map_object_event_script_ptr_to_save_u32(const void *ptr);
+/* Fills ObjectEventTemplate.script in generated map_data_portable.c (after ROM / memory init). */
+void firered_portable_init_map_object_event_script_words(void);
 #endif
 
 #define T1_READ_8(ptr)  ((ptr)[0])
@@ -384,6 +393,10 @@ struct SaveBlock2
     /*0xB00*/ struct PokemonJumpRecords pokeJump;
     /*0xB10*/ struct BerryPickingResults berryPick;
     /*0xB20*/ u8 filler_B20[0x400];
+#ifdef PORTABLE
+    /* Host layout placed encryptionKey 4 bytes early vs retail 0xF20. */
+    u8 alignPadBeforeEncryptionKey[4];
+#endif
     /*0xF20*/ u32 encryptionKey;
 }; // size: 0xF24
 
@@ -600,8 +613,11 @@ struct QuestLogObjectEventTemplate
     u32 movementType:8;
 };
 
-struct QuestLogObjectEvent
-{
+#ifdef PORTABLE
+struct __attribute__((packed)) QuestLogObjectEvent {
+#else
+struct QuestLogObjectEvent {
+#endif
     /*0x00*/ u8 active:1;
     /*0x00*/ u8 triggerGroundEffectsOnStop:1;
     /*0x00*/ u8 disableCoveringGroundEffects:1;
@@ -635,6 +651,10 @@ struct QuestLogObjectEvent
     /*0x0f*/ u8 previousMetatileBehavior;
     /*0x10*/ u8 directionSequenceIndex;
     /*0x11*/ u8 animId;
+#ifdef PORTABLE
+    /* GBA sizeof(struct QuestLogObjectEvent) == 0x14 (tail padding before u8 flags[] in QuestLogScene). */
+    u8 alignPadToGba0x14[2];
+#endif
 };
 
 // This represents all the data needed to display a single scene for the "Quest Log" when the player resumes playing.
@@ -662,6 +682,10 @@ struct FameCheckerSaveData
     /*3a54*/ u16 pickState:2;
     u16 flavorTextFlags:12;
     u16 unk_0_E:2;
+#ifdef PORTABLE
+    /* GBA aligns each fameChecker[] element to 4 bytes (16 * 4 == 0x40 to 0x3A94). */
+    u8 paddingToGbaElementSize4[2];
+#endif
 };
 
 struct WonderNewsMetadata
@@ -814,6 +838,10 @@ struct SaveBlock1
     /*0x0632*/ u8 unused_632[6];
     /*0x0638*/ u16 trainerRematchStepCounter;
     /*0x063A*/ u8 ALIGNED(2) trainerRematches[MAX_REMATCH_ENTRIES];
+#ifdef PORTABLE
+    /* GBA inserts 2 bytes here so ObjectEvent[] starts at 0x06A0 (4-byte aligned). */
+    u8 alignPadBeforeObjectEvents[2];
+#endif
     /*0x06A0*/ struct ObjectEvent objectEvents[OBJECT_EVENTS_COUNT];
     /*0x08E0*/ struct ObjectEventTemplate objectEventTemplates[OBJECT_EVENT_TEMPLATES_COUNT];
     /*0x0EE0*/ u8 flags[NUM_FLAG_BYTES];
@@ -825,7 +853,15 @@ struct SaveBlock1
     /*0x2CB8*/ u16 easyChatBattleWon[EASY_CHAT_BATTLE_WORDS_COUNT];
     /*0x2CC4*/ u16 easyChatBattleLost[EASY_CHAT_BATTLE_WORDS_COUNT];
     /*0x2CD0*/ struct Mail mail[MAIL_COUNT];
+#ifdef PORTABLE
+    /* Retail gap 0x2F10 - 0x2CD0 == 0x240; mail is 16 * sizeof(struct Mail) == 0x220. */
+    u8 alignPadAfterMail[0x20];
+#endif
     /*0x2F10*/ u8 additionalPhrases[NUM_ADDITIONAL_PHRASE_BYTES];
+#ifdef PORTABLE
+    /* NUM_ADDITIONAL_PHRASE_BYTES (5) + 3 bytes padding to 0x2F18 */
+    u8 alignPadBeforeOldMan[3];
+#endif
     /*0x2F18*/ OldMan oldMan; // unused
     /*0x2F54*/ struct DewfordTrend dewfordTrends[5]; // unused
     /*0x2F80*/ struct DayCare daycare;

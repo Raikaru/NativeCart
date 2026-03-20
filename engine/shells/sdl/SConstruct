@@ -185,6 +185,7 @@ core_sources = [
     os.path.join(firered_generated_data_dir, "event_scripts_portable_data.c"),
     os.path.join(firered_generated_data_dir, "field_effect_scripts_portable_data.c"),
     os.path.join(firered_generated_data_dir, "map_data_portable.c"),
+    os.path.join(firered_generated_data_dir, "map_object_event_scripts_portable_data.c"),
 ]
 
 release_sensitive_prefixes = release_sensitive_sources(root_dir)
@@ -269,6 +270,11 @@ core_objects += build_objects(release_safe_env, stability_sources)
 asm_c_env = c_env.Clone()
 asm_c_env.Append(CCFLAGS=["-fno-asm"])
 core_objects += build_objects(asm_c_env, portable_asm_sources)
+# main_portable.c #includes src_transformed/main.c; track it so main.c edits rebuild.
+Depends(
+    object_target_for(os.path.join(firered_portable_dir, "main_portable.c")),
+    os.path.join(root_dir, "src_transformed", "main.c"),
+)
 firered_core_lib = c_env.Command(
     target=os.path.join(sdl_build_dir, "libfirered_core_sdl.a"),
     source=core_objects,
