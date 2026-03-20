@@ -108,8 +108,15 @@ static const u8 sPartyMenuSpriteCoords[PARTY_LAYOUT_COUNT][PARTY_SIZE][4 * 2] =
     },
 };
 
+#ifdef PORTABLE
+extern const u32 sConfirmButton_Tilemap_Portable[];
+extern const u32 sCancelButton_Tilemap_Portable[];
+#define sConfirmButton_Tilemap sConfirmButton_Tilemap_Portable
+#define sCancelButton_Tilemap sCancelButton_Tilemap_Portable
+#else
 static const u32 sConfirmButton_Tilemap[] = INCBIN_U32("graphics/party_menu/confirm_button.bin");
 static const u32 sCancelButton_Tilemap[] = INCBIN_U32("graphics/party_menu/cancel_button.bin");
+#endif
 
 static const u8 sFontColorTable[][3] =
 {
@@ -552,11 +559,24 @@ static const struct WindowTemplate sFieldMoveDescriptionWindowTemplate =
 // Plain tilemaps for party menu slots.
 // The versions with no HP bar are used by eggs, and in certain displays like registering at a battle facility.
 // There is no empty version of the main slot because it shouldn't ever be empty.
+#ifdef PORTABLE
+extern const u8 sSlotTilemap_Main_Portable[];
+extern const u8 sSlotTilemap_MainNoHP_Portable[];
+extern const u8 sSlotTilemap_Wide_Portable[];
+extern const u8 sSlotTilemap_WideNoHP_Portable[];
+extern const u8 sSlotTilemap_WideEmpty_Portable[];
+#define sSlotTilemap_Main sSlotTilemap_Main_Portable
+#define sSlotTilemap_MainNoHP sSlotTilemap_MainNoHP_Portable
+#define sSlotTilemap_Wide sSlotTilemap_Wide_Portable
+#define sSlotTilemap_WideNoHP sSlotTilemap_WideNoHP_Portable
+#define sSlotTilemap_WideEmpty sSlotTilemap_WideEmpty_Portable
+#else
 static const u8 sSlotTilemap_Main[]      = INCBIN_U8("graphics/party_menu/slot_main.bin");
 static const u8 sSlotTilemap_MainNoHP[]  = INCBIN_U8("graphics/party_menu/slot_main_no_hp.bin");
 static const u8 sSlotTilemap_Wide[]      = INCBIN_U8("graphics/party_menu/slot_wide.bin");
 static const u8 sSlotTilemap_WideNoHP[]  = INCBIN_U8("graphics/party_menu/slot_wide_no_hp.bin");
 static const u8 sSlotTilemap_WideEmpty[] = INCBIN_U8("graphics/party_menu/slot_wide_empty.bin");
+#endif
 
 static const u8 sGenderPalOffsets[] = {11, 12};
 

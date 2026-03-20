@@ -6,6 +6,7 @@
 
 #ifdef PORTABLE
 #include "pokemon_icon_portable_assets.h"
+#include "pokemon_icon_portable_assets_all.h"
 #endif
 
 #define POKE_ICON_BASE_PAL_TAG 56000
