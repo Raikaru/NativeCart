@@ -59,6 +59,9 @@
 #include <stdio.h>
 extern void firered_runtime_trace_external(const char *message);
 extern void CB2_InitBattle(void);
+extern void QL_AppendPlaybackTrace(const char *phase);
+#define firered_runtime_trace_external(...) ((void)0)
+#define QL_AppendPlaybackTrace(...) ((void)0)
 
 static const void *ResolveRomPointer(const void *ptr)
 {
@@ -1526,30 +1529,47 @@ static void DoCB1_Overworld_QuestLogPlayback(void)
 {
     struct FieldInput fieldInput;
 
+    QL_AppendPlaybackTrace("ql_overworld_tick_enter");
     QL_TryRunActions();
+    QL_AppendPlaybackTrace("ql_overworld_after_tryrun");
     UpdatePlayerAvatarTransitionState();
+    QL_AppendPlaybackTrace("ql_overworld_after_avatar");
     QL_HandleInput();
+    QL_AppendPlaybackTrace("ql_overworld_after_handleinput");
     FieldClearPlayerInput(&fieldInput);
     fieldInput = gQuestLogFieldInput;
     FieldInput_HandleCancelSignpost(&fieldInput);
+    QL_AppendPlaybackTrace("ql_overworld_after_cancel_signpost");
     if (!ArePlayerFieldControlsLocked())
     {
+        QL_AppendPlaybackTrace("ql_overworld_before_process_input");
         int processed = ProcessPlayerFieldInput(&fieldInput);
+        QL_AppendPlaybackTrace(processed ? "ql_overworld_process_input_true" : "ql_overworld_process_input_false");
         if (processed == TRUE)
         {
             LockPlayerFieldControls();
             DismissMapNamePopup();
+            QL_AppendPlaybackTrace("ql_overworld_after_lock");
         }
         else
         {
+            QL_AppendPlaybackTrace("ql_overworld_before_run_cb");
             RunQuestLogCB();
+            QL_AppendPlaybackTrace("ql_overworld_after_run_cb");
         }
     }
     else if (QuestLogScenePlaybackIsEnding() == TRUE)
     {
+        QL_AppendPlaybackTrace("ql_overworld_locked_scene_ending");
         RunQuestLogCB();
+        QL_AppendPlaybackTrace("ql_overworld_locked_scene_after_cb");
+    }
+    else
+    {
+        QL_AppendPlaybackTrace("ql_overworld_locked_replay_wait");
     }
     FieldClearPlayerInput(&gQuestLogFieldInput);
+    QL_AppendPlaybackTrace("ql_overworld_tick_done");
 }
 
 void CB1_Overworld(void)
@@ -2432,8 +2452,12 @@ static void InitObjectEventsLocal(void)
 
 static void ReloadObjectsAndRunReturnToFieldMapScript(void)
 {
+    if (gQuestLogState == QL_STATE_PLAYBACK)
+        QL_AppendPlaybackTrace("ql_return_to_field_script_enter");
     SpawnObjectEventsOnReturnToField(0, 0);
     RunOnReturnToFieldMapScript();
+    if (gQuestLogState == QL_STATE_PLAYBACK)
+        QL_AppendPlaybackTrace("ql_return_to_field_script_done");
 }
 
 static void SetCameraToTrackPlayer(void)
@@ -2530,6 +2554,7 @@ static bool32 LoadMap_QLPlayback(u8 *state)
     switch (*state)
     {
     case 0:
+        QL_AppendPlaybackTrace("ql_loadmap_state0_enter");
         InitOverworldBgs();
         FieldClearVBlankHBlankCallbacks();
         QuestLog_InitPalettesBackup();
@@ -2538,64 +2563,91 @@ static bool32 LoadMap_QLPlayback(u8 *state)
         if (GetQuestLogStartType() == QL_START_WARP)
         {
             gExitStairsMovementDisabled = FALSE;
+            QL_AppendPlaybackTrace("ql_loadmap_state0_warp");
             LoadMapFromWarp(FALSE);
         }
         else
         {
             gExitStairsMovementDisabled = TRUE;
+            QL_AppendPlaybackTrace("ql_loadmap_state0_normal");
             QL_LoadMapNormal();
         }
         (*state)++;
+        QL_AppendPlaybackTrace("ql_loadmap_state0_done");
         break;
     case 1:
+        QL_AppendPlaybackTrace("ql_loadmap_state1_enter");
         QL_InitSceneObjectsAndActions();
         (*state)++;
+        QL_AppendPlaybackTrace("ql_loadmap_state1_done");
         break;
     case 2:
+        QL_AppendPlaybackTrace("ql_loadmap_state2_enter");
         ResumeMap(FALSE);
         (*state)++;
+        QL_AppendPlaybackTrace("ql_loadmap_state2_done");
         break;
     case 3:
+        QL_AppendPlaybackTrace("ql_loadmap_state3_enter");
         ReloadObjectsAndRunReturnToFieldMapScript();
         SetCameraToTrackPlayer();
         (*state)++;
+        QL_AppendPlaybackTrace("ql_loadmap_state3_done");
         break;
     case 4:
+        QL_AppendPlaybackTrace("ql_loadmap_state4_enter");
         InitCurrentFlashLevelScanlineEffect();
         InitOverworldGraphicsRegisters();
         (*state)++;
+        QL_AppendPlaybackTrace("ql_loadmap_state4_done");
         break;
     case 5:
+        QL_AppendPlaybackTrace("ql_loadmap_state5_enter");
         move_tilemap_camera_to_upper_left_corner();
         (*state)++;
+        QL_AppendPlaybackTrace("ql_loadmap_state5_done");
         break;
     case 6:
+        QL_AppendPlaybackTrace("ql_loadmap_state6_enter");
         CopyPrimaryTilesetToVram(gMapHeader.mapLayout);
         (*state)++;
+        QL_AppendPlaybackTrace("ql_loadmap_state6_done");
         break;
     case 7:
+        QL_AppendPlaybackTrace("ql_loadmap_state7_enter");
         CopySecondaryTilesetToVram(gMapHeader.mapLayout);
         (*state)++;
+        QL_AppendPlaybackTrace("ql_loadmap_state7_done");
         break;
     case 8:
+        QL_AppendPlaybackTrace("ql_loadmap_state8_enter");
         if (FreeTempTileDataBuffersIfPossible() != TRUE)
         {
             LoadMapTilesetPalettes(gMapHeader.mapLayout);
             (*state)++;
+            QL_AppendPlaybackTrace("ql_loadmap_state8_done");
         }
         break;
     case 9:
+        QL_AppendPlaybackTrace("ql_loadmap_state9_enter");
         DrawWholeMapView();
         (*state)++;
+        QL_AppendPlaybackTrace("ql_loadmap_state9_done");
         break;
     case 10:
+        QL_AppendPlaybackTrace("ql_loadmap_state10_enter");
         InitTilesetAnimations();
         QL_TryStopSurfing();
         (*state)++;
+        QL_AppendPlaybackTrace("ql_loadmap_state10_done");
         break;
     default:
+        QL_AppendPlaybackTrace("ql_loadmap_run_fieldcb");
         if (RunFieldCallback())
+        {
+            QL_AppendPlaybackTrace("ql_loadmap_run_fieldcb_done");
             return TRUE;
+        }
         break;
     }
     return FALSE;
