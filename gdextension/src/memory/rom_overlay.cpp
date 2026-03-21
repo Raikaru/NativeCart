@@ -343,37 +343,38 @@ bool BpsPatch::applyActions(const uint8_t* patch_data, size_t patch_size,
     size_t metadata_len = static_cast<size_t>(decodeVariableLength(patch_data, pos, max_pos));
     pos += metadata_len;
 
-    size_t source_offset = 0;
-    size_t target_offset = 0;
+    // Three independent cursors (Flips libbps): do not alias SourceCopy ROM cursor with TargetCopy.
+    size_t target_write = 0;
+    size_t source_copy_pos = 0;
+    size_t target_copy_pos = 0;
 
-    while (pos < max_pos && target_offset < target_size_) {
+    while (pos < max_pos && target_write < target_size_) {
         uint64_t action_data = decodeVariableLength(patch_data, pos, max_pos);
         uint8_t action = action_data & 3;
         uint64_t length = (action_data >> 2) + 1;
 
         switch (action) {
             case BPS_COMMAND::SOURCE_READ: {
-                // Copy from source to target
-                if (source_offset + length > source_size ||
-                    target_offset + length > target_size_) {
+                // Copy source at current output index (beat/BPS SourceRead semantics).
+                if (target_write + length > source_size ||
+                    target_write + length > target_size_) {
                     error_message_ = "SourceRead out of bounds";
                     return false;
                 }
-                std::memcpy(target + target_offset, source + source_offset, length);
-                source_offset += length;
-                target_offset += length;
+                std::memcpy(target + target_write, source + target_write, length);
+                target_write += length;
                 break;
             }
 
             case BPS_COMMAND::TARGET_READ: {
                 // Read literal data from patch
-                if (pos + length > max_pos || target_offset + length > target_size_) {
+                if (pos + length > max_pos || target_write + length > target_size_) {
                     error_message_ = "TargetRead out of bounds";
                     return false;
                 }
-                std::memcpy(target + target_offset, patch_data + pos, length);
+                std::memcpy(target + target_write, patch_data + pos, length);
                 pos += length;
-                target_offset += length;
+                target_write += length;
                 break;
             }
 
@@ -384,19 +385,24 @@ bool BpsPatch::applyActions(const uint8_t* patch_data, size_t patch_size,
                                                       : static_cast<int64_t>(offset_encoded >> 1);
                 
                 if (offset < 0) {
-                    source_offset -= static_cast<size_t>(-offset);
+                    const size_t u = static_cast<size_t>(-offset);
+                    if (u > source_copy_pos) {
+                        error_message_ = "SourceCopy negative offset underflow";
+                        return false;
+                    }
+                    source_copy_pos -= u;
                 } else {
-                    source_offset += static_cast<size_t>(offset);
+                    source_copy_pos += static_cast<size_t>(offset);
                 }
 
-                if (source_offset + length > source_size ||
-                    target_offset + length > target_size_) {
+                if (source_copy_pos + length > source_size ||
+                    target_write + length > target_size_) {
                     error_message_ = "SourceCopy out of bounds";
                     return false;
                 }
-                std::memcpy(target + target_offset, source + source_offset, length);
-                source_offset += length;
-                target_offset += length;
+                std::memcpy(target + target_write, source + source_copy_pos, length);
+                source_copy_pos += length;
+                target_write += length;
                 break;
             }
 
@@ -407,23 +413,33 @@ bool BpsPatch::applyActions(const uint8_t* patch_data, size_t patch_size,
                                                       : static_cast<int64_t>(offset_encoded >> 1);
                 
                 if (offset < 0) {
-                    source_offset -= static_cast<size_t>(-offset);
+                    const size_t u = static_cast<size_t>(-offset);
+                    if (u > target_copy_pos) {
+                        error_message_ = "TargetCopy negative offset underflow";
+                        return false;
+                    }
+                    target_copy_pos -= u;
                 } else {
-                    source_offset += static_cast<size_t>(offset);
+                    target_copy_pos += static_cast<size_t>(offset);
                 }
 
-                if (source_offset + length > target_offset ||
-                    target_offset + length > target_size_) {
+                /* Flips libbps: outreadat < outat; outreadat+length <= outend (not <= outat). */
+                if (target_copy_pos >= target_write) {
+                    error_message_ = "TargetCopy read offset at or past write head";
+                    return false;
+                }
+                if (target_copy_pos + length > target_size_ ||
+                    target_write + length > target_size_) {
                     error_message_ = "TargetCopy out of bounds";
                     return false;
                 }
 
                 // Copy byte by byte to handle overlapping regions
                 for (size_t i = 0; i < length; i++) {
-                    target[target_offset + i] = target[source_offset + i];
+                    target[target_write + i] = target[target_copy_pos + i];
                 }
-                source_offset += length;
-                target_offset += length;
+                target_copy_pos += length;
+                target_write += length;
                 break;
             }
 
