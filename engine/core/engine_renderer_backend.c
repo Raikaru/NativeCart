@@ -13,7 +13,12 @@ extern void engine_backend_trace_external(const char *message);
 extern unsigned long engine_backend_get_completed_frame_external(void);
 extern uint16_t gPlttBufferFaded[];
 
-static void engine_renderer_tracef(const char *fmt, ...)
+#ifdef NDEBUG
+#define ENGINE_RENDERER_TRACE_MSG(msg) ((void)0)
+#define ENGINE_RENDERER_TRACEF(...) ((void)0)
+#else
+#define ENGINE_RENDERER_TRACE_MSG(msg) engine_backend_trace_external(msg)
+static void engine_renderer_tracef_impl(const char *fmt, ...)
 {
     char buffer[128];
     va_list args;
@@ -21,8 +26,10 @@ static void engine_renderer_tracef(const char *fmt, ...)
     va_start(args, fmt);
     vsnprintf(buffer, sizeof(buffer), fmt, args);
     va_end(args);
-    engine_backend_trace_external(buffer);
+    ENGINE_RENDERER_TRACE_MSG(buffer);
 }
+#define ENGINE_RENDERER_TRACEF(...) engine_renderer_tracef_impl(__VA_ARGS__)
+#endif
 
 #define ENGINE_PALETTE_ENTRIES 512
 #define ENGINE_MAX_SPRITES 128
@@ -125,10 +132,10 @@ static void engine_update_palette_cache(void) {
     uint16_t *palette = engine_palette();
 #endif
 
-    engine_backend_trace_external("palette_cache: enter");
+    ENGINE_RENDERER_TRACE_MSG("palette_cache: enter");
 
     if (memcmp(g_palette_snapshot, palette, sizeof(g_palette_snapshot)) == 0) {
-        engine_backend_trace_external("palette_cache: exit");
+        ENGINE_RENDERER_TRACE_MSG("palette_cache: exit");
         return;
     }
 
@@ -138,20 +145,20 @@ static void engine_update_palette_cache(void) {
         g_palette_cache[i] = engine_gba_to_rgba(palette[i]);
     }
 
-    engine_backend_trace_external("palette_cache: exit");
+    ENGINE_RENDERER_TRACE_MSG("palette_cache: exit");
 }
 
 static void engine_clear_framebuffer(uint32_t rgba) {
     uint32_t *fb = (uint32_t *)(void *)g_framebuffer;
     size_t i;
 
-    engine_backend_trace_external("clear_framebuffer: enter");
+    ENGINE_RENDERER_TRACE_MSG("clear_framebuffer: enter");
 
     for (i = 0; i < ENGINE_GBA_WIDTH * ENGINE_GBA_HEIGHT; ++i) {
         fb[i] = rgba;
     }
 
-    engine_backend_trace_external("clear_framebuffer: exit");
+    ENGINE_RENDERER_TRACE_MSG("clear_framebuffer: exit");
 }
 
 static uint32_t engine_blend_alpha(uint32_t top, uint32_t bottom, int eva, int evb) {
@@ -549,7 +556,7 @@ static void engine_trace_trainer_card_window_mask(int x, int y,
     snprintf(buffer, sizeof(buffer),
              "TWMASK frame=%lu x=%d y=%d src=%s mask=%02X win0h=%04X win0v=%04X win1h=%04X win1v=%04X winin=%04X winout=%04X",
              frame, x, y, source, mask, win0h, win0v, win1h, win1v, winin, winout);
-    engine_backend_trace_external(buffer);
+    ENGINE_RENDERER_TRACE_MSG(buffer);
 }
 #endif
 
@@ -655,7 +662,7 @@ static void engine_trace_trainer_card_layer_pixel(int x, int y, uint32_t color, 
              x,
              y,
              (unsigned long)color);
-    engine_backend_trace_external(buffer);
+    ENGINE_RENDERER_TRACE_MSG(buffer);
 #else
     (void)x;
     (void)y;
@@ -752,7 +759,7 @@ static void engine_trace_trainer_card_compose_pixel(int x, int y,
              special_enabled,
              top_target1,
              second_target2);
-    engine_backend_trace_external(buffer);
+    ENGINE_RENDERER_TRACE_MSG(buffer);
 #else
     (void)x;
     (void)y;
@@ -779,7 +786,7 @@ static void engine_compose_framebuffer(void) {
     int x;
     int y;
 
-    engine_backend_trace_external("compose: enter");
+    ENGINE_RENDERER_TRACE_MSG("compose: enter");
 
     if (eva > 16) eva = 16;
     if (evb > 16) evb = 16;
@@ -798,7 +805,7 @@ static void engine_compose_framebuffer(void) {
                 }
             }
         }
-        engine_backend_trace_external("compose: exit");
+        ENGINE_RENDERER_TRACE_MSG("compose: exit");
         return;
     }
 
@@ -842,7 +849,7 @@ static void engine_compose_framebuffer(void) {
         }
     }
 
-    engine_backend_trace_external("compose: exit");
+    ENGINE_RENDERER_TRACE_MSG("compose: exit");
 }
 
 static void engine_render_4bpp_tile(int bg, int screen_x, int screen_y, uint16_t tile_index, uint16_t palette_bank, int hflip, int vflip) {
@@ -1068,7 +1075,7 @@ static int engine_sample_bg_pixel(int bg, uint16_t bgcnt, uint32_t screen_base, 
                              "TBGPIX bg=%d 8bpp entry=%04X idx=%u pixel=%u rgba=%08lX tileofs=%04lX",
                              bg, tile_entry, (unsigned)tile_index, (unsigned)pixel,
                              (unsigned long)*rgba_out, (unsigned long)(char_base + (uint32_t)tile_index * 64u));
-                    engine_backend_trace_external(buffer);
+                    ENGINE_RENDERER_TRACE_MSG(buffer);
                 }
             }
         }
@@ -1114,7 +1121,7 @@ static int engine_sample_bg_pixel(int bg, uint16_t bgcnt, uint32_t screen_base, 
                              bg, tile_entry, (unsigned)tile_index, (unsigned)palette_bank,
                              pair, (unsigned)pixel, (unsigned long)*rgba_out,
                              (unsigned long)(char_base + (uint32_t)tile_index * 32u));
-                    engine_backend_trace_external(buffer);
+                    ENGINE_RENDERER_TRACE_MSG(buffer);
                 }
             }
         }
@@ -1127,7 +1134,7 @@ static void engine_render_mode0_backgrounds_for_priority(int priority) {
     uint16_t dispcnt = *engine_reg16(ENGINE_REG_DISPCNT);
     int bg;
 
-    engine_renderer_tracef("render_bg: priority=%d enter", priority);
+    ENGINE_RENDERER_TRACEF("render_bg: priority=%d enter", priority);
 
     for (bg = 3; bg >= 0; --bg) {
         uint16_t bgcnt = engine_bgcnt_value(bg);
@@ -1185,7 +1192,7 @@ static void engine_render_mode0_backgrounds_for_priority(int priority) {
         }
     }
 
-    engine_renderer_tracef("render_bg: priority=%d exit", priority);
+    ENGINE_RENDERER_TRACEF("render_bg: priority=%d exit", priority);
 }
 
 static void engine_precompute_window_masks(void) {
@@ -1199,13 +1206,13 @@ static void engine_precompute_window_masks(void) {
     int x;
     int y;
 
-    engine_renderer_tracef("precompute_windows: DISPCNT=%04X", dispcnt);
+    ENGINE_RENDERER_TRACEF("precompute_windows: DISPCNT=%04X", dispcnt);
 
     engine_precompute_obj_window_mask(dispcnt);
 
     if ((dispcnt & (ENGINE_DISPCNT_WIN0_ON | ENGINE_DISPCNT_WIN1_ON | ENGINE_DISPCNT_OBJWIN_ON)) == 0) {
         memset(g_window_mask_cache, 0x3F, sizeof(g_window_mask_cache));
-        engine_backend_trace_external("precompute_windows: done");
+        ENGINE_RENDERER_TRACE_MSG("precompute_windows: done");
         return;
     }
 
@@ -1216,7 +1223,7 @@ static void engine_precompute_window_masks(void) {
         }
     }
 
-    engine_backend_trace_external("precompute_windows: done");
+    ENGINE_RENDERER_TRACE_MSG("precompute_windows: done");
 }
 
 static void engine_render_sprite(const EngineOAMEntry *oam,
@@ -1289,7 +1296,7 @@ static void engine_render_sprites_for_priority(int priority) {
     int obj_1d = (dispcnt & ENGINE_DISPCNT_OBJ_1D_MAP) != 0;
     int i;
 
-    engine_renderer_tracef("render_sprites: priority=%d enter", priority);
+    ENGINE_RENDERER_TRACEF("render_sprites: priority=%d enter", priority);
 
     for (i = ENGINE_MAX_SPRITES - 1; i >= 0; --i) {
         EngineOAMEntry sprite = oam[i];
@@ -1346,7 +1353,7 @@ static void engine_render_sprites_for_priority(int priority) {
         engine_render_sprite(oam, attr0, attr1, attr2, obj_1d, x_pos, y_pos, width, height, semi_transparent);
     }
 
-    engine_renderer_tracef("render_sprites: priority=%d exit", priority);
+    ENGINE_RENDERER_TRACEF("render_sprites: priority=%d exit", priority);
 }
 
 static void engine_dump_sprite_pipeline_once(void) {
@@ -1387,7 +1394,7 @@ static void engine_dump_sprite_pipeline_once(void) {
              vram[0x1000C], vram[0x1000D], vram[0x1000E], vram[0x1000F],
              palette[256], palette[257], palette[258], palette[259],
              palette[260], palette[261], palette[262], palette[263]);
-    engine_backend_trace_external(buffer);
+    ENGINE_RENDERER_TRACE_MSG(buffer);
 
     for (i = 0; i < ENGINE_MAX_SPRITES && printed < 4; ++i) {
         EngineOAMEntry sprite = oam[i];
@@ -1412,7 +1419,7 @@ static void engine_dump_sprite_pipeline_once(void) {
                  (unsigned)((attr1 >> 14) & 0x3u),
                  (unsigned)((attr0 >> 14) & 0x3u),
                  (unsigned)((attr2 >> 10) & 0x3u));
-        engine_backend_trace_external(buffer);
+        ENGINE_RENDERER_TRACE_MSG(buffer);
         printed += 1;
     }
 #endif
@@ -1477,7 +1484,7 @@ static void engine_dump_trainer_card_render_once(uint16_t dispcnt) {
                  palette[palette_bank * 16u + 0], palette[palette_bank * 16u + 1], palette[palette_bank * 16u + 2], palette[palette_bank * 16u + 3],
                  palette[256u + palette_bank * 16u + 0], palette[256u + palette_bank * 16u + 1], palette[256u + palette_bank * 16u + 2], palette[256u + palette_bank * 16u + 3],
                  gPlttBufferFaded[palette_bank * 16u + 0], gPlttBufferFaded[palette_bank * 16u + 1], gPlttBufferFaded[palette_bank * 16u + 2], gPlttBufferFaded[palette_bank * 16u + 3]);
-        engine_backend_trace_external(buffer);
+        ENGINE_RENDERER_TRACE_MSG(buffer);
     }
 
     oam = engine_oam();
@@ -1502,7 +1509,7 @@ static void engine_dump_trainer_card_render_once(uint16_t dispcnt) {
                  (unsigned)obj_pal,
                  vram[obj_tile_offset + 0], vram[obj_tile_offset + 1], vram[obj_tile_offset + 2], vram[obj_tile_offset + 3],
                  palette[256u + obj_pal * 16u + 0], palette[256u + obj_pal * 16u + 1], palette[256u + obj_pal * 16u + 2], palette[256u + obj_pal * 16u + 3]);
-        engine_backend_trace_external(buffer);
+        ENGINE_RENDERER_TRACE_MSG(buffer);
         break;
     }
 #else
@@ -1535,7 +1542,7 @@ void engine_video_render_frame(void) {
         snprintf(buffer, sizeof(buffer),
                  "engine_video_render_frame: DISPCNT=%04X BG0CNT=%04X PLTT0=%04X PLTT1=%04X VRAM0=%02X VRAM1=%02X",
                  dispcnt, bg0cnt, palette[0], palette[1], engine_vram()[0], engine_vram()[1]);
-        engine_backend_trace_external(buffer);
+        ENGINE_RENDERER_TRACE_MSG(buffer);
     }
 #endif
 
@@ -1557,7 +1564,7 @@ void engine_video_render_frame(void) {
         EngineLayerPixel fill;
         EnginePixelLayers *pixel_layers;
 
-        engine_backend_trace_external("backdrop_init: enter");
+        ENGINE_RENDERER_TRACE_MSG("backdrop_init: enter");
 
         fill.color = backdrop;
         fill.kind = ENGINE_LAYER_BACKDROP;
@@ -1570,7 +1577,7 @@ void engine_video_render_frame(void) {
             pixel_layers->count = 1;
         }
 
-        engine_backend_trace_external("backdrop_init: exit");
+        ENGINE_RENDERER_TRACE_MSG("backdrop_init: exit");
     }
 
     mode = dispcnt & 0x7;
@@ -1597,7 +1604,7 @@ void engine_video_render_frame(void) {
                  g_framebuffer[0], g_framebuffer[1], g_framebuffer[2], g_framebuffer[3],
                  g_framebuffer[4], g_framebuffer[5], g_framebuffer[6], g_framebuffer[7],
                  (unsigned long)backdrop);
-        engine_backend_trace_external(buffer);
+        ENGINE_RENDERER_TRACE_MSG(buffer);
     }
 #endif
 }

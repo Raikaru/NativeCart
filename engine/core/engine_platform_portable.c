@@ -11,7 +11,27 @@
 
 extern void firered_portable_m4aSoundVSync(void);
 
+#ifndef NDEBUG
+extern char *getenv(const char *name);
+#endif
+
 #define ENGINE_PI 3.14159265358979323846
+
+#ifndef NDEBUG
+static int engine_portable_lz77_trace_enabled(void)
+{
+    static int s_init;
+    static int s_on;
+    const char *e;
+
+    if (s_init)
+        return s_on;
+    s_init = 1;
+    e = getenv("NATIVECART_TRACE_LZ77");
+    s_on = (e != NULL && e[0] != '\0' && e[0] != '0');
+    return s_on;
+}
+#endif
 
 u8 gHeap[HEAP_SIZE];
 
@@ -182,12 +202,14 @@ void LZ77UnCompWram(const void *src, void *dest)
 
 void LZ77UnCompVram(const void *src, void *dest)
 {
-#ifdef PORTABLE
-    engine_backend_trace_external("LZ77UnCompVram: enter");
+#if defined(PORTABLE) && !defined(NDEBUG)
+    if (engine_portable_lz77_trace_enabled())
+        engine_backend_trace_external("LZ77UnCompVram: enter");
 #endif
     engine_lz77_uncomp(src, dest);
-#ifdef PORTABLE
-    engine_backend_trace_external("LZ77UnCompVram: exit");
+#if defined(PORTABLE) && !defined(NDEBUG)
+    if (engine_portable_lz77_trace_enabled())
+        engine_backend_trace_external("LZ77UnCompVram: exit");
 #endif
 }
 

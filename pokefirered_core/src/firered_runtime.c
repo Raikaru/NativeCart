@@ -72,7 +72,11 @@ void firered_runtime_request_soft_reset(void)
 
 void firered_runtime_trace_external(const char *message)
 {
+#ifdef NDEBUG
+    (void)message;
+#else
     engine_backend_trace_external(message);
+#endif
 }
 
 unsigned long firered_runtime_get_completed_frame_external(void)
@@ -82,5 +86,11 @@ unsigned long firered_runtime_get_completed_frame_external(void)
 
 void firered_runtime_trace_bytes_external(const char *label, const void *src, const void *dst)
 {
+#ifdef NDEBUG
+    (void)label;
+    (void)src;
+    (void)dst;
+#else
     engine_backend_trace_bytes_external(label, src, dst);
+#endif
 }
