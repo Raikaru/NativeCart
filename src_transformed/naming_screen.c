@@ -230,20 +230,22 @@ struct NamingScreenData
     /*0x1E22*/ u8 currentPage;
     /*0x1E23*/ u8 cursorSpriteId;
     /*0x1E24*/ u8 swapBtnFrameSpriteId;
-    /*0x1E25*/ u8 keyRepeatStartDelayCopy;
-    /*0x1E28*/ const struct NamingScreenTemplate *template;
-    /*0x1E2C*/ u8 templateNum;
-    /*0x1E30*/ u8 *destBuffer;
-    /*0x1E34*/ u16 monSpecies;
-    /*0x1E36*/ u16 monGender;
-    /*0x1E38*/ u32 monPersonality;
-    /*0x1E3C*/ MainCallback returnCallback;
+    /*0x1E25*/ u8 backButtonSpriteId;
+    /*0x1E26*/ u8 okButtonSpriteId;
+    /*0x1E27*/ u8 inputArrowSpriteId;
+    /*0x1E28*/ u8 firstUnderscoreSpriteId;
+    /*0x1E29*/ u8 iconSpriteId;
+    /*0x1E2A*/ u8 keyRepeatStartDelayCopy;
+    /*0x1E2C*/ const struct NamingScreenTemplate *template;
+    /*0x1E30*/ u8 templateNum;
+    /*0x1E34*/ u8 *destBuffer;
+    /*0x1E38*/ u16 monSpecies;
+    /*0x1E3A*/ u16 monGender;
+    /*0x1E3C*/ u32 monPersonality;
+    /*0x1E40*/ MainCallback returnCallback;
 };
 
 static EWRAM_DATA struct NamingScreenData * sNamingScreen = NULL;
-#ifdef PORTABLE
-static MainCallback sNamingScreenReturnCallback;
-#endif
 
 static void CB2_LoadNamingScreen(void);
 static void NamingScreen_Init(void);
@@ -257,6 +259,7 @@ static bool8 MainState_MoveToOKButton(void);
 static bool8 MainState_PressedOKButton(void);
 static bool8 MainState_FadeOut(void);
 static bool8 MainState_Exit(void);
+static void DestroyNamingScreenSprites(void);
 static void DisplaySentToPCMessage(void);
 static bool8 MainState_WaitSentToPCMessage(void);
 static bool8 MainState_StartPageSwap(void);
@@ -509,7 +512,6 @@ void DoNamingScreen(u8 templateNum, u8 *destBuffer, u16 monSpecies, u16 monGende
                  templateNum, monSpecies, monGender, (unsigned long)monPersonality, destBuffer, returnCallback);
         firered_runtime_trace_external(buffer);
     }
-    sNamingScreenReturnCallback = returnCallback;
 #endif
     sNamingScreen = Alloc(sizeof(struct NamingScreenData));
     if (!sNamingScreen)
@@ -523,9 +525,7 @@ void DoNamingScreen(u8 templateNum, u8 *destBuffer, u16 monSpecies, u16 monGende
         sNamingScreen->monGender = monGender;
         sNamingScreen->monPersonality = monPersonality;
         sNamingScreen->destBuffer = destBuffer;
-#ifndef PORTABLE
         sNamingScreen->returnCallback = returnCallback;
-#endif
 
         if (templateNum == NAMING_SCREEN_PLAYER)
             StartTimer1();
@@ -608,6 +608,13 @@ static void NamingScreen_Init(void)
     memset(sNamingScreen->textBuffer, EOS, sizeof(sNamingScreen->textBuffer));
     if (sNamingScreen->template->copyExistingString)
         StringCopy(sNamingScreen->textBuffer, sNamingScreen->destBuffer);
+    sNamingScreen->iconSpriteId = MAX_SPRITES;
+    sNamingScreen->cursorSpriteId = MAX_SPRITES;
+    sNamingScreen->swapBtnFrameSpriteId = MAX_SPRITES;
+    sNamingScreen->backButtonSpriteId = MAX_SPRITES;
+    sNamingScreen->okButtonSpriteId = MAX_SPRITES;
+    sNamingScreen->inputArrowSpriteId = MAX_SPRITES;
+    sNamingScreen->firstUnderscoreSpriteId = MAX_SPRITES;
     gKeyRepeatStartDelay = 16;
 #ifdef PORTABLE
     TraceNamingScreen("Init exit");
@@ -907,6 +914,64 @@ static bool8 MainState_PressedOKButton(void)
     }
 }
 
+static void DestroyNamingScreenSprites(void)
+{
+    u8 i;
+    u8 textSpriteId, buttonSpriteId;
+    struct Sprite *frame;
+
+    if (!sNamingScreen)
+        return;
+
+    if (sNamingScreen->iconSpriteId < MAX_SPRITES)
+    {
+        switch (sNamingScreen->template->iconFunction)
+        {
+        case 3: /* NamingScreen_CreateMonIcon */
+            SafeFreeMonIconPalette(sNamingScreen->monSpecies);
+            DestroyMonIcon(&gSprites[sNamingScreen->iconSpriteId]);
+            break;
+        case 4: /* NamingScreen_CreateRivalIcon — extra sheet/palette */
+            DestroySpriteAndFreeResources(&gSprites[sNamingScreen->iconSpriteId]);
+            break;
+        default:
+            if (sNamingScreen->template->iconFunction != 0)
+                DestroySprite(&gSprites[sNamingScreen->iconSpriteId]);
+            break;
+        }
+    }
+
+    for (i = 0; i < sNamingScreen->template->maxChars; i++)
+    {
+        u8 sid = (u8)(sNamingScreen->firstUnderscoreSpriteId + i);
+
+        if (sid < MAX_SPRITES)
+            DestroySprite(&gSprites[sid]);
+    }
+
+    if (sNamingScreen->inputArrowSpriteId < MAX_SPRITES)
+        DestroySprite(&gSprites[sNamingScreen->inputArrowSpriteId]);
+    if (sNamingScreen->okButtonSpriteId < MAX_SPRITES)
+        DestroySprite(&gSprites[sNamingScreen->okButtonSpriteId]);
+    if (sNamingScreen->backButtonSpriteId < MAX_SPRITES)
+        DestroySprite(&gSprites[sNamingScreen->backButtonSpriteId]);
+
+    if (sNamingScreen->swapBtnFrameSpriteId < MAX_SPRITES)
+    {
+        frame = &gSprites[sNamingScreen->swapBtnFrameSpriteId];
+        textSpriteId = (u8)frame->data[6];
+        buttonSpriteId = (u8)frame->data[7];
+        if (buttonSpriteId < MAX_SPRITES)
+            DestroySprite(&gSprites[buttonSpriteId]);
+        if (textSpriteId < MAX_SPRITES)
+            DestroySprite(&gSprites[textSpriteId]);
+        DestroySprite(frame);
+    }
+
+    if (sNamingScreen->cursorSpriteId < MAX_SPRITES)
+        DestroySprite(&gSprites[sNamingScreen->cursorSpriteId]);
+}
+
 static bool8 MainState_FadeOut(void)
 {
 #ifdef PORTABLE
@@ -926,18 +991,34 @@ static bool8 MainState_Exit(void)
 #endif
         if (sNamingScreen->templateNum == NAMING_SCREEN_PLAYER)
             SeedRngAndSetTrainerId();
-#ifdef PORTABLE
-        sNamingScreenReturnCallback();
-#else
+        /* Defer with SetMainCallback2 — synchronous call re-enters BattleMainCB2/RunTasks
+         * while Task_NamingScreen is active and overflows the stack. */
         SetMainCallback2(sNamingScreen->returnCallback);
-#endif
 #ifdef PORTABLE
         TraceNamingScreen("MainState_Exit post-return-callback");
 #endif
 #ifdef PORTABLE
         ResetVHBlank();
 #endif
-        DestroyTask(FindTaskIdByFunc(Task_NamingScreen));
+        {
+            u8 tid;
+
+            tid = FindTaskIdByFunc(Task_HandleInput);
+            if (tid != TASK_NONE)
+                DestroyTask(tid);
+            tid = FindTaskIdByFunc(Task_UpdateButtonFlash);
+            if (tid != TASK_NONE)
+                DestroyTask(tid);
+            tid = FindTaskIdByFunc(Task_HandlePageSwapAnim);
+            if (tid != TASK_NONE)
+                DestroyTask(tid);
+            tid = FindTaskIdByFunc(Task_NamingScreen);
+            if (tid != TASK_NONE)
+                DestroyTask(tid);
+        }
+        /* Sprites keep naming callbacks; BattleMainCB2 will AnimateSprites after we free
+         * sNamingScreen unless we destroy them here. */
+        DestroyNamingScreenSprites();
         FreeAllWindowBuffers();
         FREE_AND_SET_NULL(sNamingScreen);
         RestoreHelpContext();
@@ -1569,13 +1650,13 @@ static void SetPageSwapButtonGfx(u8 page, struct Sprite *text, struct Sprite *bu
 
 static void CreateBackOkSprites(void)
 {
-    u8 spriteId = CreateSprite(&sSpriteTemplate_BackButton, 204, 116, 0);
-    SetSubspriteTables(&gSprites[spriteId], sSubspriteTable_Button);
-    gSprites[spriteId].invisible = TRUE;
+    sNamingScreen->backButtonSpriteId = CreateSprite(&sSpriteTemplate_BackButton, 204, 116, 0);
+    SetSubspriteTables(&gSprites[sNamingScreen->backButtonSpriteId], sSubspriteTable_Button);
+    gSprites[sNamingScreen->backButtonSpriteId].invisible = TRUE;
 
-    spriteId = CreateSprite(&sSpriteTemplate_OkButton, 204, 140, 0);
-    SetSubspriteTables(&gSprites[spriteId], sSubspriteTable_Button);
-    gSprites[spriteId].invisible = TRUE;
+    sNamingScreen->okButtonSpriteId = CreateSprite(&sSpriteTemplate_OkButton, 204, 140, 0);
+    SetSubspriteTables(&gSprites[sNamingScreen->okButtonSpriteId], sSubspriteTable_Button);
+    gSprites[sNamingScreen->okButtonSpriteId].invisible = TRUE;
 }
 
 static void CreateTextEntrySprites(void)
@@ -1585,13 +1666,15 @@ static void CreateTextEntrySprites(void)
     u8 i;
 
     xPos = sNamingScreen->inputCharBaseXPos - 5;
-    spriteId = CreateSprite(&sSpriteTemplate_InputArrow, xPos, 56, 0);
-    gSprites[spriteId].oam.priority = 3;
-    gSprites[spriteId].invisible = TRUE;
+    sNamingScreen->inputArrowSpriteId = CreateSprite(&sSpriteTemplate_InputArrow, xPos, 56, 0);
+    gSprites[sNamingScreen->inputArrowSpriteId].oam.priority = 3;
+    gSprites[sNamingScreen->inputArrowSpriteId].invisible = TRUE;
     xPos = sNamingScreen->inputCharBaseXPos;
     for (i = 0; i < sNamingScreen->template->maxChars; i++, xPos += 8)
     {
         spriteId = CreateSprite(&sSpriteTemplate_Underscore, xPos + 3, 60, 0);
+        if (i == 0)
+            sNamingScreen->firstUnderscoreSpriteId = spriteId;
         gSprites[spriteId].oam.priority = 3;
         gSprites[spriteId].data[0] = i;
         gSprites[spriteId].invisible = TRUE;
@@ -1641,6 +1724,7 @@ static void NamingScreen_CreatePlayerIcon(void)
     firered_runtime_trace_external(buffer);
 #endif
     spriteId = CreateObjectGraphicsSprite(rivalGfxId, SpriteCallbackDummy, 56, 37, 0);
+    sNamingScreen->iconSpriteId = spriteId;
     gSprites[spriteId].oam.priority = 3;
     StartSpriteAnim(&gSprites[spriteId], ANIM_STD_GO_SOUTH);
 }
@@ -1651,6 +1735,8 @@ static void NamingScreen_CreatePCIcon(void)
     TraceNamingScreen("CreatePCIcon");
 #endif
     u8 spriteId = CreateSprite(&sSpriteTemplate_PCIcon, 56, 41, 0);
+
+    sNamingScreen->iconSpriteId = spriteId;
     SetSubspriteTables(&gSprites[spriteId], sSubspriteTable_PCIcon);
     gSprites[spriteId].oam.priority = 3;
 }
@@ -1669,6 +1755,7 @@ static void NamingScreen_CreateMonIcon(void)
 #endif
     LoadMonIconPalettes();
     spriteId = CreateMonIcon(sNamingScreen->monSpecies, SpriteCallbackDummy, 56, 40, 0, sNamingScreen->monPersonality, 1);
+    sNamingScreen->iconSpriteId = spriteId;
     gSprites[spriteId].oam.priority = 3;
 }
 
@@ -1710,6 +1797,7 @@ static void NamingScreen_CreateRivalIcon(void)
     LoadSpriteSheet(&sheet);
     LoadSpritePalette(&palette);
     spriteId = CreateSprite(&template, 56, 37, 0);
+    sNamingScreen->iconSpriteId = spriteId;
     gSprites[spriteId].oam.priority = 3;
 }
 
