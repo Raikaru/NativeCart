@@ -7,6 +7,10 @@
 #include "save.h"
 #include "strings.h"
 
+#ifdef PORTABLE
+#include "portable_generated/save_failed_screen_portable_nullfix.h"
+#endif
+
 COMMON_DATA bool32 sIsInSaveFailedScreen = 0;
 
 static EWRAM_DATA u16 sSaveType = SAVE_NORMAL;
@@ -19,7 +23,6 @@ static void ClearMapBuffer(void);
 static void PrintTextOnSaveFailedScreen(const u8 *a0);
 static bool32 TryWipeDamagedSectors(void);
 static bool32 WipeDamagedSectors(u32 damagedSectors);
-#define sSaveFailedScreenPals ((const u16 *)NULL)
 
 void SetNotInSaveFailedScreen(void)
 {

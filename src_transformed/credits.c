@@ -16,6 +16,10 @@
 #include "constants/field_weather.h"
 #include "constants/sound.h"
 
+#ifdef PORTABLE
+#include "portable_generated/credits_portable_nullfix.h"
+#endif
+
 #if defined(FIRERED)
 #define TITLE_TEXT gString_PokemonFireRed_Staff
 #elif defined(LEAFGREEN)
@@ -337,23 +341,8 @@ static const struct WindowTemplate sWindowTemplates_Pikachu[] = {
         .baseBlock = 0x00ac
     }, DUMMY_WIN_TEMPLATE
 };
-#define sCreditsMonCircle_Pal ((const u16 *)NULL)
-#define sCreditsMonCircle_Tiles ((const u32 *)NULL)
-#define sCreditsMonCircle_Tilemap ((const u32 *)NULL)
-#define sCharizard1_Tiles ((const u32 *)NULL)
-#define sCharizard2_Tiles ((const u32 *)NULL)
-#define sVenusaurUnused_Tiles ((const u32 *)NULL)
-#define sVenusaur1_Tiles ((const u32 *)NULL)
-#define sVenusaur2_Tiles ((const u32 *)NULL)
-#define sBlastoise1_Tiles ((const u32 *)NULL)
-#define sBlastoise2_Tiles ((const u32 *)NULL)
-#define sPikachu1_Tiles ((const u32 *)NULL)
-#define sPikachu2_Tiles ((const u32 *)NULL)
 
 static const u32 sUnused = 0xF0;
-#define sTheEnd_Pal ((const u16 *)NULL)
-#define sTheEnd_Tiles ((const u8 *)NULL)
-#define sTheEnd_Tilemap ((const u8 *)NULL)
 
 static const struct CompressedGraphicsHeader sCopyrightOrTheEndGfxHeaders[] = {
     {
@@ -456,18 +445,6 @@ static const struct WindowTemplate sCreditsWindowTemplate = {
     .paletteNum = 15,
     .baseBlock = 0x008
 };
-#define sPlayerMale_Pal ((const u16 *)NULL)
-#define sPlayerMale_Tiles ((const u32 *)NULL)
-#define sPlayerFemale_Pal ((const u16 *)NULL)
-#define sPlayerFemale_Tiles ((const u32 *)NULL)
-#define sRival_Pal ((const u16 *)NULL)
-#define sRival_Tiles ((const u32 *)NULL)
-#define sGround_Grass_Pal ((const u16 *)NULL)
-#define sGround_Grass_Tiles ((const u32 *)NULL)
-#define sGround_Dirt_Pal ((const u16 *)NULL)
-#define sGround_Dirt_Tiles ((const u32 *)NULL)
-#define sGround_City_Pal ((const u16 *)NULL)
-#define sGround_City_Tiles ((const u32 *)NULL)
 
 static const u16 sPlayerRivalSpriteParams[][3] = {
     { 0, 3, 1 },

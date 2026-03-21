@@ -17,6 +17,10 @@
 #include "constants/songs.h"
 #include "constants/moves.h"
 
+#ifdef PORTABLE
+#include "portable_generated/learn_move_portable_nullfix.h"
+#endif
+
 /*
  * Move relearner state machine
  * ------------------------
@@ -169,8 +173,6 @@ static void PrintMoveInfoHandleCancel_CopyToVram(void);
 static void MoveRelearnerMenu_MoveCursorFunc(s32 itemIndex, bool8 onInit, struct ListMenu *list);
 static s8 YesNoMenuProcessInput(void);
 static void PrintTextOnWindow(u8 windowId, const u8 *str, u8 x, u8 y, s32 speed, s32 colorIdx);
-#define sLearnMoveInterfaceSpritesPalette ((const u16 *)NULL)
-#define sLearnMoveInterfaceSpritesTiles ((const u16 *)NULL)
 
 static const u8 sMoveTutorMenuWindowFrameDimensions[][4] =
 {

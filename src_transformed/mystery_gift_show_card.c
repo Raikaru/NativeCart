@@ -9,6 +9,10 @@
 #include "battle_anim.h"
 #include "constants/mystery_gift.h"
 
+#ifdef PORTABLE
+#include "portable_generated/mystery_gift_show_card_portable_nullfix.h"
+#endif
+
 enum {
     WIN_HEADER,
     WIN_BODY,
@@ -93,33 +97,11 @@ static const struct WindowTemplate sWindowTemplates[] = {
         .baseBlock = 0x130
     }
 };
-#define sCard0Pal ((const u16 *)NULL)
 const u16 gCard1Pal[] = INCBIN_U16("graphics/wonder_card/bg1.gbapal");
 const u16 gCard2Pal[] = INCBIN_U16("graphics/wonder_card/bg2.gbapal");
 const u16 gCard3Pal[] = INCBIN_U16("graphics/wonder_card/bg3.gbapal");
 const u16 gCard4Pal[] = INCBIN_U16("graphics/wonder_card/bg4.gbapal");
 const u16 gCard5Pal[] = INCBIN_U16("graphics/wonder_card/bg5.gbapal");
-#define sCard6Pal ((const u16 *)NULL)
-#define sCard7Pal ((const u16 *)NULL)
-#define sCard0Gfx ((const u8 *)NULL)
-#define sCard0Map ((const u8 *)NULL)
-#define sCard1Gfx ((const u8 *)NULL)
-#define sCard1Map ((const u8 *)NULL)
-#define sCard2Gfx ((const u8 *)NULL)
-#define sCard2Map ((const u8 *)NULL)
-#define sCard6Gfx ((const u8 *)NULL)
-#define sCard6Map ((const u8 *)NULL)
-#define sCard7Gfx ((const u8 *)NULL)
-#define sCard7Map ((const u8 *)NULL)
-#define sStampShadowPal0 ((const u16 *)NULL)
-#define sStampShadowPal1 ((const u16 *)NULL)
-#define sStampShadowPal2 ((const u16 *)NULL)
-#define sStampShadowPal3 ((const u16 *)NULL)
-#define sStampShadowPal4 ((const u16 *)NULL)
-#define sStampShadowPal5 ((const u16 *)NULL)
-#define sStampShadowPal6 ((const u16 *)NULL)
-#define sStampShadowPal7 ((const u16 *)NULL)
-#define sStampShadowGfx ((const u32 *)NULL)
 
 static const struct CompressedSpriteSheet sSpriteSheet_StampShadow = {
     sStampShadowGfx, 0x100, TAG_STAMP_SHADOW

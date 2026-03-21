@@ -10,6 +10,10 @@
 #include "task.h"
 #include "constants/sound.h"
 
+#ifdef PORTABLE
+#include "portable_generated/diploma_portable_nullfix.h"
+#endif
+
 struct Diploma
 {
     u8 mainState;
@@ -38,9 +42,6 @@ static void CB2_Diploma(void);
 static void Task_HandleDiplomaInput(u8);
 static void Task_DiplomaInit(u8);
 static void Task_DiplomaExit(u8);
-#define sDiplomaGfx ((const u32 *)NULL)
-#define sDiplomaTilemap ((const u32 *)NULL)
-#define sDiplomaPal ((const u16 *)NULL)
 
 // Leftover text from RSE (some of which is also unused there)
 static const u8 sText_Player[] = _("{HIGHLIGHT TRANSPARENT}プレイヤー");

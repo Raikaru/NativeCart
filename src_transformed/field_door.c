@@ -6,6 +6,10 @@
 #include "constants/songs.h"
 #include "constants/metatile_labels.h"
 
+#ifdef PORTABLE
+#include "portable_generated/field_door_portable_nullfix.h"
+#endif
+
 enum {
     DOOR_SOUND_NORMAL,
     DOOR_SOUND_SLIDING,
@@ -38,47 +42,26 @@ static void BuildDoorTiles(u16 *tiles, u16 tileNum, const u8 *paletteNums);
 static bool32 AnimateDoorFrame(const struct DoorGraphics *gfx, const struct DoorAnimFrame *frames, s16 *data);
 static const struct DoorAnimFrame *GetLastDoorAnimFrame(const struct DoorAnimFrame *frames);
 static s8 GetDoorSoundType(const struct DoorGraphics *gfx, int x, int y);
-#define sDoorAnimTiles_General ((const u8 *)NULL)
 static const u16 sDoorNullPalette1[16] = {};
-#define sDoorAnimTiles_SlidingSingle ((const u8 *)NULL)
 static const u16 sDoorNullPalette2[16] = {};
-#define sDoorAnimTiles_SlidingDouble ((const u8 *)NULL)
 static const u16 sDoorNullPalette3[16] = {};
-#define sDoorAnimTiles_Pallet ((const u8 *)NULL)
 static const u16 sDoorNullPalette4[16] = {};
-#define sDoorAnimTiles_OaksLab ((const u8 *)NULL)
 static const u16 sDoorNullPalette5[16] = {};
-#define sDoorAnimTiles_Viridian ((const u8 *)NULL)
 static const u16 sDoorNullPalette6[16] = {};
-#define sDoorAnimTiles_Pewter ((const u8 *)NULL)
 static const u16 sDoorNullPalette7[16] = {};
-#define sDoorAnimTiles_Saffron ((const u8 *)NULL)
 static const u16 sDoorNullPalette8[16] = {};
-#define sDoorAnimTiles_SilphCo ((const u8 *)NULL)
 static const u16 sDoorNullPalette9[16] = {};
-#define sDoorAnimTiles_Cerulean ((const u8 *)NULL)
 static const u16 sDoorNullPalette10[16] = {};
-#define sDoorAnimTiles_Lavender ((const u8 *)NULL)
 static const u16 sDoorNullPalette11[16] = {};
-#define sDoorAnimTiles_Vermilion ((const u8 *)NULL)
 static const u16 sDoorNullPalette12[16] = {};
-#define sDoorAnimTiles_PokemonFanClub ((const u8 *)NULL)
 static const u16 sDoorNullPalette13[16] = {};
-#define sDoorAnimTiles_DeptStore ((const u8 *)NULL)
 static const u16 sDoorNullPalette14[16] = {};
-#define sDoorAnimTiles_Fuchsia ((const u8 *)NULL)
 static const u16 sDoorNullPalette15[16] = {};
-#define sDoorAnimTiles_SafariZone ((const u8 *)NULL)
 static const u16 sDoorNullPalette16[16] = {};
-#define sDoorAnimTiles_CinnabarLab ((const u8 *)NULL)
 static const u16 sDoorNullPalette17[16] = {};
-#define sDoorAnimTiles_DeptStoreElevator ((const u8 *)NULL)
 static const u16 sDoorNullPalette18[16] = {};
-#define sDoorAnimTiles_CableClub ((const u8 *)NULL)
 static const u16 sDoorNullPalette19[16] = {};
-#define sDoorAnimTiles_HideoutElevator ((const u8 *)NULL)
 static const u16 sDoorNullPalette20[16] = {};
-#define sDoorAnimTiles_SSAnne ((const u8 *)NULL)
 static const u16 sDoorNullPalette21[16] = {};
 
 // Doors from R/S dummied below
@@ -146,37 +129,22 @@ static const u8 sDoorAnimTiles_Empty31[128 * 3] = {};
 static const u16 sDoorNullPalette52[16] = {};
 
 // Unused block of door tiles
-#define sDoorAnimTiles_UnusedTop ((const u8 *)NULL)
 static const u8 sDoorAnimTiles_Empty32[256] = {};
-#define sDoorAnimTiles_UnusedMidTop ((const u8 *)NULL)
 static const u8 sDoorAnimTiles_Empty33[256] = {};
-#define sDoorAnimTiles_UnusedMidBottom ((const u8 *)NULL)
 static const u8 sDoorAnimTiles_Empty34[256] = {};
-#define sDoorAnimTiles_UnusedBottom ((const u8 *)NULL)
 static const u16 sDoorNullPalette53[16] = {};
 
 // Used FRLG doors resume
-#define sDoorAnimTiles_SilphCoElevator ((const u8 *)NULL)
 static const u16 sDoorNullPalette54[16] = {};
-#define sDoorAnimTiles_Sevii123 ((const u8 *)NULL)
 static const u16 sDoorNullPalette55[16] = {};
-#define sDoorAnimTiles_JoyfulGameCorner ((const u8 *)NULL)
 static const u16 sDoorNullPalette56[16] = {};
-#define sDoorAnimTiles_OneIslandPokeCenter ((const u8 *)NULL)
 static const u16 sDoorNullPalette57[16] = {};
-#define sDoorAnimTiles_Sevii45 ((const u8 *)NULL)
 static const u16 sDoorNullPalette58[16] = {};
-#define sDoorAnimTiles_FourIslandDayCare ((const u8 *)NULL)
 static const u16 sDoorNullPalette59[16] = {};
-#define sDoorAnimTiles_RocketWarehouse ((const u8 *)NULL)
 static const u16 sDoorNullPalette60[16] = {};
-#define sDoorAnimTiles_Sevii67 ((const u8 *)NULL)
 static const u16 sDoorNullPalette61[16] = {};
-#define sDoorAnimTiles_Teleporter ((const u8 *)NULL)
 static const u16 sDoorNullPalette62[16] = {};
-#define sDoorAnimTiles_TrainerTowerLobbyElevator ((const u8 *)NULL)
 static const u16 sDoorNullPalette63[16] = {};
-#define sDoorAnimTiles_TrainerTowerRoofElevator ((const u8 *)NULL)
 static const u16 sDoorNullPalette64[16] = {};
 
 #define CLOSED_DOOR_TILES_OFFSET 0xFFFF

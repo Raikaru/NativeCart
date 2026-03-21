@@ -31,6 +31,10 @@
 #include "constants/songs.h"
 #include "constants/items.h"
 
+#ifdef PORTABLE
+#include "portable_generated/berry_crush_portable_nullfix.h"
+#endif
+
 #define MAX_TIME (10 * 60 * 60) // Timer can go up to 9:59:59
 
 #define TAG_CRUSHER_BASE  1
@@ -643,16 +647,6 @@ static const u32 sPressingSpeedConversionTable[] = {
       781250, //  0.78125
       390625  //  0.390625
 };
-#define sBerryCrushCorePal ((const u16 *)NULL)
-#define sBerryCrushImpactAndSparklesPal ((const u16 *)NULL)
-#define sBerryCrushTimerPal ((const u16 *)NULL)
-#define sBerryCrushCoreTiles ((const u32 *)NULL)
-#define sBerryCrushImpactTiles ((const u32 *)NULL)
-#define sBerryCrushPowderSparklesTiles ((const u32 *)NULL)
-#define sBerryCrushTimerTiles ((const u32 *)NULL)
-#define sCrusherTop_Tilemap ((const u32 *)NULL)
-#define sContainerCap_Tilemap ((const u32 *)NULL)
-#define sBg_Tilemap ((const u32 *)NULL)
 
 // Takes the number of players - 2 and a player id and returns the
 // index into sPlayerCoords where that player should be seated

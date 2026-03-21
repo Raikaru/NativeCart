@@ -8,6 +8,10 @@
 #include "evolution_graphics.h"
 #include "constants/songs.h"
 
+#ifdef PORTABLE
+#include "portable_generated/evolution_graphics_portable_nullfix.h"
+#endif
+
 static void SpriteCallbackDummy_EvoSparkles(struct Sprite *sprite);
 static void EvoTask_PreEvoSparkleSet1Init(u8 taskId);
 static void EvoTask_CreatePreEvoSparkleSet1(u8 taskId);
@@ -28,8 +32,6 @@ static void EvoTask_ChooseNextEvoSpriteAnim(u8 taskId);
 static void EvoTask_ShrinkOrExpandEvoSprites(u8 taskId);
 static void PreEvoInvisible_PostEvoVisible_KillTask(u8 taskId);
 static void PreEvoVisible_PostEvoInvisible_KillTask(u8 taskId);
-#define sEvolutionSparklesPalData ((const u16 *)NULL)
-#define sEvolutionSparklesTileData ((const u32 *)NULL)
 
 static const struct CompressedSpriteSheet sSpriteSheet_EvolutionSparkles[] = {
     { sEvolutionSparklesTileData, 0x20, 1001 },

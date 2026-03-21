@@ -22,6 +22,10 @@
 #include "constants/items.h"
 #include "constants/songs.h"
 
+#ifdef PORTABLE
+#include "portable_generated/pokemon_jump_portable_nullfix.h"
+#endif
+
 #define MAX_JUMP_SCORE 99990
 #define MAX_JUMPS 9999
 
@@ -450,8 +454,6 @@ enum {
     ANIM_START_MID,
     ANIM_START_RIGHT,
 };
-#define s321Start_Static_Pal ((const u16 *)NULL)
-#define s321Start_Static_Gfx ((const u32 *)NULL)
 
 static const struct CompressedSpriteSheet sSpriteSheet_321Start_Static[] = {
     {s321Start_Static_Gfx, 0xC00, TAG_STATIC_COUNTDOWN},
@@ -2896,16 +2898,6 @@ static void InitPokeJumpGfx(struct PokemonJumpGfx *jumpGfx)
     jumpGfx->funcFinished = FALSE;
     jumpGfx->msgWindowId = WINDOW_NONE;
 }
-#define sInterface_Pal ((const u16 *)NULL)
-#define sBg_Pal ((const u16 *)NULL)
-#define sBg_Gfx ((const u32 *)NULL)
-#define sBg_Tilemap ((const u32 *)NULL)
-#define sVenusaur_Pal ((const u16 *)NULL)
-#define sVenusaur_Gfx ((const u32 *)NULL)
-#define sVenusaur_Tilemap ((const u32 *)NULL)
-#define sBonuses_Pal ((const u16 *)NULL)
-#define sBonuses_Gfx ((const u32 *)NULL)
-#define sBonuses_Tilemap ((const u32 *)NULL)
 
 static const struct BgTemplate sBgTemplates[] =
 {
@@ -3788,13 +3780,6 @@ static void Task_UpdateBonus(u8 taskId)
     if (!UpdateBonus())
         DestroyTask(taskId);
 }
-#define sPokeJumpPal1 ((const u16 *)NULL)
-#define sPokeJumpPal2 ((const u16 *)NULL)
-#define sVine1_Gfx ((const u32 *)NULL)
-#define sVine2_Gfx ((const u32 *)NULL)
-#define sVine3_Gfx ((const u32 *)NULL)
-#define sVine4_Gfx ((const u32 *)NULL)
-#define sStar_Gfx ((const u32 *)NULL)
 
 static const struct CompressedSpriteSheet sCompressedSpriteSheets[] =
 {
