@@ -11,7 +11,9 @@
 #include "field_weather.h"
 #include "event_object_movement.h"
 #include "event_object_lock.h"
+#include "field_door.h"
 #include "field_player_avatar.h"
+#include "metatile_behavior.h"
 #include "item.h"
 #include "region_map.h"
 #include "map_name_popup.h"
@@ -29,11 +31,26 @@
 #include "constants/quest_log.h"
 #include "constants/field_weather.h"
 #include "constants/event_object_movement.h"
+#include "constants/songs.h"
 
 #ifdef PORTABLE
 #include <stdio.h>
 extern void firered_runtime_trace_external(const char *message);
 extern char *getenv(const char *name);
+#define firered_runtime_trace_external(...) ((void)0)
+
+static int sQuestLogEnvCached;
+static bool8 sQuestLogSkipPlaybackEnv;
+static bool8 sQuestLogEnablePlaybackEnv;
+
+static void QuestLogCachePortableEnvOnce(void)
+{
+    if (sQuestLogEnvCached)
+        return;
+    sQuestLogSkipPlaybackEnv = getenv("FIRERED_SKIP_QUEST_LOG_PLAYBACK") != NULL;
+    sQuestLogEnablePlaybackEnv = getenv("FIRERED_ENABLE_QUEST_LOG_PLAYBACK") != NULL;
+    sQuestLogEnvCached = 1;
+}
 #endif
 
 enum {
@@ -117,6 +134,8 @@ static u8 TryRecordActionSequence(struct QuestLogAction *);
 static void Task_BeginQuestLogPlayback(u8);
 static void QL_LoadObjectsAndTemplates(u8);
 static void QLPlayback_InitOverworldState(void);
+static bool8 QL_StartWarpExitStep(void);
+static void Task_QuestLogWarpExitStep(u8 taskId);
 static void SetPokemonCounts(void);
 static u16 QuestLog_GetPartyCount(void);
 static u16 QuestLog_GetBoxMonCount(void);
@@ -134,6 +153,8 @@ static void DrawSceneDescription(void);
 static void CopyDescriptionWindowTiles(u8);
 static void QuestLog_CloseTextWindow(void);
 static void QuestLog_WaitFadeAndCancelPlayback(void);
+static void EncodeQuestLogDisplayString(u8 *str);
+static void SanitizeQuestLogDisplayString(u8 *str, u8 maxNewlines);
 static bool8 FieldCB2_FinalScene(void);
 static void Task_FinalScene_WaitFade(u8);
 static void Task_QuestLogScene_SavedGame(u8);
@@ -158,9 +179,17 @@ static void NoteInvalidQuestLogScriptFailure(u8 sceneNum, const char *reason, co
 static void TraceInvalidQuestLogData(const char *prefix);
 static void WriteQuestLogStatusFile(const char *status, u8 sceneNum, const char *reason);
 static void WriteQuestLogScriptDump(FILE *file, u8 sceneNum, u16 offset);
+static void AppendQuestLogPlaybackTrace(const char *phase);
+static void ResetQuestLogPlaybackTrace(void);
+static void AppendQuestLogPlaybackEventTrace(const char *phase, const u16 *eventData);
+static void AppendQuestLogPlaybackActionTrace(const char *phase, const struct QuestLogAction *action);
+static void AppendQuestLogPlaybackTextTrace(const char *phase, const u8 *text);
+static void DumpQuestLogSceneActions(const char *phase, const struct QuestLogAction *actions, u16 count);
 #ifdef PORTABLE
 static bool8 IsQuestLogPlaybackExplicitlyEnabled(void);
 #endif
+
+void QL_AppendPlaybackTrace(const char *phase);
 
 static const struct WindowTemplate sWindowTemplates[WIN_COUNT] = {
     [WIN_TOP_BAR] = {
@@ -196,6 +225,25 @@ static const u8 sTextColors[3] = {TEXT_DYNAMIC_COLOR_6, TEXT_COLOR_WHITE, TEXT_D
 static const u16 sDescriptionWindow_Gfx[] = INCBIN_U16("graphics/quest_log/description_window.4bpp");
 
 static const u8 sQuestLogTextLineYCoords[] = {17, 10, 3};
+
+static const u8 sQuestLogAsciiToGba[128] = {
+    /* 0x00 */ 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    /* 0x08 */ 0x00, 0x00, CHAR_NEWLINE, 0x00, 0x00, 0x00, 0x00, 0x00,
+    /* 0x10 */ 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    /* 0x18 */ 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    /* 0x20 */ CHAR_SPACE, CHAR_EXCL_MARK, 0x00, 0x00, 0x00, CHAR_PERCENT, CHAR_AMPERSAND, CHAR_SGL_QUOTE_RIGHT,
+    /* 0x28 */ CHAR_LEFT_PAREN, CHAR_RIGHT_PAREN, 0x00, CHAR_PLUS, CHAR_COMMA, CHAR_HYPHEN, CHAR_PERIOD, CHAR_SLASH,
+    /* 0x30 */ CHAR_0, CHAR_1, CHAR_2, CHAR_3, CHAR_4, CHAR_5, CHAR_6, CHAR_7,
+    /* 0x38 */ CHAR_8, CHAR_9, CHAR_COLON, CHAR_SEMICOLON, CHAR_LESS_THAN, CHAR_EQUALS, CHAR_GREATER_THAN, CHAR_QUESTION_MARK,
+    /* 0x40 */ 0x00, CHAR_A, CHAR_B, CHAR_C, CHAR_D, CHAR_E, CHAR_F, CHAR_G,
+    /* 0x48 */ CHAR_H, CHAR_I, CHAR_J, CHAR_K, CHAR_L, CHAR_M, CHAR_N, CHAR_O,
+    /* 0x50 */ CHAR_P, CHAR_Q, CHAR_R, CHAR_S, CHAR_T, CHAR_U, CHAR_V, CHAR_W,
+    /* 0x58 */ CHAR_X, CHAR_Y, CHAR_Z, 0x00, 0x00, 0x00, 0x00, 0x00,
+    /* 0x60 */ 0x00, CHAR_a, CHAR_b, CHAR_c, CHAR_d, CHAR_e, CHAR_f, CHAR_g,
+    /* 0x68 */ CHAR_h, CHAR_i, CHAR_j, CHAR_k, CHAR_l, CHAR_m, CHAR_n, CHAR_o,
+    /* 0x70 */ CHAR_p, CHAR_q, CHAR_r, CHAR_s, CHAR_t, CHAR_u, CHAR_v, CHAR_w,
+    /* 0x78 */ CHAR_x, CHAR_y, CHAR_z, 0x00, 0x00, 0x00, 0x00, 0x00,
+};
 
 void QL_AddASLROffset(void *oldSaveBlockPtr)
 {
@@ -286,6 +334,7 @@ void RunQuestLogCB(void)
         sQuestLogCB = NULL;
     }
 #endif
+    AppendQuestLogPlaybackTrace("run_questlog_cb");
     if (sQuestLogCB != NULL)
         sQuestLogCB();
 }
@@ -333,18 +382,23 @@ static void QLogCB_Recording(void)
 
 static void QLogCB_Playback(void)
 {
+    AppendQuestLogPlaybackTrace("qlogcb_playback_enter");
     if (sPlaybackControl.state == 2)
         sPlaybackControl.state = 0;
 
     if (sPlaybackControl.endMode == END_MODE_NONE)
     {
-        if (gQuestLogPlaybackState != QL_PLAYBACK_STATE_STOPPED 
-         || sPlaybackControl.state == 1 
-         || (sPlaybackControl.cursor < ARRAY_COUNT(sEventData) 
+        if (gQuestLogPlaybackState != QL_PLAYBACK_STATE_STOPPED
+         || sPlaybackControl.state == 1
+         || (sPlaybackControl.cursor < ARRAY_COUNT(sEventData)
           && sEventData[sPlaybackControl.cursor] != NULL))
+        {
+            AppendQuestLogPlaybackTrace("qlogcb_playback_run_event");
             QuestLog_PlayCurrentEvent();
+        }
         else
         {
+            AppendQuestLogPlaybackTrace("qlogcb_playback_scene_end");
             sPlaybackControl.endMode = END_MODE_SCENE;
             LockPlayerFieldControls();
             DoSceneEndTransition(0);
@@ -538,18 +592,24 @@ void TryStartQuestLogPlayback(u8 taskId)
         }
     }
 
-    if (getenv("FIRERED_SKIP_QUEST_LOG_PLAYBACK") != NULL)
+#ifdef PORTABLE
+    QuestLogCachePortableEnvOnce();
+    if (sQuestLogSkipPlaybackEnv)
     {
         WriteQuestLogStatusFile("skipped", 0xFF, "quest log replay explicitly skipped");
         SetMainCallback2(CB2_ContinueSavedGame);
         DestroyTask(taskId);
+        return;
     }
-    else if (foundInvalidScene)
+#endif
+
+    if (foundInvalidScene)
     {
         DiscardInvalidQuestLogAndContinue(taskId);
     }
     else if (sNumScenes != 0)
     {
+        ResetQuestLogPlaybackTrace();
         WriteQuestLogStatusFile("starting", 0xFF, "quest log replay passed startup validation");
         gHelpSystemEnabled = FALSE;
         Task_BeginQuestLogPlayback(taskId);
@@ -810,6 +870,72 @@ static void WriteQuestLogScriptDump(FILE *file, u8 sceneNum, u16 offset)
 #endif
 }
 
+static void AppendQuestLogPlaybackTrace(const char *phase)
+{
+#ifdef PORTABLE
+    FILE *file = fopen("build/quest_log_playback_trace.txt", "ab");
+
+    if (file == NULL)
+        return;
+
+    fprintf(
+        file,
+        "phase=%s scene=%u playback=%u cursor=%u action=%u delay=%u endMode=%u state=%u\n",
+        (phase != NULL) ? phase : "unknown",
+        sCurrentSceneNum,
+        gQuestLogPlaybackState,
+        sPlaybackControl.cursor,
+        gQuestLogCurActionIdx,
+        sNextActionDelay,
+        sPlaybackControl.endMode,
+        sPlaybackControl.state);
+    fclose(file);
+#else
+    (void)phase;
+#endif
+}
+
+void QL_AppendPlaybackTrace(const char *phase)
+{
+    (void)phase;
+}
+
+static void ResetQuestLogPlaybackTrace(void)
+{
+}
+
+static void AppendQuestLogPlaybackTaskTrace(const char *phase, s16 state, s16 timer)
+{
+    (void)phase;
+    (void)state;
+    (void)timer;
+}
+
+static void AppendQuestLogPlaybackEventTrace(const char *phase, const u16 *eventData)
+{
+    (void)phase;
+    (void)eventData;
+}
+
+static void AppendQuestLogPlaybackActionTrace(const char *phase, const struct QuestLogAction *action)
+{
+    (void)phase;
+    (void)action;
+}
+
+static void AppendQuestLogPlaybackTextTrace(const char *phase, const u8 *text)
+{
+    (void)phase;
+    (void)text;
+}
+
+static void DumpQuestLogSceneActions(const char *phase, const struct QuestLogAction *actions, u16 count)
+{
+    (void)phase;
+    (void)actions;
+    (void)count;
+}
+
 static void DiscardInvalidQuestLogAndContinue(u8 taskId)
 {
     TraceInvalidQuestLogData("QuestLog: invalid replay data detected, clearing quest log and continuing normally:");
@@ -832,12 +958,14 @@ static void AbortQuestLogPlaybackAndContinue(void)
 #ifdef PORTABLE
 static bool8 IsQuestLogPlaybackExplicitlyEnabled(void)
 {
-    return getenv("FIRERED_ENABLE_QUEST_LOG_PLAYBACK") != NULL;
+    QuestLogCachePortableEnvOnce();
+    return sQuestLogEnablePlaybackEnv;
 }
 #endif
 
 static void Task_BeginQuestLogPlayback(u8 taskId)
 {
+    AppendQuestLogPlaybackTrace("begin_playback");
     gSaveBlock1Ptr->location.mapGroup = MAP_GROUP(MAP_ROUTE1);
     gSaveBlock1Ptr->location.mapNum =  MAP_NUM(MAP_ROUTE1);
     gSaveBlock1Ptr->location.warpId = WARP_ID_NONE;
@@ -854,6 +982,7 @@ void QL_InitSceneObjectsAndActions(void)
         AbortQuestLogPlaybackAndContinue();
         return;
     }
+    DumpQuestLogSceneActions("scene_actions_loaded", sQuestLogActionRecordBuffer, ARRAY_COUNT(sQuestLogActionRecordBuffer));
     QL_ResetRepeatEventTracker();
     ResetActions(QL_PLAYBACK_STATE_RUNNING, sQuestLogActionRecordBuffer, sizeof(sQuestLogActionRecordBuffer));
     QL_LoadObjectsAndTemplates(sCurrentSceneNum);
@@ -861,21 +990,25 @@ void QL_InitSceneObjectsAndActions(void)
 
 static bool8 FieldCB2_QuestLogStartPlaybackWithWarpExit(void)
 {
+    AppendQuestLogPlaybackTrace("fieldcb_warp_exit_enter");
     LoadPalette(GetTextWindowPalette(4), BG_PLTT_ID(15), PLTT_SIZE_4BPP);
     SetQuestLogState(QL_STATE_PLAYBACK);
     FieldCB_DefaultWarpExit();
     sPlaybackControl = (struct PlaybackControl){};
     sPlaybackControl.state = 2;
+    AppendQuestLogPlaybackTrace("fieldcb_warp_exit_ready");
     return 1;
 }
 
 static bool8 FieldCB2_QuestLogStartPlaybackStandingInPlace(void)
 {
+    AppendQuestLogPlaybackTrace("fieldcb_standing_enter");
     LoadPalette(GetTextWindowPalette(4), BG_PLTT_ID(15), PLTT_SIZE_4BPP);
     SetQuestLogState(QL_STATE_PLAYBACK);
     FieldCB_WarpExitFadeFromBlack();
     sPlaybackControl = (struct PlaybackControl){};
     sPlaybackControl.state = 2;
+    AppendQuestLogPlaybackTrace("fieldcb_standing_ready");
     return 1;
 }
 
@@ -898,6 +1031,8 @@ void DrawPreviouslyOnQuestHeader(u8 sceneNum)
         StringAppend(gStringVar4, gStringVar1);
     }
 
+    EncodeQuestLogDisplayString(gStringVar4);
+    SanitizeQuestLogDisplayString(gStringVar4, 0);
     AddTextPrinterParameterized4(sWindowIds[WIN_TOP_BAR], FONT_NORMAL, 2, 2, 1, 2, sTextColors, 0, gStringVar4);
     PutWindowTilemap(sWindowIds[WIN_TOP_BAR]);
     PutWindowTilemap(sWindowIds[WIN_BOTTOM_BAR]);
@@ -958,6 +1093,7 @@ static void QLPlayback_SetInitialPlayerPosition(u8 sceneNum, bool8 isWarp)
 
 static void QLPlayback_InitOverworldState(void)
 {
+    AppendQuestLogPlaybackTrace("init_overworld_state");
     gQuestLogState = QL_STATE_PLAYBACK;
     ResetSpecialVars();
     ClearBag();
@@ -974,6 +1110,121 @@ static void QLPlayback_InitOverworldState(void)
         WarpIntoMap();
         gFieldCallback2 = FieldCB2_QuestLogStartPlaybackWithWarpExit;
         SetMainCallback2(CB2_SetUpOverworldForQLPlaybackWithWarpExit);
+    }
+}
+
+static bool8 QL_StartWarpExitStep(void)
+{
+    if (GetQuestLogStartType() != QL_START_WARP)
+        return FALSE;
+
+    CreateTask(Task_QuestLogWarpExitStep, 10);
+    sQuestLogCB = NULL;
+    return TRUE;
+}
+
+static void Task_QuestLogWarpExitStep(u8 taskId)
+{
+    struct ObjectEvent *playerObject = &gObjectEvents[gPlayerAvatar.objectEventId];
+    s16 *x = &gTasks[taskId].data[2];
+    s16 *y = &gTasks[taskId].data[3];
+    s16 *doorTaskId = &gTasks[taskId].data[4];
+    s16 *warpMode = &gTasks[taskId].data[5];
+    bool8 isDoor = (*warpMode == 1);
+    u16 metatileBehavior;
+
+    AppendQuestLogPlaybackTaskTrace("ql_warp_exit_task", gTasks[taskId].data[0], gTasks[taskId].data[1]);
+
+    switch (gTasks[taskId].data[0])
+    {
+    case 0:
+        FreezeObjectEvents();
+        LockPlayerFieldControls();
+        PlayerGetDestCoords(x, y);
+        *doorTaskId = -1;
+        metatileBehavior = MapGridGetMetatileBehaviorAt(*x, *y);
+        if (MetatileBehavior_IsWarpDoor_2(metatileBehavior) || MetatileBehavior_IsNonAnimDoor(metatileBehavior))
+            *warpMode = 1;
+        else if (MetatileBehavior_IsDirectionalStairWarp(metatileBehavior))
+            *warpMode = 2;
+        else
+        {
+            metatileBehavior = MapGridGetMetatileBehaviorAt(playerObject->currentCoords.x, playerObject->currentCoords.y);
+            if (MetatileBehavior_IsWarpDoor_2(metatileBehavior) || MetatileBehavior_IsNonAnimDoor(metatileBehavior))
+                *warpMode = 1;
+            else if (MetatileBehavior_IsDirectionalStairWarp(metatileBehavior))
+                *warpMode = 2;
+            else
+                *warpMode = 0;
+        }
+
+        isDoor = (*warpMode == 1);
+        if (isDoor)
+            SetPlayerInvisibility(TRUE);
+        gTasks[taskId].data[0] = 1;
+        break;
+    case 1:
+        isDoor = (*warpMode == 1);
+        if (!gPaletteFade.active)
+        {
+            if (isDoor)
+            {
+                SetPlayerInvisibility(FALSE);
+                PlaySE(GetDoorSoundEffect(*x, *y));
+                *doorTaskId = FieldAnimateDoorOpen(*x, *y);
+                gTasks[taskId].data[0] = 2;
+                break;
+            }
+            if (!ObjectEventSetHeldMovement(playerObject, GetWalkNormalMovementAction(GetPlayerFacingDirection())))
+            {
+                UnfreezeObjectEvents();
+                UnlockPlayerFieldControls();
+                DestroyTask(taskId);
+                break;
+            }
+            gTasks[taskId].data[0] = 3;
+        }
+        break;
+    case 2:
+        isDoor = (*warpMode == 1);
+        if (*doorTaskId < 0 || gTasks[*doorTaskId].isActive != TRUE)
+        {
+            if (!ObjectEventSetHeldMovement(playerObject, GetWalkNormalMovementAction(GetPlayerFacingDirection())))
+            {
+                UnfreezeObjectEvents();
+                UnlockPlayerFieldControls();
+                DestroyTask(taskId);
+                break;
+            }
+            gTasks[taskId].data[0] = 3;
+        }
+        break;
+    case 3:
+        isDoor = (*warpMode == 1);
+        if (walkrun_is_standing_still())
+        {
+            ObjectEventClearHeldMovementIfFinished(playerObject);
+            if (isDoor)
+            {
+                *doorTaskId = FieldAnimateDoorClose(*x, *y);
+                gTasks[taskId].data[0] = 4;
+                break;
+            }
+            UnfreezeObjectEvents();
+            UnlockPlayerFieldControls();
+            sQuestLogCB = QLogCB_Playback;
+            DestroyTask(taskId);
+        }
+        break;
+    case 4:
+        if (*doorTaskId < 0 || gTasks[*doorTaskId].isActive != TRUE)
+        {
+            UnfreezeObjectEvents();
+            UnlockPlayerFieldControls();
+            sQuestLogCB = QLogCB_Playback;
+            DestroyTask(taskId);
+        }
+        break;
     }
 }
 
@@ -1374,11 +1625,17 @@ static void QuestLog_PlayCurrentEvent(void)
     {
         if (QL_TryRepeatEvent(sEventData[sPlaybackControl.cursor]) == TRUE)
         {
+            AppendQuestLogPlaybackEventTrace("qlogcb_playback_repeat_event", sEventData[sPlaybackControl.cursor]);
             HandleShowQuestLogMessage();
         }
         else if (QL_LoadEvent(sEventData[sPlaybackControl.cursor]) == TRUE)
         {
+            AppendQuestLogPlaybackEventTrace("qlogcb_playback_load_event", sEventData[sPlaybackControl.cursor]);
             HandleShowQuestLogMessage();
+        }
+        else
+        {
+            AppendQuestLogPlaybackEventTrace("qlogcb_playback_event_blocked", sEventData[sPlaybackControl.cursor]);
         }
     }
 }
@@ -1387,6 +1644,7 @@ static void HandleShowQuestLogMessage(void)
 {
     if (sPlaybackControl.state == 0)
     {
+        AppendQuestLogPlaybackTextTrace("show_message_before_draw", gStringVar4);
         sPlaybackControl.state = 1;
         sPlaybackControl.playingEvent = FALSE;
         sPlaybackControl.overlapTimer = 0;
@@ -1396,6 +1654,7 @@ static void HandleShowQuestLogMessage(void)
         if (sPlaybackControl.cursor > ARRAY_COUNT(sEventData))
             return;
         DrawSceneDescription();
+        AppendQuestLogPlaybackTextTrace("show_message_after_draw", gStringVar4);
     }
     TogglePlaybackStateForOverworldLock(1); // lock
 }
@@ -1469,6 +1728,15 @@ static void DrawSceneDescription(void)
     u16 i;
     u8 numLines = 0;
 
+    AppendQuestLogPlaybackTextTrace("draw_scene_description_enter", gStringVar4);
+
+    // Quest Log windows are laid out for at most three display lines.
+    // Saved replay strings should not carry prompt/scroll controls here, but
+    // if they do, strip them before rendering so they can't corrupt nearby
+    // replay window buffers.
+    EncodeQuestLogDisplayString(gStringVar4);
+    SanitizeQuestLogDisplayString(gStringVar4, ARRAY_COUNT(sQuestLogTextLineYCoords) - 1);
+
     for (i = 0; i < 0x100 && gStringVar4[i] != EOS; i++)
     {
         if (gStringVar4[i] == CHAR_NEWLINE)
@@ -1480,7 +1748,146 @@ static void DrawSceneDescription(void)
     PutWindowTilemap(sWindowIds[WIN_DESCRIPTION]);
     CopyDescriptionWindowTiles(sWindowIds[WIN_DESCRIPTION]);
     AddTextPrinterParameterized4(sWindowIds[WIN_DESCRIPTION], FONT_NORMAL, 2, sQuestLogTextLineYCoords[numLines], 1, 0, sTextColors, 0, gStringVar4);
+    // WIN_DESCRIPTION occupies rows 14-19 and overlaps WIN_BOTTOM_BAR on
+    // rows 18-19, so re-apply the bottom bar tilemap after drawing the
+    // description window.
+    PutWindowTilemap(sWindowIds[WIN_BOTTOM_BAR]);
     ScheduleBgCopyTilemapToVram(0);
+    AppendQuestLogPlaybackTextTrace("draw_scene_description_done", gStringVar4);
+}
+
+static void EncodeQuestLogDisplayString(u8 *str)
+{
+    u16 src = 0;
+    u16 dst = 0;
+    u8 encoded[0x400];
+
+    if (str == NULL)
+        return;
+
+    while (str[src] != EOS && str[src] != '\0' && dst + 1 < ARRAY_COUNT(encoded))
+    {
+        if (str[src] == 0xC3 && str[src + 1] == 0xA9)
+        {
+            encoded[dst++] = CHAR_E_ACUTE;
+            src += 2;
+            continue;
+        }
+        if (str[src] == 0xE2 && str[src + 1] == 0x80)
+        {
+            switch (str[src + 2])
+            {
+            case 0xA6:
+                encoded[dst++] = CHAR_ELLIPSIS;
+                src += 3;
+                continue;
+            case 0x98:
+                encoded[dst++] = CHAR_SGL_QUOTE_LEFT;
+                src += 3;
+                continue;
+            case 0x99:
+                encoded[dst++] = CHAR_SGL_QUOTE_RIGHT;
+                src += 3;
+                continue;
+            case 0x9C:
+                encoded[dst++] = CHAR_DBL_QUOTE_LEFT;
+                src += 3;
+                continue;
+            case 0x9D:
+                encoded[dst++] = CHAR_DBL_QUOTE_RIGHT;
+                src += 3;
+                continue;
+            }
+        }
+
+        if (str[src] < 0x80)
+            encoded[dst++] = sQuestLogAsciiToGba[str[src++]];
+        else
+            encoded[dst++] = str[src++];
+    }
+
+    encoded[dst] = EOS;
+    memcpy(str, encoded, dst + 1);
+}
+
+static void SanitizeQuestLogDisplayString(u8 *str, u8 maxNewlines)
+{
+    u16 src = 0;
+    u16 dst = 0;
+    u8 newlineCount = 0;
+
+    if (str == NULL)
+        return;
+
+    while (str[src] != EOS && dst < 0xFF)
+    {
+        u8 c = str[src++];
+
+        switch (c)
+        {
+        case CHAR_PROMPT_SCROLL:
+        case CHAR_PROMPT_CLEAR:
+            // Replay overlay text is static window text, not dialog flow text.
+            str[dst++] = CHAR_SPACE;
+            break;
+        case EXT_CTRL_CODE_BEGIN:
+            // Skip inline control sequences entirely in Quest Log overlays.
+            switch (str[src])
+            {
+            case EXT_CTRL_CODE_COLOR_HIGHLIGHT_SHADOW:
+                src += 4;
+                break;
+            case EXT_CTRL_CODE_PLAY_BGM:
+            case EXT_CTRL_CODE_PLAY_SE:
+                src += 3;
+                break;
+            case EXT_CTRL_CODE_COLOR:
+            case EXT_CTRL_CODE_HIGHLIGHT:
+            case EXT_CTRL_CODE_SHADOW:
+            case EXT_CTRL_CODE_PALETTE:
+            case EXT_CTRL_CODE_FONT:
+            case EXT_CTRL_CODE_PAUSE:
+            case EXT_CTRL_CODE_ESCAPE:
+            case EXT_CTRL_CODE_SHIFT_RIGHT:
+            case EXT_CTRL_CODE_SHIFT_DOWN:
+            case EXT_CTRL_CODE_CLEAR:
+            case EXT_CTRL_CODE_SKIP:
+            case EXT_CTRL_CODE_CLEAR_TO:
+            case EXT_CTRL_CODE_MIN_LETTER_SPACING:
+                src += 2;
+                break;
+            case EXT_CTRL_CODE_RESET_FONT:
+            case EXT_CTRL_CODE_PAUSE_UNTIL_PRESS:
+            case EXT_CTRL_CODE_WAIT_SE:
+            case EXT_CTRL_CODE_FILL_WINDOW:
+            case EXT_CTRL_CODE_JPN:
+            case EXT_CTRL_CODE_ENG:
+            case EXT_CTRL_CODE_PAUSE_MUSIC:
+            case EXT_CTRL_CODE_RESUME_MUSIC:
+                src += 1;
+                break;
+            default:
+                break;
+            }
+            break;
+        case CHAR_NEWLINE:
+            if (newlineCount < maxNewlines)
+            {
+                str[dst++] = c;
+                newlineCount++;
+            }
+            else
+            {
+                str[dst++] = CHAR_SPACE;
+            }
+            break;
+        default:
+            str[dst++] = c;
+            break;
+        }
+    }
+
+    str[dst] = EOS;
 }
 
 static void CopyDescriptionWindowTiles(u8 windowId)
@@ -1555,12 +1962,14 @@ static void QuestLog_WaitFadeAndCancelPlayback(void)
 
 void QuestLog_InitPalettesBackup(void)
 {
-    if (gQuestLogState == QL_STATE_PLAYBACK_LAST)
+    if (gQuestLogState == QL_STATE_PLAYBACK_LAST && sPalettesBackup == NULL)
         sPalettesBackup = AllocZeroed(PLTT_SIZE);
 }
 
 void QuestLog_BackUpPalette(u16 offset, u16 size)
 {
+    if (sPalettesBackup == NULL)
+        return;
     CpuCopy16(&gPlttBufferUnfaded[offset], &sPalettesBackup[offset], PLTT_SIZEOF(size));
 }
 
@@ -1598,12 +2007,15 @@ static void Task_QuestLogScene_SavedGame(u8 taskId)
             GetMapNameGeneric(gStringVar1, gMapHeader.regionMapSectionId);
             StringExpandPlaceholders(gStringVar4, gText_QuestLog_SavedGameAtLocation);
             DrawSceneDescription();
+            AppendQuestLogPlaybackTrace("saved_game_post_draw");
         }
         task->data[0] = 0;
         task->data[1] = 0;
         task->func = Task_WaitAtEndOfQuestLog;
+        AppendQuestLogPlaybackTrace("saved_game_task_armed");
         FreezeObjectEvents();
         LockPlayerFieldControls();
+        AppendQuestLogPlaybackTrace("saved_game_locked");
     }
 }
 
@@ -1613,12 +2025,17 @@ static void Task_WaitAtEndOfQuestLog(u8 taskId)
 {
     struct Task *task = &gTasks[taskId];
 
+    AppendQuestLogPlaybackTrace("wait_end_tick");
+
     if (JOY_NEW(A_BUTTON | B_BUTTON) || task->tTimer >= 127 || sPlaybackControl.endMode == END_MODE_FINISH)
     {
         QuestLog_CloseTextWindow();
         task->tTimer = 0;
         task->func = Task_EndQuestLog;
         gQuestLogState = 0;
+        gQuestLogPlaybackState = QL_PLAYBACK_STATE_STOPPED;
+        sQuestLogCB = NULL;
+        AppendQuestLogPlaybackTrace("wait_end_advance");
     }
     else
         task->tTimer++;
@@ -1633,6 +2050,8 @@ static void Task_EndQuestLog(u8 taskId)
 {
     s16 *data = gTasks[taskId].data;
     u8 i;
+
+    AppendQuestLogPlaybackTaskTrace("end_replay_tick", tState, tTimer);
 
     switch (tState)
     {
@@ -1668,8 +2087,12 @@ static void Task_EndQuestLog(u8 taskId)
     default:
         if (sPlaybackControl.endMode == END_MODE_FINISH)
             ShowMapNamePopup(TRUE);
-        CpuCopy16(sPalettesBackup, gPlttBufferUnfaded, PLTT_SIZE);
-        Free(sPalettesBackup);
+        if (sPalettesBackup != NULL)
+        {
+            CpuCopy16(sPalettesBackup, gPlttBufferUnfaded, PLTT_SIZE);
+            Free(sPalettesBackup);
+            sPalettesBackup = NULL;
+        }
         sPlaybackControl = (struct PlaybackControl){};
         ClearPlayerHeldMovementAndUnfreezeObjectEvents();
         UnlockPlayerFieldControls();
@@ -1692,6 +2115,8 @@ static bool8 RestoreScreenAfterPlayback(u8 taskId)
 {
     s16 *data = gTasks[taskId].data;
 
+    AppendQuestLogPlaybackTaskTrace("restore_screen_tick", data[0], tTimer);
+
     if (tTimer > 15)
         return TRUE;
 
@@ -1713,7 +2138,15 @@ static bool8 RestoreScreenAfterPlayback(u8 taskId)
 
 static void QL_SlightlyDarkenSomePals(void)
 {
-    u16 *buffer = Alloc(PLTT_SIZE);
+    u16 *buffer;
+
+    if (sPalettesBackup == NULL)
+        return;
+
+    buffer = Alloc(PLTT_SIZE);
+    if (buffer == NULL)
+        return;
+
     CpuCopy16(sPalettesBackup, buffer, PLTT_SIZE);
     SlightlyDarkenPalsInWeather(sPalettesBackup, sPalettesBackup, 13 * 16);
     SlightlyDarkenPalsInWeather(&sPalettesBackup[OBJ_PLTT_ID(1)], &sPalettesBackup[OBJ_PLTT_ID(1)], 1 * 16);
@@ -2057,6 +2490,7 @@ void QL_TryRunActions(void)
             {
                 do
                 {
+                    AppendQuestLogPlaybackActionTrace("ql_tryrun_execute_action", &sCurSceneActions[gQuestLogCurActionIdx]);
                     switch (sCurSceneActions[gQuestLogCurActionIdx].type)
                     {
                     case QL_ACTION_MOVEMENT:
@@ -2095,6 +2529,7 @@ void QL_TryRunActions(void)
                         break;
                     }
                     sNextActionDelay = sCurSceneActions[gQuestLogCurActionIdx].duration;
+                    AppendQuestLogPlaybackActionTrace("ql_tryrun_next_action", &sCurSceneActions[gQuestLogCurActionIdx]);
 
                 } while (gQuestLogPlaybackState != QL_PLAYBACK_STATE_ACTION_END && (sNextActionDelay == 0 || sNextActionDelay == 0xFFFF));
             }
@@ -2140,7 +2575,9 @@ u8 QL_GetPlaybackState(void)
 
 static bool8 RecordHeadAtEndOfEntryOrScriptContext2Enabled(void)
 {
-    if (gQuestLogCurActionIdx >= sMaxActionsInScene || ArePlayerFieldControlsLocked() == TRUE)
+    if (gQuestLogCurActionIdx >= sMaxActionsInScene)
+        return TRUE;
+    if (gQuestLogState != QL_STATE_PLAYBACK && ArePlayerFieldControlsLocked() == TRUE)
         return TRUE;
     return FALSE;
 }
