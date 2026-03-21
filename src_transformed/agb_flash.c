@@ -32,6 +32,31 @@ static bool8 sPortableFlashLoaded = FALSE;
 static u8 sPortableFlashBank = 0;
 static u8 sPortableFlashData[FLASH_ROM_SIZE_1M];
 
+static void PortableFlash_Load(void);
+
+#ifdef PORTABLE
+static int s_portable_flash_io_batch_depth;
+
+void PortableFlash_BeginIoBatch(void)
+{
+    PortableFlash_Load();
+    s_portable_flash_io_batch_depth++;
+}
+
+void PortableFlash_EndIoBatch(void)
+{
+    if (s_portable_flash_io_batch_depth > 0)
+        s_portable_flash_io_batch_depth--;
+    if (s_portable_flash_io_batch_depth == 0)
+        PortableFlash_Flush();
+}
+
+int PortableFlash_GetIoBatchDepth(void)
+{
+    return s_portable_flash_io_batch_depth;
+}
+#endif
+
 static void PortableFlash_Reset(void)
 {
     memset(sPortableFlashData, 0xFF, sizeof(sPortableFlashData));
