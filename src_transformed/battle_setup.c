@@ -39,13 +39,27 @@
 #include <stdio.h>
 
 extern void firered_runtime_trace_external(const char *message);
+extern char *getenv(const char *name);
 
 static u8 sBattleSetupTraceCount;
 
 static void TraceBattleSetup(const char *fmt, ...)
 {
+    static int sTraceInit;
+    static int sTraceEnabled;
     char buffer[256];
     va_list args;
+    const char *env;
+
+    if (!sTraceInit)
+    {
+        env = getenv("FIRERED_TRACE_BATTLE_SETUP");
+        sTraceEnabled = (env != NULL && env[0] != '\0' && env[0] != '0');
+        sTraceInit = 1;
+    }
+
+    if (!sTraceEnabled)
+        return;
 
     if (sBattleSetupTraceCount >= 96)
         return;
@@ -54,7 +68,6 @@ static void TraceBattleSetup(const char *fmt, ...)
     vsnprintf(buffer, sizeof(buffer), fmt, args);
     va_end(args);
     firered_runtime_trace_external(buffer);
-    fflush(stdout);
     sBattleSetupTraceCount++;
 }
 #endif

@@ -66,7 +66,8 @@ static volatile EngineTraceAtomicInt s_trace_head = 0;
 static volatile EngineTraceAtomicInt s_trace_tail = 0;
 static volatile EngineTraceAtomicInt s_trace_dropped = 0;
 static uint64_t s_trace_last_flush_ms = 0;
-static uint32_t s_trace_mask = ENGINE_TRACE_DEFAULT_MASK;
+/* Off by default: set NATIVECART_TRACE (e.g. "default", "battle", "all") to enable. */
+static uint32_t s_trace_mask = 0u;
 static int s_trace_config_initialized = 0;
 
 extern void AgbMain(void);
@@ -121,6 +122,7 @@ typedef struct EngineStateFileHeader {
 
 static void engine_runtime_trace(const char *message);
 static void engine_runtime_trace_flush(void);
+static int engine_runtime_any_trace_enabled(void);
 static int engine_runtime_begin_idle_mutation(void);
 static void engine_runtime_end_idle_mutation(void);
 
@@ -225,7 +227,16 @@ static void engine_runtime_trace_init_config(void)
     s_trace_config_initialized = 1;
     env = getenv("NATIVECART_TRACE");
     if (env == NULL || *env == '\0')
+    {
+        s_trace_mask = 0u;
         return;
+    }
+
+    if (strcmp(env, "none") == 0 || strcmp(env, "0") == 0)
+    {
+        s_trace_mask = 0u;
+        return;
+    }
 
     if (strcmp(env, "all") == 0)
     {
@@ -273,11 +284,19 @@ static void engine_runtime_trace_init_config(void)
     }
 }
 
+static int engine_runtime_any_trace_enabled(void)
+{
+    engine_runtime_trace_init_config();
+    return s_trace_mask != 0u;
+}
+
 static int engine_runtime_trace_should_emit(const char *message)
 {
     uint32_t category;
 
     engine_runtime_trace_init_config();
+    if (s_trace_mask == 0u)
+        return 0;
     category = engine_runtime_trace_category_for_message(message);
     return (s_trace_mask & category) != 0;
 }
@@ -303,6 +322,9 @@ static void engine_runtime_dump_palette_stage16_once(void)
     uint16_t *pltt = (uint16_t *)(uintptr_t)ENGINE_PALETTE_ADDR;
 
     if (dumped || g_runtime.completed_frames != 16)
+        return;
+
+    if (!engine_runtime_any_trace_enabled())
         return;
 
     dumped = 1;
@@ -339,6 +361,12 @@ static void engine_runtime_dump_overworld_state(unsigned long frame)
     const char *cb1_name = "other";
     const char *cb2_name = "other";
 
+    if (!engine_runtime_should_dump_overworld_frames(frame))
+        return;
+
+    if (!engine_runtime_any_trace_enabled())
+        return;
+
     if (gMain.callback1 == CB1_Overworld)
         cb1_name = "CB1_Overworld";
 
@@ -348,9 +376,6 @@ static void engine_runtime_dump_overworld_state(unsigned long frame)
         cb2_name = "CB2_Overworld";
     else if (gMain.callback2 == firered_portable_get_cb2_overworld_basic())
         cb2_name = "CB2_OverworldBasic";
-
-    if (!engine_runtime_should_dump_overworld_frames(frame))
-        return;
 
     snprintf(buffer, sizeof(buffer),
              "FRAME %lu cb1=%p(%s) cb2=%p(%s) vblank=%p DISPCNT=%04X PALFADE active=%u mp1=%08lX faded=%04X %04X %04X %04X",
@@ -419,6 +444,9 @@ static void engine_runtime_trace_bedroom_movement(unsigned long frame)
 {
     char buffer[192];
 
+    if (!engine_runtime_any_trace_enabled())
+        return;
+
     if (frame < 7000 || frame > 10000 || (frame % 100ul) != 0)
         return;
 
@@ -455,11 +483,19 @@ static int engine_runtime_should_log_frame_step(unsigned long frame)
 
 static void engine_runtime_trace(const char *message)
 {
+#ifdef NDEBUG
+    (void)message;
+    return;
+#else
     int head;
     int tail;
     int slot;
 
     if (message == NULL) {
+        return;
+    }
+    engine_runtime_trace_init_config();
+    if (s_trace_mask == 0u) {
         return;
     }
     if (!engine_runtime_trace_should_emit(message)) {
@@ -481,10 +517,14 @@ static void engine_runtime_trace(const char *message)
     slot = head % ENGINE_TRACE_RING_SIZE;
     snprintf(s_trace_ring[slot].line, sizeof(s_trace_ring[slot].line), "%s", message);
     engine_trace_atomic_store(&s_trace_ready[slot], 1);
+#endif
 }
 
 static void engine_runtime_trace_flush(void)
 {
+#ifdef NDEBUG
+    return;
+#else
     int tail;
     int head;
     long dropped;
@@ -522,6 +562,7 @@ static void engine_runtime_trace_flush(void)
     }
 
     s_trace_last_flush_ms = engine_runtime_trace_now_ms();
+#endif
 }
 
 void engine_backend_trace_external(const char *message)
@@ -537,6 +578,13 @@ unsigned long engine_backend_get_completed_frame_external(void)
 void engine_backend_trace_bytes_external(const char *label, const void *src, const void *dst)
 {
     char buffer[256];
+
+#ifdef NDEBUG
+    (void)label;
+    (void)src;
+    (void)dst;
+    return;
+#endif
 
     if (src == NULL)
     {
@@ -766,7 +814,7 @@ void engine_backend_run_frame(void) {
     completed_frame = g_runtime.completed_frames;
     engine_unlock();
 
-    if (engine_runtime_should_log_frame_step(completed_frame)) {
+    if (engine_runtime_any_trace_enabled() && engine_runtime_should_log_frame_step(completed_frame)) {
         snprintf(buffer, sizeof(buffer), "engine_backend_run_frame: frame=%lu", completed_frame);
         engine_runtime_trace(buffer);
     }
@@ -785,24 +833,27 @@ void engine_backend_run_frame(void) {
         engine_runtime_dump_palette_stage16_once();
         engine_runtime_dump_overworld_state(completed_frame);
         engine_runtime_trace_bedroom_movement(completed_frame);
-        if (completed_frame >= 7600 && completed_frame <= 7900) {
+        if (engine_runtime_any_trace_enabled()
+            && completed_frame >= 7600 && completed_frame <= 7900) {
             snprintf(buffer, sizeof(buffer), "engine_backend_run_frame: pre-video frame=%lu", completed_frame);
             engine_runtime_trace(buffer);
         }
 #endif
-        if (engine_runtime_should_log_frame(completed_frame)) {
+        if (engine_runtime_any_trace_enabled() && engine_runtime_should_log_frame(completed_frame)) {
             snprintf(buffer, sizeof(buffer), "engine_backend_run_frame: frame=%lu", completed_frame);
             engine_runtime_trace(buffer);
         }
         engine_video_render_frame();
 #ifdef PORTABLE
-        if (completed_frame >= 7600 && completed_frame <= 7900) {
+        if (engine_runtime_any_trace_enabled()
+            && completed_frame >= 7600 && completed_frame <= 7900) {
             snprintf(buffer, sizeof(buffer), "engine_backend_run_frame: post-video frame=%lu", completed_frame);
             engine_runtime_trace(buffer);
         }
 #endif
         now_ms = engine_runtime_trace_now_ms();
-        if (now_ms >= s_trace_last_flush_ms + 1000ull) {
+        if (engine_runtime_any_trace_enabled()
+            && now_ms >= s_trace_last_flush_ms + 1000ull) {
             engine_runtime_trace_flush();
         }
     }
@@ -969,7 +1020,7 @@ void engine_backend_shutdown(void) {
 void engine_backend_vblank_wait(void) {
     engine_lock();
 #ifdef PORTABLE
-    if (gMain.callback2 != NULL) {
+    if (engine_runtime_any_trace_enabled() && gMain.callback2 != NULL) {
         char buffer[128];
         snprintf(buffer, sizeof(buffer), "RuntimeVBlank: enter req=%lu done=%lu cb2=%p vblank=%p",
                  g_runtime.requested_frames, g_runtime.completed_frames, gMain.callback2, gMain.vblankCallback);
@@ -980,7 +1031,7 @@ void engine_backend_vblank_wait(void) {
     engine_signal_all();
 
 #ifdef PORTABLE
-    if (gMain.callback2 != NULL) {
+    if (engine_runtime_any_trace_enabled() && gMain.callback2 != NULL) {
         char buffer[96];
         snprintf(buffer, sizeof(buffer), "RuntimeVBlank: signaled req=%lu done=%lu",
                  g_runtime.requested_frames, g_runtime.completed_frames);
@@ -990,7 +1041,7 @@ void engine_backend_vblank_wait(void) {
 
     while (!g_runtime.shutdown_requested && g_runtime.requested_frames <= g_runtime.completed_frames) {
 #ifdef PORTABLE
-        if (gMain.callback2 != NULL)
+        if (engine_runtime_any_trace_enabled() && gMain.callback2 != NULL)
             engine_runtime_trace("RuntimeVBlank: waiting for next frame request");
 #endif
         engine_wait();
@@ -1007,7 +1058,7 @@ void engine_backend_vblank_wait(void) {
 
     engine_unlock();
 #ifdef PORTABLE
-    if (gMain.callback2 != NULL)
+    if (engine_runtime_any_trace_enabled() && gMain.callback2 != NULL)
         engine_runtime_trace("RuntimeVBlank: exit");
 #endif
 }
