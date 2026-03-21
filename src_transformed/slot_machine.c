@@ -397,17 +397,17 @@ static const u16 sPayoutTable[] = {
 
 #if defined(FIRERED)
 static const u16 sReelIcons_Pal[][16] = INCBIN_U16("graphics/slot_machine/firered/reel_icons.gbapal");
-#define sReelIcons_Tiles ((const u32 *)NULL)
-#define sClefairy_Pal ((const u16 *)NULL)
-#define sClefairy_Tiles ((const u32 *)NULL)
+static const u32 sReelIcons_Tiles[]   = INCBIN_U32("graphics/slot_machine/firered/reel_icons.4bpp.lz");
+static const u16 sClefairy_Pal[]      = INCBIN_U16("graphics/slot_machine/firered/clefairy.gbapal");
+static const u32 sClefairy_Tiles[]    = INCBIN_U32("graphics/slot_machine/firered/clefairy.4bpp.lz");
 #elif defined(LEAFGREEN)
 static const u16 sReelIcons_Pal[][16] = INCBIN_U16("graphics/slot_machine/leafgreen/reel_icons.gbapal");
-#define sReelIcons_Tiles ((const u32 *)NULL)
-#define sClefairy_Pal ((const u16 *)NULL)
-#define sClefairy_Tiles ((const u32 *)NULL)
+static const u32 sReelIcons_Tiles[]   = INCBIN_U32("graphics/slot_machine/leafgreen/reel_icons.4bpp.lz");
+static const u16 sClefairy_Pal[]      = INCBIN_U16("graphics/slot_machine/leafgreen/clefairy.gbapal");
+static const u32 sClefairy_Tiles[]    = INCBIN_U32("graphics/slot_machine/leafgreen/clefairy.4bpp.lz");
 #endif
-#define sDigits_Pal ((const u16 *)NULL)
-#define sDigits_Tiles ((const u32 *)NULL)
+static const u16 sDigits_Pal[]        = INCBIN_U16("graphics/slot_machine/digits.gbapal");
+static const u32 sDigits_Tiles[]      = INCBIN_U32("graphics/slot_machine/digits.4bpp.lz");
 
 static const struct CompressedSpriteSheet sSpriteSheets[] = {
     {.data = sReelIcons_Tiles, .size = 0xe00, .tag = GFXTAG_REEL_ICONS},
@@ -737,24 +737,24 @@ bool8 (*const sSlotMachineSetupTasks[])(u8 *, struct SlotMachineSetupTaskData *)
 
 #if defined(FIRERED)
 static const u16 sBg_Pal[][16]             = INCBIN_U16("graphics/slot_machine/firered/bg.gbapal");
-#define sBg_Tiles ((const u32 *)NULL)
-#define sBg_Tilemap ((const u32 *)NULL)
-#define sBgPal_MatchLines ((const u16 *)NULL)
+static const u32 sBg_Tiles[]               = INCBIN_U32("graphics/slot_machine/firered/bg.4bpp.lz");
+static const u32 sBg_Tilemap[]             = INCBIN_U32("graphics/slot_machine/firered/bg.bin.lz");
+static const u16 sBgPal_MatchLines[]       = INCBIN_U16("graphics/slot_machine/firered/match_lines.gbapal");
 static const u16 sBgPal_PayoutLight[][16]  = INCBIN_U16("graphics/slot_machine/firered/payout_lights.gbapal");
-#define sButtonPressed_Tiles ((const u32 *)NULL)
-#define sCombosWindow_Pal ((const u16 *)NULL)
-#define sCombosWindow_Tiles ((const u32 *)NULL)
-#define sCombosWindow_Tilemap ((const u32 *)NULL)
+static const u32 sButtonPressed_Tiles[]    = INCBIN_U32("graphics/slot_machine/firered/button_pressed.4bpp.lz");
+static const u16 sCombosWindow_Pal[]       = INCBIN_U16("graphics/slot_machine/firered/combos_window.gbapal");
+static const u32 sCombosWindow_Tiles[]     = INCBIN_U32("graphics/slot_machine/firered/combos_window.4bpp.lz");
+static const u32 sCombosWindow_Tilemap[]   = INCBIN_U32("graphics/slot_machine/firered/combos_window.bin.lz");
 #elif defined(LEAFGREEN)
 static const u16 sBg_Pal[][16]             = INCBIN_U16("graphics/slot_machine/leafgreen/bg.gbapal");
-#define sBg_Tiles ((const u32 *)NULL)
-#define sBg_Tilemap ((const u32 *)NULL)
-#define sBgPal_MatchLines ((const u16 *)NULL)
+static const u32 sBg_Tiles[]               = INCBIN_U32("graphics/slot_machine/leafgreen/bg.4bpp.lz");
+static const u32 sBg_Tilemap[]             = INCBIN_U32("graphics/slot_machine/leafgreen/bg.bin.lz");
+static const u16 sBgPal_MatchLines[]       = INCBIN_U16("graphics/slot_machine/leafgreen/match_lines.gbapal");
 static const u16 sBgPal_PayoutLight[][16]  = INCBIN_U16("graphics/slot_machine/leafgreen/payout_lights.gbapal");
-#define sButtonPressed_Tiles ((const u32 *)NULL)
-#define sCombosWindow_Pal ((const u16 *)NULL)
-#define sCombosWindow_Tiles ((const u32 *)NULL)
-#define sCombosWindow_Tilemap ((const u32 *)NULL)
+static const u32 sButtonPressed_Tiles[]    = INCBIN_U32("graphics/slot_machine/leafgreen/button_pressed.4bpp.lz");
+static const u16 sCombosWindow_Pal[]       = INCBIN_U16("graphics/slot_machine/leafgreen/combos_window.gbapal");
+static const u32 sCombosWindow_Tiles[]     = INCBIN_U32("graphics/slot_machine/leafgreen/combos_window.4bpp.lz");
+static const u32 sCombosWindow_Tilemap[]   = INCBIN_U32("graphics/slot_machine/leafgreen/combos_window.bin.lz");
 #endif
 
 static const struct BgTemplate sBgTemplates[] = {

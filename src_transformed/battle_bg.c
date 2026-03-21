@@ -15,9 +15,7 @@
 #include "constants/trainers.h"
 
 #ifdef PORTABLE
-#include <stdio.h>
 #include "battle_bg_portable_assets.h"
-extern void firered_runtime_trace_external(const char *message);
 #endif
 
 #define TAG_VS_LETTERS 10000
@@ -645,16 +643,6 @@ static void LoadBattleTerrainGfx(u16 terrain)
     LZDecompressVram(sBattleTerrainTable[terrain].tileset, (void *)BG_CHAR_ADDR(2));
     LZDecompressVram(sBattleTerrainTable[terrain].tilemap, (void *)BG_SCREEN_ADDR(26));
     LoadCompressedPalette(sBattleTerrainTable[terrain].palette, BG_PLTT_ID(2), 3 * PLTT_SIZE_4BPP);
-#ifdef PORTABLE
-    {
-        char buffer[96];
-        snprintf(buffer, sizeof(buffer), "BattleRender: terrain=%u bgpal2=%04X bgpal3=%04X",
-                 terrain,
-                 gPlttBufferUnfaded[BG_PLTT_ID(2)],
-                 gPlttBufferUnfaded[BG_PLTT_ID(2) + 1]);
-        firered_runtime_trace_external(buffer);
-    }
-#endif
 }
 
 static void LoadBattleTerrainEntryGfx(u16 terrain)
@@ -698,6 +686,7 @@ void LoadBattleMenuWindowGfx(void)
 {
     LoadUserWindowGfx(2, 0x012, BG_PLTT_ID(1));
     LoadUserWindowGfx(2, 0x022, BG_PLTT_ID(1));
+    Menu_LoadStdPalAt(BG_PLTT_ID(5));
 
     gPlttBufferUnfaded[BG_PLTT_ID(5) + 12] = RGB( 9,  9,  9);
     gPlttBufferUnfaded[BG_PLTT_ID(5) + 13] = RGB( 9,  9,  9);
@@ -726,15 +715,6 @@ void LoadBattleTextboxAndBackground(void)
     CopyToBgTilemapBuffer(0, gBattleInterface_Textbox_Tilemap, 0, 0x000);
     CopyBgTilemapBufferToVram(0);
     LoadCompressedPalette(gBattleInterface_Textbox_Pal, BG_PLTT_ID(0), 2 * PLTT_SIZE_4BPP);
-#ifdef PORTABLE
-    {
-        char buffer[96];
-        snprintf(buffer, sizeof(buffer), "BattleRender: textboxPal0=%04X textboxPal1=%04X",
-                 gPlttBufferUnfaded[BG_PLTT_ID(0)],
-                 gPlttBufferUnfaded[BG_PLTT_ID(0) + 1]);
-        firered_runtime_trace_external(buffer);
-    }
-#endif
     LoadBattleMenuWindowGfx();
     DrawMainBattleBackground();
 }
