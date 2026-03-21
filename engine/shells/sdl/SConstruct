@@ -296,6 +296,25 @@ program = c_env.Program(
 
 Default(program)
 
+# ── Launcher ────────────────────────────────────────────────────────────
+launcher_dir = os.path.join(project_dir, "launcher")
+launcher_program = os.path.join(build_dir, "nativecart_launcher")
+launcher_env = c_env.Clone()
+# Launcher only needs SDL3, no game libraries
+launcher_env.Append(CPPPATH=[launcher_dir])
+
+launcher_libs = ["SDL3"]
+if env["platform"] == "windows":
+    launcher_libs = ["mingw32", "SDL3", "winmm", "ws2_32", "crypt32"]
+
+launcher = launcher_env.Program(
+    target=launcher_program,
+    source=build_objects(launcher_env, [os.path.join(launcher_dir, "launcher.c")]),
+    LIBPATH=[env["sdl_lib_dir"]] if env["sdl_lib_dir"] else [],
+    LIBS=launcher_libs,
+)
+Alias("launcher", launcher)
+
 if env["platform"] == "windows" and env["sdl_bin_dir"]:
     runtime_dll = c_env.Command(
         target=os.path.join(build_dir, "SDL3.dll"),
