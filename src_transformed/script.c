@@ -12,6 +12,29 @@
 #include <stdio.h>
 
 extern void firered_runtime_trace_external(const char *message);
+
+#ifndef NDEBUG
+extern char *getenv(const char *name);
+
+static int TraceScriptEnvEnabled(void)
+{
+    static int s_init;
+    static int s_on;
+    const char *e;
+
+    if (s_init)
+        return s_on;
+    s_init = 1;
+    e = getenv("FIRERED_TRACE_SCRIPT");
+    s_on = (e != NULL && e[0] != '\0' && e[0] != '0');
+    return s_on;
+}
+#else
+static int TraceScriptEnvEnabled(void)
+{
+    return 0;
+}
+#endif
 extern const u8 PalletTown_EventScript_OakTrigger[];
 extern const u8 PalletTown_EventScript_OakTriggerLeft[];
 extern const u8 PalletTown_EventScript_OakTriggerRight[];
@@ -37,7 +60,6 @@ static void TraceOakScript(const char *fmt, ...)
     vsnprintf(buffer, sizeof(buffer), fmt, args);
     va_end(args);
     firered_runtime_trace_external(buffer);
-    fflush(stdout);
 }
 
 static bool8 ShouldTraceOakScript(const u8 *script)
@@ -455,7 +477,8 @@ void ScriptContext_Init(void)
 bool8 ScriptContext_RunScript(void)
 {
 #ifdef PORTABLE
-    firered_runtime_trace_external("CrashTrace: ScriptContext_RunScript enter");
+    if (TraceScriptEnvEnabled())
+        firered_runtime_trace_external("CrashTrace: ScriptContext_RunScript enter");
 #endif
     if (sGlobalScriptContextStatus == CONTEXT_SHUTDOWN)
         return FALSE;

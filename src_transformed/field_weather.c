@@ -14,6 +14,31 @@
 
 extern void engine_backend_trace_external(const char *msg);
 
+#ifdef PORTABLE
+#ifndef NDEBUG
+extern char *getenv(const char *name);
+
+static int FieldWeatherTraceEnvEnabled(void)
+{
+    static int s_init;
+    static int s_on;
+    const char *e;
+
+    if (s_init)
+        return s_on;
+    s_init = 1;
+    e = getenv("FIRERED_TRACE_FIELD_WEATHER");
+    s_on = (e != NULL && e[0] != '\0' && e[0] != '0');
+    return s_on;
+}
+#else
+static int FieldWeatherTraceEnvEnabled(void)
+{
+    return 0;
+}
+#endif
+#endif
+
 #define DROUGHT_COLOR_INDEX(color) ((((color) >> 1) & 0xF) | (((color) >> 2) & 0xF0) | (((color) >> 3) & 0xF00))
 
 enum
@@ -243,15 +268,25 @@ static void Task_WeatherMain(u8 taskId)
         sWeatherFuncs[gWeatherPtr->currWeather].main();
     }
 
-    snprintf(_wtrace, sizeof(_wtrace),
-        "WeatherMain: palState=%d curr=%d next=%d ptr=%p",
-        (int)gWeatherPtr->palProcessingState,
-        (int)gWeatherPtr->currWeather,
-        (int)gWeatherPtr->nextWeather,
-        (void *)gWeatherPtr);
-    engine_backend_trace_external(_wtrace);
+#ifdef PORTABLE
+    if (FieldWeatherTraceEnvEnabled())
+#endif
+    {
+        snprintf(_wtrace, sizeof(_wtrace),
+            "WeatherMain: palState=%d curr=%d next=%d ptr=%p",
+            (int)gWeatherPtr->palProcessingState,
+            (int)gWeatherPtr->currWeather,
+            (int)gWeatherPtr->nextWeather,
+            (void *)gWeatherPtr);
+        engine_backend_trace_external(_wtrace);
+    }
     sWeatherPalStateFuncs[gWeatherPtr->palProcessingState]();
-    engine_backend_trace_external("WeatherMain: palStateFuncs returned");
+#ifdef PORTABLE
+    if (FieldWeatherTraceEnvEnabled())
+#endif
+    {
+        engine_backend_trace_external("WeatherMain: palStateFuncs returned");
+    }
 }
 
 
@@ -474,6 +509,9 @@ static void ApplyGammaShift(u8 startPalIndex, u8 numPalettes, s8 gammaIndex)
             if (sPaletteGammaTypes[curPalIndex] == GAMMA_NONE)
             {
                 // No palette change.
+#ifdef PORTABLE
+                if (FieldWeatherTraceEnvEnabled())
+#endif
                 {
                     char buffer[128];
                     snprintf(buffer, sizeof(buffer), "ApplyGammaShift: CpuFastCopy numPalettes=%d palOffset=%d len=%llu",
@@ -514,6 +552,9 @@ static void ApplyGammaShift(u8 startPalIndex, u8 numPalettes, s8 gammaIndex)
     else
     {
         // No palette blending.
+#ifdef PORTABLE
+        if (FieldWeatherTraceEnvEnabled())
+#endif
         {
             char buffer[128];
             unsigned long long copyLen = (unsigned long long)numPalettes * (unsigned long long)PLTT_SIZE_4BPP;

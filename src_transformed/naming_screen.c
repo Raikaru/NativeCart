@@ -55,9 +55,35 @@
 
 extern void firered_runtime_trace_external(const char *message);
 
+#ifndef NDEBUG
+extern char *getenv(const char *name);
+
+static int TraceNamingScreenEnvEnabled(void)
+{
+    static int s_init;
+    static int s_on;
+    const char *e;
+
+    if (s_init)
+        return s_on;
+    s_init = 1;
+    e = getenv("FIRERED_TRACE_NAMING_SCREEN");
+    s_on = (e != NULL && e[0] != '\0' && e[0] != '0');
+    return s_on;
+}
+#else
+static int TraceNamingScreenEnvEnabled(void)
+{
+    return 0;
+}
+#endif
+
 static void TraceNamingScreen(const char *label)
 {
     char buffer[128];
+
+    if (!TraceNamingScreenEnvEnabled())
+        return;
 
     snprintf(buffer, sizeof(buffer), "NamingScreen: %s", label);
     firered_runtime_trace_external(buffer);
@@ -476,10 +502,13 @@ static const u8 sPageColumnXPos[KBPAGE_COUNT][KBCOL_COUNT] = {
 void DoNamingScreen(u8 templateNum, u8 *destBuffer, u16 monSpecies, u16 monGender, u32 monPersonality, MainCallback returnCallback)
 {
 #ifdef PORTABLE
-    char buffer[160];
-    snprintf(buffer, sizeof(buffer), "NamingScreen: DoNamingScreen template=%u species=%u gender=%u personality=%lu dest=%p cb=%p",
-             templateNum, monSpecies, monGender, (unsigned long)monPersonality, destBuffer, returnCallback);
-    firered_runtime_trace_external(buffer);
+    if (TraceNamingScreenEnvEnabled())
+    {
+        char buffer[160];
+        snprintf(buffer, sizeof(buffer), "NamingScreen: DoNamingScreen template=%u species=%u gender=%u personality=%lu dest=%p cb=%p",
+                 templateNum, monSpecies, monGender, (unsigned long)monPersonality, destBuffer, returnCallback);
+        firered_runtime_trace_external(buffer);
+    }
     sNamingScreenReturnCallback = returnCallback;
 #endif
     sNamingScreen = Alloc(sizeof(struct NamingScreenData));
@@ -508,9 +537,12 @@ void DoNamingScreen(u8 templateNum, u8 *destBuffer, u16 monSpecies, u16 monGende
 static void CB2_LoadNamingScreen(void)
 {
 #ifdef PORTABLE
-    char buffer[96];
-    snprintf(buffer, sizeof(buffer), "NamingScreen: CB2_LoadNamingScreen state=%u", gMain.state);
-    firered_runtime_trace_external(buffer);
+    if (TraceNamingScreenEnvEnabled())
+    {
+        char buffer[96];
+        snprintf(buffer, sizeof(buffer), "NamingScreen: CB2_LoadNamingScreen state=%u", gMain.state);
+        firered_runtime_trace_external(buffer);
+    }
 #endif
     switch (gMain.state)
     {
@@ -1582,9 +1614,12 @@ static void (*const sIconFunctions[])(void) =
 static void CreateInputTargetIcon(void)
 {
 #ifdef PORTABLE
-    char buffer[96];
-    snprintf(buffer, sizeof(buffer), "NamingScreen: CreateInputTargetIcon func=%u", sNamingScreen->template->iconFunction);
-    firered_runtime_trace_external(buffer);
+    if (TraceNamingScreenEnvEnabled())
+    {
+        char buffer[96];
+        snprintf(buffer, sizeof(buffer), "NamingScreen: CreateInputTargetIcon func=%u", sNamingScreen->template->iconFunction);
+        firered_runtime_trace_external(buffer);
+    }
 #endif
     sIconFunctions[sNamingScreen->template->iconFunction]();
 }
@@ -1625,9 +1660,12 @@ static void NamingScreen_CreateMonIcon(void)
     u8 spriteId;
 
 #ifdef PORTABLE
-    char buffer[128];
-    snprintf(buffer, sizeof(buffer), "NamingScreen: CreateMonIcon species=%u personality=%lu", sNamingScreen->monSpecies, (unsigned long)sNamingScreen->monPersonality);
-    firered_runtime_trace_external(buffer);
+    if (TraceNamingScreenEnvEnabled())
+    {
+        char buffer[128];
+        snprintf(buffer, sizeof(buffer), "NamingScreen: CreateMonIcon species=%u personality=%lu", sNamingScreen->monSpecies, (unsigned long)sNamingScreen->monPersonality);
+        firered_runtime_trace_external(buffer);
+    }
 #endif
     LoadMonIconPalettes();
     spriteId = CreateMonIcon(sNamingScreen->monSpecies, SpriteCallbackDummy, 56, 40, 0, sNamingScreen->monPersonality, 1);
@@ -1933,6 +1971,7 @@ static void DrawMonTextEntryBox(void)
 #ifdef PORTABLE
     GetSpeciesName(buffer, sNamingScreen->monSpecies);
     StringAppendN(buffer, sNamingScreen->template->title, sizeof(buffer) - 1 - StringLength(buffer));
+    if (TraceNamingScreenEnvEnabled())
     {
         char trace[256];
         snprintf(trace, sizeof(trace),
@@ -2184,7 +2223,7 @@ static void DrawTextEntry(void)
 #endif
         AddTextPrinterParameterized(sNamingScreen->windows[WIN_TEXT_ENTRY], FONT_NORMAL, temp, i * 8 + xpos + extraWidth, 1, TEXT_SKIP_DRAW, NULL);
 #ifdef PORTABLE
-        if (i < 4)
+        if (i < 4 && TraceNamingScreenEnvEnabled())
         {
             char buffer[96];
             snprintf(buffer, sizeof(buffer), "NamingScreen: DrawTextEntry post-char i=%u", i);
@@ -2310,7 +2349,8 @@ static void CB2_NamingScreen(void)
 #ifdef PORTABLE
     if (sNamingScreen == NULL)
     {
-        firered_runtime_trace_external("NamingScreen: CB2_NamingScreen exit after cleanup");
+        if (TraceNamingScreenEnvEnabled())
+            firered_runtime_trace_external("NamingScreen: CB2_NamingScreen exit after cleanup");
         return;
     }
 #endif

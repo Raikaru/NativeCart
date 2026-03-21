@@ -2,6 +2,29 @@
 #ifdef PORTABLE
 #include <stdio.h>
 extern void firered_runtime_trace_external(const char *message);
+
+#ifndef NDEBUG
+extern char *getenv(const char *name);
+
+static int TraceBgTilemapOpsEnabled(void)
+{
+    static int s_init;
+    static int s_on;
+    const char *e;
+
+    if (s_init)
+        return s_on;
+    s_init = 1;
+    e = getenv("FIRERED_TRACE_BG_TILEMAP");
+    s_on = (e != NULL && e[0] != '\0' && e[0] != '0');
+    return s_on;
+}
+#else
+static int TraceBgTilemapOpsEnabled(void)
+{
+    return 0;
+}
+#endif
 #endif
 #include "global.h"
 #include "bg.h"
@@ -17,6 +40,9 @@ static bool8 ShouldTraceBgTilemapOps(u8 bg)
 static void TraceBgTilemapOp(const char *kind, u8 bg, void *buffer, const char *context)
 {
     char trace[256];
+
+    if (!TraceBgTilemapOpsEnabled())
+        return;
 
     if (!ShouldTraceBgTilemapOps(bg))
         return;
