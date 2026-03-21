@@ -2,6 +2,7 @@
 
 #include <SDL3/SDL.h>
 
+#include <stdarg.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -26,6 +27,33 @@
 #define SDL_SHELL_MAX_AUDIO_QUEUE_BYTES (SDL_SHELL_AUDIO_FREQUENCY * SDL_SHELL_AUDIO_CHANNELS * (int)sizeof(int16_t))
 #define SDL_SHELL_TARGET_FPS 60.0
 #define SDL_SHELL_WINDOW_TITLE "decomp-engine SDL shell"
+
+/* FIRERED_TRACE_MOD_LAUNCH=1: stderr trace for ROM/BPS/engine_load_rom (not noisy by default). */
+static int sdl_shell_trace_mod_launch(void)
+{
+    static int tri = -1;
+    const char *e;
+
+    if (tri >= 0)
+        return tri;
+    e = getenv("FIRERED_TRACE_MOD_LAUNCH");
+    tri = (e != NULL && e[0] != '\0' && strcmp(e, "0") != 0);
+    return tri;
+}
+
+static void sdl_shell_tracef(const char *fmt, ...)
+{
+    va_list ap;
+    char buf[768];
+
+    if (!sdl_shell_trace_mod_launch())
+        return;
+    va_start(ap, fmt);
+    vsnprintf(buf, sizeof(buf), fmt, ap);
+    va_end(ap);
+    fprintf(stderr, "[firered shell] %s\n", buf);
+    fflush(stderr);
+}
 
 enum
 {
@@ -160,6 +188,8 @@ typedef struct SdlShellArgs
     const char *bps_path;
     int used_manifest;
     char manifest_bps_storage[1024];
+    /* 0=none, 1=--bps argv, 2=manifest, 3=FIRERED_BPS_PATCH */
+    int bps_source;
 } SdlShellArgs;
 
 static int sdl_shell_parse_args(int argc, char **argv, SdlShellArgs *out)
@@ -168,6 +198,7 @@ static int sdl_shell_parse_args(int argc, char **argv, SdlShellArgs *out)
 
     memset(out, 0, sizeof(*out));
     out->state_path = SDL_SHELL_DEFAULT_STATE_PATH;
+    out->bps_source = 0;
 
     if (argc < 2)
         return 0;
@@ -181,6 +212,7 @@ static int sdl_shell_parse_args(int argc, char **argv, SdlShellArgs *out)
             if (i + 1 >= argc)
                 return 0;
             out->bps_path = argv[i + 1];
+            out->bps_source = 1;
             i += 2;
             continue;
         }
@@ -205,14 +237,20 @@ static int sdl_shell_parse_args(int argc, char **argv, SdlShellArgs *out)
     }
 
     if (out->bps_path == NULL && out->used_manifest)
+    {
         out->bps_path = out->manifest_bps_storage;
+        out->bps_source = 2;
+    }
 
     if (out->bps_path == NULL)
     {
         const char *env_bps = getenv("FIRERED_BPS_PATCH");
 
         if (env_bps != NULL && env_bps[0] != '\0')
+        {
             out->bps_path = env_bps;
+            out->bps_source = 3;
+        }
     }
 
     return 1;
@@ -703,8 +741,27 @@ int main(int argc, char **argv)
 
     if (!sdl_shell_parse_args(argc, argv, &args))
     {
+        if (sdl_shell_trace_mod_launch())
+        {
+            int a;
+            sdl_shell_tracef("parse_args failed (usage). argc=%d", argc);
+            for (a = 0; a < argc && a < 16; a++)
+                sdl_shell_tracef("  argv[%d]=%s", a, argv[a] ? argv[a] : "(null)");
+        }
         sdl_shell_print_usage(argv[0]);
         return 1;
+    }
+
+    if (sdl_shell_trace_mod_launch())
+    {
+        static const char *src_names[] = { "none", "--bps", "manifest", "FIRERED_BPS_PATCH" };
+        const char *sn = (args.bps_source >= 0 && args.bps_source < 4) ? src_names[args.bps_source] : "?";
+
+        sdl_shell_tracef("argv[0]=%s", argv[0] ? argv[0] : "(null)");
+        sdl_shell_tracef("rom_path=%s", args.rom_path ? args.rom_path : "(null)");
+        sdl_shell_tracef("state_path=%s", args.state_path ? args.state_path : "(null)");
+        sdl_shell_tracef("bps_path=%s", args.bps_path ? args.bps_path : "(none)");
+        sdl_shell_tracef("bps_source=%s", sn);
     }
 
     memset(&ctx, 0, sizeof(ctx));
@@ -721,9 +778,11 @@ int main(int argc, char **argv)
     rom_data = sdl_shell_read_file(args.rom_path, &rom_size);
     if (rom_data == NULL)
     {
+        sdl_shell_tracef("ROM read FAILED path=%s", args.rom_path ? args.rom_path : "(null)");
         fprintf(stderr, "Failed to read base ROM (check path and permissions): %s\n", args.rom_path);
         return 1;
     }
+    sdl_shell_tracef("ROM read OK size=%zu", rom_size);
 
     if (args.bps_path != NULL)
     {
@@ -737,10 +796,12 @@ int main(int argc, char **argv)
         patch_data = sdl_shell_read_file(args.bps_path, &patch_size);
         if (patch_data == NULL)
         {
+            sdl_shell_tracef("BPS read FAILED path=%s", args.bps_path);
             fprintf(stderr, "Failed to read BPS patch: %s\n", args.bps_path);
             free(rom_data);
             return 1;
         }
+        sdl_shell_tracef("BPS read OK size=%zu", patch_size);
 
         if (!mod_patch_bps_apply(
                 rom_data,
@@ -752,6 +813,7 @@ int main(int argc, char **argv)
                 errbuf,
                 sizeof(errbuf)))
         {
+            sdl_shell_tracef("mod_patch_bps_apply FAILED: %s", errbuf[0] != '\0' ? errbuf : "(no details)");
             fprintf(stderr, "BPS apply failed: %s\n", errbuf[0] != '\0' ? errbuf : "(no details)");
             free(patch_data);
             free(rom_data);
@@ -762,23 +824,31 @@ int main(int argc, char **argv)
         free(rom_data);
         rom_data = patched_rom;
         rom_size = patched_size;
+        sdl_shell_tracef("BPS apply OK patched_rom_size=%zu (handoff to engine_load_rom)", rom_size);
     }
+    else
+        sdl_shell_tracef("no BPS path; vanilla ROM handoff size=%zu", rom_size);
 
     engine_set_core(firered_core_get());
     if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_GAMEPAD))
     {
+        sdl_shell_tracef("SDL_Init FAILED: %s", SDL_GetError());
         fprintf(stderr, "SDL_Init failed: %s\n", SDL_GetError());
         free(rom_data);
         return 1;
     }
+    sdl_shell_tracef("SDL_Init OK");
 
+    sdl_shell_tracef("calling engine_load_rom size=%zu", rom_size);
     if (engine_load_rom(rom_data, rom_size) == 0)
     {
+        sdl_shell_tracef("engine_load_rom FAILED");
         fprintf(stderr, "engine_load_rom failed\n");
         free(rom_data);
         SDL_Quit();
         return 1;
     }
+    sdl_shell_tracef("engine_load_rom OK");
     free(rom_data);
 
     if (!sdl_shell_init_video(&ctx))
