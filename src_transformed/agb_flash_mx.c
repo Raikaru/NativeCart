@@ -6,6 +6,36 @@
 u8 *PortableFlash_GetSectorPointer(u16 sectorNum);
 void PortableFlash_Flush(void);
 
+#if defined(PORTABLE)
+extern int PortableFlash_GetIoBatchDepth(void);
+#define PORTABLE_FLASH_FLUSH_IF_NEEDED() \
+    do { if (PortableFlash_GetIoBatchDepth() == 0) PortableFlash_Flush(); } while (0)
+#else
+#define PORTABLE_FLASH_FLUSH_IF_NEEDED() do { PortableFlash_Flush(); } while (0)
+#endif
+
+/* Erase sector buffer in RAM image only; caller decides when to persist to disk. */
+static u16 EraseFlashSectorBuffer_MX(u16 sectorNum)
+{
+    u8 *dest;
+
+    if (sectorNum >= gFlash->sector.count)
+        return 0x80FF;
+
+    if (gFlash->romSize == FLASH_ROM_SIZE_1M)
+    {
+        SwitchFlashBank(sectorNum / SECTORS_PER_BANK);
+        sectorNum %= SECTORS_PER_BANK;
+    }
+
+    dest = PortableFlash_GetSectorPointer(sectorNum);
+    if (dest == NULL)
+        return 0x80FF;
+
+    memset(dest, 0xFF, gFlash->sector.size);
+    return 0;
+}
+
 const u16 mxMaxTime[] =
 {
       10, 65469, TIMER_ENABLE | TIMER_INTR_ENABLE | TIMER_256CLK,
@@ -107,7 +137,7 @@ u16 ProgramFlashByte_MX(u16 sectorNum, u32 offset, u8 data)
         return 0x80FF;
 
     dest[offset] = data;
-    PortableFlash_Flush();
+    PORTABLE_FLASH_FLUSH_IF_NEEDED();
     return 0;
 }
 
@@ -119,7 +149,7 @@ u16 ProgramFlashSector_MX(u16 sectorNum, void *src)
     if (sectorNum >= gFlash->sector.count)
         return 0x80FF;
 
-    result = EraseFlashSector_MX(sectorNum);
+    result = EraseFlashSectorBuffer_MX(sectorNum);
     if (result != 0)
         return result;
 
@@ -135,6 +165,6 @@ u16 ProgramFlashSector_MX(u16 sectorNum, void *src)
 
     memcpy(dest, src, gFlash->sector.size);
     gFlashNumRemainingBytes = 0;
-    PortableFlash_Flush();
+    PORTABLE_FLASH_FLUSH_IF_NEEDED();
     return 0;
 }
