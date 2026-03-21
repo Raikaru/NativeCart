@@ -162,6 +162,7 @@ core_sources = [
     os.path.join(engine_core_dir, "engine_audio.c"),
     os.path.join(engine_core_dir, "engine_input.c"),
     os.path.join(engine_core_dir, "engine_runtime_backend.c"),
+    os.path.join(engine_core_dir, "mod_patch_bps.c"),
     os.path.join(engine_core_dir, "engine_renderer_backend.c"),
     os.path.join(engine_core_dir, "engine_memory.c"),
     os.path.join(engine_core_dir, "engine_audio_backend.c"),
