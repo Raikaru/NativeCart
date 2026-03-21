@@ -7,6 +7,7 @@
 #include <cstring>
 #include <fstream>
 #include <iostream>
+#include <limits>
 #include <iomanip>
 #include <sstream>
 #include <algorithm>
@@ -218,22 +219,27 @@ BpsPatch::BpsPatch()
 
 BpsPatch::~BpsPatch() = default;
 
+// BPS / beat variable-length integers — same semantics as engine/core/mod_patch_bps.c
+// (byuu bps_spec: bit 7 set ends the number; between bytes, shift <<= 7 and add shift.)
 uint64_t BpsPatch::decodeVariableLength(const uint8_t* data, size_t& pos, size_t max_pos) {
-    uint64_t result = 0;
-    uint64_t shift = 0;
-    
-    while (pos < max_pos) {
-        uint8_t byte = data[pos++];
-        result |= static_cast<uint64_t>(byte & 0x7F) << shift;
-        if ((byte & 0x80) == 0) {
-            return result;
+    uint64_t out = 0;
+    uint64_t shift = 1;
+    unsigned iter = 0;
+
+    while (pos < max_pos && iter < 16) {
+        uint8_t x = data[pos++];
+        ++iter;
+        out += static_cast<uint64_t>(x & 0x7F) * shift;
+        if (x & 0x80) {
+            return out;
         }
-        shift += 7;
-        if (shift >= 64) {
-            break;  // Overflow protection
+        if (shift > (std::numeric_limits<uint64_t>::max() >> 7)) {
+            break;
         }
+        shift <<= 7;
+        out += shift;
     }
-    return result;
+    return out;
 }
 
 bool BpsPatch::parse(const uint8_t* patch_data, size_t patch_size) {
