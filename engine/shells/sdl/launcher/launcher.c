@@ -2,6 +2,7 @@
 
 #include <SDL3/SDL.h>
 
+#include <stdarg.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -254,6 +255,62 @@ static void path_directory(char *out, size_t cap, const char *path)
         if (len > 0 && (out[len - 1] == '/' || out[len - 1] == '\\'))
             len--;
         out[len] = '\0';
+    }
+}
+
+/* FIRERED_TRACE_MOD_LAUNCH=1: log launch command + paths (stderr + sdl_mod_launch.log beside game exe). */
+static int launcher_trace_mod_launch(void)
+{
+    static int tri = -1;
+    const char *e;
+
+    if (tri >= 0)
+        return tri;
+    e = getenv("FIRERED_TRACE_MOD_LAUNCH");
+    tri = (e != NULL && e[0] != '\0' && strcmp(e, "0") != 0);
+    return tri;
+}
+
+static FILE *launcher_trace_log_fp;
+
+static void launcher_trace_open_log(const char *exe_path_for_dir)
+{
+    char exe_dir[LAUNCHER_MAX_PATH];
+    char logpath[LAUNCHER_MAX_PATH];
+
+    if (!launcher_trace_mod_launch())
+        return;
+    launcher_trace_log_fp = NULL;
+    path_directory(exe_dir, sizeof(exe_dir), exe_path_for_dir);
+    snprintf(logpath, sizeof(logpath), "%s" PATH_SEP_STR "sdl_mod_launch.log", exe_dir);
+    launcher_trace_log_fp = fopen(logpath, "a");
+}
+
+static void launcher_trace_close_log(void)
+{
+    if (launcher_trace_log_fp != NULL)
+    {
+        fclose(launcher_trace_log_fp);
+        launcher_trace_log_fp = NULL;
+    }
+}
+
+static void launcher_tracef(const char *fmt, ...)
+{
+    va_list ap;
+    char buf[1536];
+
+    if (!launcher_trace_mod_launch())
+        return;
+    va_start(ap, fmt);
+    vsnprintf(buf, sizeof(buf), fmt, ap);
+    va_end(ap);
+    fprintf(stderr, "[firered launcher] %s\n", buf);
+    fflush(stderr);
+    if (launcher_trace_log_fp != NULL)
+    {
+        fprintf(launcher_trace_log_fp, "[firered launcher] %s\n", buf);
+        fflush(launcher_trace_log_fp);
     }
 }
 
@@ -522,9 +579,12 @@ static void launch_game(LauncherState *s)
     int enabled_count = 0;
     const char *bps_path = NULL;
     int i;
+    int sys_ret;
 
     if (s->rom_path[0] == '\0')
         return;
+
+    launcher_trace_open_log(s->exe_path);
 
     /* Find first enabled mod (SDL shell supports one BPS at a time) */
     for (i = 0; i < s->mod_count; i++)
@@ -538,6 +598,20 @@ static void launch_game(LauncherState *s)
     }
 
     save_config(s);
+
+    if (launcher_trace_mod_launch())
+    {
+        launcher_tracef("game_exe=%s", s->exe_path);
+        launcher_tracef("rom_path=%s", s->rom_path);
+        launcher_tracef("mods_dir=%s", s->mods_dir[0] != '\0' ? s->mods_dir : "(unset)");
+        launcher_tracef("enabled_mod_count=%d", enabled_count);
+        for (i = 0; i < s->mod_count; i++)
+        {
+            if (s->mods[i].enabled)
+                launcher_tracef("  enabled_mod: %s", s->mods[i].path);
+        }
+        launcher_tracef("selected_bps_for_shell=%s", bps_path != NULL ? bps_path : "(none)");
+    }
 
     if (bps_path != NULL)
     {
@@ -565,7 +639,17 @@ static void launch_game(LauncherState *s)
                 enabled_count, path_basename(bps_path));
 
     fprintf(stderr, "Launcher: %s\n", cmd);
-    system(cmd);
+    if (launcher_trace_mod_launch())
+        launcher_tracef("system() cmdline: %s", cmd);
+
+    sys_ret = system(cmd);
+    if (launcher_trace_mod_launch())
+    {
+        launcher_tracef("system() returned %d (0 often OK; Windows+start may be non-zero)", sys_ret);
+        launcher_trace_close_log();
+    }
+    else
+        launcher_trace_close_log();
 }
 
 /* ── Main UI ────────────────────────────────────────────────────────── */
