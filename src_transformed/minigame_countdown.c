@@ -5,6 +5,10 @@
 #include "trig.h"
 #include "constants/songs.h"
 
+#ifdef PORTABLE
+#include "portable_generated/minigame_countdown_portable_nullfix.h"
+#endif
+
 static void Task_MinigameCountdown(u8 taskId);
 static bool32 RunMinigameCountdownDigitsAnim(u8 spriteId);
 static void StartStartGraphic(u8 spriteId1, u8 spriteId2, u8 spriteId3);
@@ -209,8 +213,6 @@ static void SpriteCB_Start(struct Sprite *sprite)
         break;
     }
 }
-#define sSpritePal_321Start ((const u16 *)NULL)
-#define sSpriteSheet_321Start ((const u16 *)NULL)
 
 static void Load321StartGfx(u16 tilesTag, u16 palTag)
 {

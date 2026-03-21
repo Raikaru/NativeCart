@@ -3,6 +3,10 @@
 #include "decompress.h"
 #include "digit_obj_util.h"
 
+#ifdef PORTABLE
+#include "portable_generated/digit_obj_util_portable_nullfix.h"
+#endif
+
 struct DigitPrinterAlloc
 {
     u32 count;
@@ -66,7 +70,6 @@ static const u8 sTilesPerImage[4][4] =
 
 const u16 gMinigameDigits_Pal[] = INCBIN_U16("graphics/misc/minigame_digits.gbapal");
 const u32 gMinigameDigits_Gfx[] = INCBIN_U32("graphics/misc/minigame_digits.4bpp.lz");
-#define sUnusedMinigameDigits_Gfx ((const u32 *)NULL)
 
 // code
 bool32 DigitObjUtil_Init(u32 count)

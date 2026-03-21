@@ -12,6 +12,10 @@
 #include "fieldmap.h"
 #include "constants/songs.h"
 
+#ifdef PORTABLE
+#include "portable_generated/itemfinder_portable_nullfix.h"
+#endif
+
 static void Task_NoResponse_CleanUp(u8 taskId);
 static void Task_ItemfinderResponseSoundsAndAnims(u8 taskId);
 static void Task_ItemfinderUnderfootSoundsAndAnims(u8 taskId);
@@ -35,7 +39,6 @@ static void SpriteCallback_Star(struct Sprite *sprite);
 static void SpriteCallback_DestroyStar(struct Sprite *sprite);
 
 #define ARROW_TILE_TAG 2000
-#define sArrowAndStarSpriteTiles ((const u16 *)NULL)
 
 static const union AnimCmd sArrowAnim0[] = {
     ANIMCMD_FRAME( 0, 10),

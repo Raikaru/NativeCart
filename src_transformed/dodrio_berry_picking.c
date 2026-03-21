@@ -21,6 +21,10 @@
 #include "constants/sound.h"
 #include "constants/items.h"
 
+#ifdef PORTABLE
+#include "portable_generated/dodrio_berry_picking_portable_nullfix.h"
+#endif
+
 // Note that in this file 'Dodrio Berry Picking' is often
 // shortened to DodrioGame or just Game for convenience
 
@@ -3322,20 +3326,6 @@ static const u8 sUnsharedColumns_Duplicate[MAX_RFU_PLAYERS][MAX_RFU_PLAYERS] =
 
 static const u16 sBg_Pal[]                  = INCBIN_U16("graphics/dodrio_berry_picking/bg.gbapal",
                                                          "graphics/dodrio_berry_picking/tree_border.gbapal");
-#define sDodrioNormal_Pal ((const u16 *)NULL)
-#define sDodrioShiny_Pal ((const u16 *)NULL)
-#define sStatus_Pal ((const u16 *)NULL)
-#define sBerries_Pal ((const u16 *)NULL)
-#define sBerries_Gfx ((const u32 *)NULL)
-#define sCloud_Pal ((const u16 *)NULL)
-#define sBg_Gfx ((const u32 *)NULL)
-#define sTreeBorder_Gfx ((const u32 *)NULL)
-#define sStatus_Gfx ((const u32 *)NULL)
-#define sCloud_Gfx ((const u32 *)NULL)
-#define sDodrio_Gfx ((const u32 *)NULL)
-#define sBg_Tilemap ((const u32 *)NULL)
-#define sTreeBorderRight_Tilemap ((const u32 *)NULL)
-#define sTreeBorderLeft_Tilemap ((const u32 *)NULL)
 
 static const struct OamData sOamData_Dodrio =
 {

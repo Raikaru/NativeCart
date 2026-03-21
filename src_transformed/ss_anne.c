@@ -5,6 +5,10 @@
 #include "script.h"
 #include "constants/songs.h"
 
+#ifdef PORTABLE
+#include "portable_generated/ss_anne_portable_nullfix.h"
+#endif
+
 // Tasks governing the ship's departure after you've gotten HM01 CUT
 
 #define SPRITE_TAG_WAKE  4000
@@ -17,8 +21,6 @@ static void CreateWakeBehindBoat(void);
 static void WakeSpriteCallback(struct Sprite *sprite);
 static void CreateSmokeSprite(void);
 static void SmokeSpriteCallback(struct Sprite *sprite);
-#define sWakeTiles ((const u16 *)NULL)
-#define sSmokeTiles ((const u16 *)NULL)
 
 static const struct SpriteSheet sSpriteSheets[] = {
     {(const void *)sWakeTiles, sizeof(sWakeTiles), SPRITE_TAG_WAKE},

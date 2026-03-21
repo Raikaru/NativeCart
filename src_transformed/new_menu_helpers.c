@@ -12,6 +12,7 @@
 #ifdef PORTABLE
 #define NEW_MENU_HELPERS_DEFINE_GLOBALS
 #include "new_menu_helpers_portable_assets.h"
+#include "portable_generated/new_menu_helpers_portable_nullfix.h"
 #undef NEW_MENU_HELPERS_DEFINE_GLOBALS
 #else
 const u16 gMenuMessageWindow_Gfx[] = INCBIN_U16("graphics/text_window/menu_message.4bpp");
@@ -19,7 +20,6 @@ const u16 gMenuMessageWindow_Gfx[] = INCBIN_U16("graphics/text_window/menu_messa
 const u16 gStandardMenuPalette[] = INCBIN_U16("graphics/interface/std_menu.gbapal");
 #endif
 
-#define sUnusedWindow_Gfx ((const u16 *)NULL)
 
 #define DLG_WINDOW_PALETTE_NUM 15
 #define DLG_WINDOW_BASE_TILE_NUM 0x200
@@ -34,7 +34,6 @@ static EWRAM_DATA u8 sStartMenuWindowId = {0xFF};
 static EWRAM_DATA void *sHeapPtrTable[16] = {NULL};
 static EWRAM_DATA u8 sHeapPtrSlot = 0;
 #endif
-#define sUnusedWindow_Gfx ((const u16 *)NULL)
 
 static const u8 sTextSpeedFrameDelays[] =
 {

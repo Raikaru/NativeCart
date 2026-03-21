@@ -5,6 +5,10 @@
 #include "constants/battle_anim.h"
 #include "random.h"
 
+#ifdef PORTABLE
+#include "portable_generated/battle_anim_flying_portable_nullfix.h"
+#endif
+
 static void AnimEllipticalGust(struct Sprite *sprite);
 static void AnimGustToTarget(struct Sprite *sprite);
 static void AnimAirWaveCrescent(struct Sprite *sprite);
@@ -176,7 +180,6 @@ const struct SpriteTemplate gFallingFeatherSpriteTemplate =
     .affineAnims = gDummySpriteAffineAnimTable,
     .callback = AnimFallingFeather,
 };
-#define sUnusedPal ((const u16 *)NULL)
 
 static const struct SpriteTemplate sUnusedBubbleThrowSpriteTemplate =
 {

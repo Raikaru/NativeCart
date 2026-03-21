@@ -12,6 +12,10 @@
 #include "trig.h"
 #include "util.h"
 
+#ifdef PORTABLE
+#include "portable_generated/battle_anim_water_portable_nullfix.h"
+#endif
+
 static void AnimRainDrop(struct Sprite *);
 static void AnimRainDrop_Step(struct Sprite *);
 static void AnimWaterBubbleProjectile(struct Sprite *);
@@ -52,8 +56,6 @@ static void CreateWaterSpoutRainDroplet(struct Task *, u8);
 static void AnimTask_WaterSport_Step(u8);
 static void CreateWaterSportDroplet(struct Task *);
 static void CreateWaterPulseRingBubbles(struct Sprite *, s32, s32);
-#define sUnusedWater_Gfx ((const u8 *)NULL)
-#define sUnusedWater ((const u8 *)NULL)
 
 static const union AnimCmd sAnim_RainDrop[] =
 {

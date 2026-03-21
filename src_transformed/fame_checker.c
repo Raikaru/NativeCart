@@ -20,6 +20,10 @@
 #include "strings.h"
 #include "constants/event_objects.h"
 
+#ifdef PORTABLE
+#include "portable_generated/fame_checker_portable_nullfix.h"
+#endif
+
 #define SPRITETAG_SELECTOR_CURSOR 1000
 #define SPRITETAG_QUESTION_MARK 1001
 #define SPRITETAG_SPINNING_POKEBALL 1002
@@ -115,23 +119,6 @@ static void HandleFlavorTextModeSwitch(bool8 state);
 static void Task_FCOpenOrCloseInfoBox(u8 taskId);
 static void UpdateInfoBoxTilemap(u8 bg, s16 state);
 static void PlaceListMenuCursor(bool8 isActive);
-#define sFameCheckerTilemap ((const u16 *)NULL)
-#define sQuestionMarkSpriteGfx ((const u8 *)NULL)
-#define sSpinningPokeballSpriteGfx ((const u8 *)NULL)
-#define sSpinningPokeballSpritePalette ((const u16 *)NULL)
-#define sSelectorCursorSpriteGfx ((const u8 *)NULL)
-#define sSelectorCursorSpritePalette ((const u16 *)NULL)
-#define sFujiSpriteGfx ((const u8 *)NULL)
-#define sFujiSpritePalette ((const u16 *)NULL)
-#define sBillSpriteGfx ((const u8 *)NULL)
-#define sBillSpritePalette ((const u16 *)NULL)
-#define sDaisySpriteGfx ((const u8 *)NULL)
-#define sDaisySpritePalette ((const u16 *)NULL)
-#define sOakSpriteGfx ((const u8 *)NULL)
-#define sOakSpritePalette ((const u16 *)NULL)
-#define sUnkPalette ((const u16 *)NULL) // unused?
-#define sSilhouettePalette ((const u16 *)NULL)
-
 static const u8 sTextColor_White[3]  = {0, 1, 2};
 static const u8 sTextColor_DkGrey[3] = {0, 2, 3};
 static const u8 sTextColor_Green[3]  = {0, 6, 7};

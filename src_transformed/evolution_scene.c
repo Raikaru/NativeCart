@@ -27,6 +27,10 @@
 #include "constants/pokemon.h"
 #include "constants/items.h"
 
+#ifdef PORTABLE
+#include "portable_generated/evolution_scene_portable_nullfix.h"
+#endif
+
 extern struct Evolution gEvolutionTable[][EVOS_PER_MON];
 
 struct EvoInfo
@@ -62,13 +66,6 @@ static void Task_AnimateBg(u8 taskId);
 static void RestoreBgAfterAnim(void);
 
 // const data
-#define sUnusedPal ((const u16 *)NULL)
-#define sMovingBackgroundTiles ((const u32 *)NULL)
-#define sMovingBackgroundMap1 ((const u32 *)NULL)
-#define sMovingBackgroundMap2 ((const u32 *)NULL)
-#define sBlackPalette ((const u16 *)NULL)
-#define sUnusedTilemap ((const u16 *)NULL)
-#define sBgAnim_Pal ((const u16 *)NULL)
 
 static const u8 sText_ShedinjaJapaneseName[] = _("ヌケニン");
 

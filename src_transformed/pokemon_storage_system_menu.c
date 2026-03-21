@@ -18,6 +18,7 @@
 
 #ifdef PORTABLE
 #include <stdio.h>
+#include "portable_generated/pokemon_storage_system_menu_portable_nullfix.h"
 #endif
 
 #ifdef PORTABLE
@@ -63,9 +64,6 @@ static void ChooseBoxMenu_PrintTextToSprite(const u8 *a0, u16 x, u16 y);
 static void SpriteCB_ChooseBoxArrow(struct Sprite *sprite);
 
 // Unused, since LoadChooseBoxMenuGfx is always called with `loadPal` as false.
-#define sChooseBoxMenu_Pal ((const u16 *)NULL)
-#define sChooseBoxMenuCenter_Gfx ((const u8 *)NULL)
-#define sChooseBoxMenuCorners_Gfx ((const u8 *)NULL)
 
 static const struct {
     const u8 *text;

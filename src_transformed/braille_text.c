@@ -4,6 +4,10 @@
 #include "text.h"
 #include "sound.h"
 
+#ifdef PORTABLE
+#include "portable_generated/braille_text_portable_nullfix.h"
+#endif
+
 // This file handles the braille font.
 // For printing braille messages, see ScrCmd_braillemessage
 
@@ -12,7 +16,6 @@ static const u8 sScrollDistances[] = {
     [OPTIONS_TEXT_SPEED_MID] = 2,
     [OPTIONS_TEXT_SPEED_FAST] = 4,
 };
-#define sBrailleGlyphs ((const u16 *)NULL)
 
 static void DecompressGlyph_Braille(u16);
 

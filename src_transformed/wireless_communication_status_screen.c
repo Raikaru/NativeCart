@@ -14,6 +14,10 @@
 #include "constants/songs.h"
 #include "constants/union_room.h"
 
+#ifdef PORTABLE
+#include "portable_generated/wireless_communication_status_screen_portable_nullfix.h"
+#endif
+
 enum {
     COLOR_NONE,
     COLOR_NORMAL,
@@ -64,8 +68,6 @@ static const u16 sPalettes[][16] = {
     INCBIN_U16("graphics/wireless_status_screen/anim_12.gbapal"),
     INCBIN_U16("graphics/wireless_status_screen/anim_13.gbapal")
 };
-#define sBgTiles_Gfx ((const u32 *)NULL)
-#define sBgTiles_Tilemap ((const u16 *)NULL)
 
 static const struct BgTemplate sBgTemplates[] = {
     {

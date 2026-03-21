@@ -14,6 +14,10 @@
 #include "constants/seagallop.h"
 #include "constants/menu.h"
 
+#ifdef PORTABLE
+#include "portable_generated/script_menu_portable_nullfix.h"
+#endif
+
 #define GFXTAG_FOSSIL 7000
 
 #define MULTICHOICE(name) {.list = name, .count = ARRAY_COUNT(name)}
@@ -638,10 +642,6 @@ static const struct SpriteTemplate sMuseumFossilSprTemplate = {
     .affineAnims = gDummySpriteAffineAnimTable,
     .callback = SpriteCallbackDummy
 };
-#define sMuseumAerodactylSprTiles ((const u16 *)NULL)
-#define sMuseumAerodactylSprPalette ((const u16 *)NULL)
-#define sMuseumKabutopsSprTiles ((const u16 *)NULL)
-#define sMuseumKabutopsSprPalette ((const u16 *)NULL)
 
 static const struct SpriteSheet sMuseumKabutopsSprSheets[] = {
     {sMuseumKabutopsSprTiles, sizeof(sMuseumKabutopsSprTiles), GFXTAG_FOSSIL},

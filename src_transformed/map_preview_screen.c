@@ -12,73 +12,14 @@
 #include "map_preview_screen.h"
 #include "constants/region_map_sections.h"
 
+#ifdef PORTABLE
+#include "portable_generated/map_preview_screen_portable_nullfix.h"
+#endif
+
 static EWRAM_DATA bool8 sHasVisitedMapBefore = FALSE;
 static EWRAM_DATA bool8 sAllocedBg0TilemapBuffer = FALSE;
 
 static void Task_RunMapPreviewScreenForest(u8 taskId);
-#define sViridianForestMapPreviewPalette ((const u8 *)NULL)
-#define sViridianForestMapPreviewTiles ((const u8 *)NULL)
-#define sViridianForestMapPreviewTilemap ((const u8 *)NULL)
-#define sRockTunnelMapPreviewPalette ((const u8 *)NULL)
-#define sRockTunnelMapPreviewTiles ((const u8 *)NULL)
-#define sRockTunnelMapPreviewTilemap ((const u8 *)NULL)
-#define sRocketHideoutMapPreviewPalette ((const u8 *)NULL)
-#define sRocketHideoutMapPreviewTiles ((const u8 *)NULL)
-#define sRocketHideoutMapPreviewTilemap ((const u8 *)NULL)
-#define sPowerPlantMapPreviewPalette ((const u8 *)NULL)
-#define sPowerPlantMapPreviewTiles ((const u8 *)NULL)
-#define sPowerPlantMapPreviewTilemap ((const u8 *)NULL)
-#define sPokemonMansionMapPreviewPalette ((const u8 *)NULL)
-#define sPokemonMansionMapPreviewTiles ((const u8 *)NULL)
-#define sPokemonMansionMapPreviewTilemap ((const u8 *)NULL)
-#define sPokemonTowerMapPreviewPalette ((const u8 *)NULL)
-#define sPokemonTowerMapPreviewTiles ((const u8 *)NULL)
-#define sPokemonTowerMapPreviewTilemap ((const u8 *)NULL)
-#define sSilphCoMapPreviewPalette ((const u8 *)NULL)
-#define sSilphCoMapPreviewTiles ((const u8 *)NULL)
-#define sSilphCoMapPreviewTilemap ((const u8 *)NULL)
-#define sMtMoonMapPreviewPalette ((const u8 *)NULL)
-#define sMtMoonMapPreviewTiles ((const u8 *)NULL)
-#define sMtMoonMapPreviewTilemap ((const u8 *)NULL)
-#define sSeafoamIslandsMapPreviewPalette ((const u8 *)NULL)
-#define sSeafoamIslandsMapPreviewTiles ((const u8 *)NULL)
-#define sSeafoamIslandsMapPreviewTilemap ((const u8 *)NULL)
-#define sRocketWarehouseMapPreviewPalette ((const u8 *)NULL)
-#define sRocketWarehouseMapPreviewTiles ((const u8 *)NULL)
-#define sRocketWarehouseMapPreviewTilemap ((const u8 *)NULL)
-#define sVictoryRoadMapPreviewPalette ((const u8 *)NULL)
-#define sVictoryRoadMapPreviewTiles ((const u8 *)NULL)
-#define sVictoryRoadMapPreviewTilemap ((const u8 *)NULL)
-#define sMtEmberMapPreviewPalette ((const u8 *)NULL)
-#define sMtEmberMapPreviewTiles ((const u8 *)NULL)
-#define sMtEmberMapPreviewTilemap ((const u8 *)NULL)
-#define sSafariZoneMapPreviewPalette ((const u8 *)NULL)
-#define sSafariZoneMapPreviewTiles ((const u8 *)NULL)
-#define sSafariZoneMapPreviewTilemap ((const u8 *)NULL)
-#define sMoneanChamberMapPreviewPalette ((const u8 *)NULL)
-#define sMoneanChamberMapPreviewTiles ((const u8 *)NULL)
-#define sMoneanChamberMapPreviewTilemap ((const u8 *)NULL)
-#define sDottedHoleMapPreviewPalette ((const u8 *)NULL)
-#define sDottedHoleMapPreviewTiles ((const u8 *)NULL)
-#define sDottedHoleMapPreviewTilemap ((const u8 *)NULL)
-#define sCeruleanCaveMapPreviewPalette ((const u8 *)NULL)
-#define sCeruleanCaveMapPreviewTiles ((const u8 *)NULL)
-#define sCeruleanCaveMapPreviewTilemap ((const u8 *)NULL)
-#define sDiglettsCaveMapPreviewPalette ((const u8 *)NULL)
-#define sDiglettsCaveMapPreviewTiles ((const u8 *)NULL)
-#define sDiglettsCaveMapPreviewTilemap ((const u8 *)NULL)
-#define sLostCaveMapPreviewPalette ((const u8 *)NULL)
-#define sLostCaveMapPreviewTiles ((const u8 *)NULL)
-#define sLostCaveMapPreviewTilemap ((const u8 *)NULL)
-#define sBerryForestMapPreviewPalette ((const u8 *)NULL)
-#define sBerryForestMapPreviewTiles ((const u8 *)NULL)
-#define sBerryForestMapPreviewTilemap ((const u8 *)NULL)
-#define sIcefallCaveMapPreviewPalette ((const u8 *)NULL)
-#define sIcefallCaveMapPreviewTiles ((const u8 *)NULL)
-#define sIcefallCaveMapPreviewTilemap ((const u8 *)NULL)
-#define sAlteringCaveMapPreviewPalette ((const u8 *)NULL)
-#define sAlteringCaveMapPreviewTiles ((const u8 *)NULL)
-#define sAlteringCaveMapPreviewTilemap ((const u8 *)NULL)
 
 static const struct MapPreviewScreen sMapPreviewScreenData[MPS_COUNT] = {
     [MPS_VIRIDIAN_FOREST] = {
