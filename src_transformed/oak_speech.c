@@ -23,6 +23,32 @@
 #include "main.h"
 #include "oak_speech_portable_assets.h"
 extern void firered_runtime_trace_external(const char *message);
+
+#ifndef NDEBUG
+extern char *getenv(const char *name);
+
+static int TraceOakSpeechEnvEnabled(void)
+{
+    static int s_init;
+    static int s_on;
+    const char *e;
+
+    if (s_init)
+        return s_on;
+    s_init = 1;
+    e = getenv("FIRERED_TRACE_OAK_SPEECH");
+    s_on = (e != NULL && e[0] != '\0' && e[0] != '0');
+    return s_on;
+}
+#else
+static int TraceOakSpeechEnvEnabled(void)
+{
+    return 0;
+}
+#endif
+
+#define TRACE_OAK_SPEECH(msg) do { if (TraceOakSpeechEnvEnabled()) firered_runtime_trace_external(msg); } while (0)
+
 #define sOakSpeech_Background_Pals sOakSpeech_Background_Pals_Portable
 #define sOakSpeech_Background_Tiles sOakSpeech_Background_Tiles_Portable
 #define sOakSpeech_Background_Tilemap sOakSpeech_Background_Tilemap_Portable
@@ -745,7 +771,7 @@ static void CB2_NewGameScene(void)
 void StartNewGameScene(void)
 {
 #ifdef PORTABLE
-    firered_runtime_trace_external("StartNewGameScene");
+    TRACE_OAK_SPEECH("StartNewGameScene");
 #endif
     gPlttBufferUnfaded[0] = RGB_BLACK;
     gPlttBufferFaded[0]   = RGB_BLACK;
@@ -835,41 +861,41 @@ static void Task_NewGameScene(u8 taskId)
 #ifdef PORTABLE
         PortableStartDirectNewGame(taskId);
         return;
-        firered_runtime_trace_external("Task_NewGameScene state7: pre-CreateTopBarWindowLoadPalette");
+        TRACE_OAK_SPEECH("Task_NewGameScene state7: pre-CreateTopBarWindowLoadPalette");
 #endif
         CreateTopBarWindowLoadPalette(0, 30, 0, 13, 0x1C4);
 #ifdef PORTABLE
-        firered_runtime_trace_external("Task_NewGameScene state7: post-CreateTopBarWindowLoadPalette");
-        firered_runtime_trace_external("Task_NewGameScene state7: pre-FillBgTilemapBufferRect top");
+        TRACE_OAK_SPEECH("Task_NewGameScene state7: post-CreateTopBarWindowLoadPalette");
+        TRACE_OAK_SPEECH("Task_NewGameScene state7: pre-FillBgTilemapBufferRect top");
 #endif
         FillBgTilemapBufferRect_Palette0(1, 0xD00F, 0,  0, 30, 2);
 #ifdef PORTABLE
-        firered_runtime_trace_external("Task_NewGameScene state7: pre-FillBgTilemapBufferRect mid");
+        TRACE_OAK_SPEECH("Task_NewGameScene state7: pre-FillBgTilemapBufferRect mid");
 #endif
         FillBgTilemapBufferRect_Palette0(1, 0xD002, 0,  2, 30, 1);
 #ifdef PORTABLE
-        firered_runtime_trace_external("Task_NewGameScene state7: pre-FillBgTilemapBufferRect bottom");
+        TRACE_OAK_SPEECH("Task_NewGameScene state7: pre-FillBgTilemapBufferRect bottom");
 #endif
         FillBgTilemapBufferRect_Palette0(1, 0xD00E, 0, 19, 30, 1);
 #ifdef PORTABLE
-        firered_runtime_trace_external("Task_NewGameScene state7: pre-ControlsGuide_LoadPage1");
+        TRACE_OAK_SPEECH("Task_NewGameScene state7: pre-ControlsGuide_LoadPage1");
 #endif
         ControlsGuide_LoadPage1();
 #ifdef PORTABLE
-        firered_runtime_trace_external("Task_NewGameScene state7: post-ControlsGuide_LoadPage1");
+        TRACE_OAK_SPEECH("Task_NewGameScene state7: post-ControlsGuide_LoadPage1");
 #endif
         gPaletteFade.bufferTransferDisabled = FALSE;
 #ifdef PORTABLE
-        firered_runtime_trace_external("Task_NewGameScene state7: pre-CreateTextCursorSprite");
+        TRACE_OAK_SPEECH("Task_NewGameScene state7: pre-CreateTextCursorSprite");
 #endif
         gTasks[taskId].tTextCursorSpriteId = CreateTextCursorSprite(0, 230, 149, 0, 0);
 #ifdef PORTABLE
-        firered_runtime_trace_external("Task_NewGameScene state7: post-CreateTextCursorSprite");
-        firered_runtime_trace_external("Task_NewGameScene state7: pre-BlendPalettes");
+        TRACE_OAK_SPEECH("Task_NewGameScene state7: post-CreateTextCursorSprite");
+        TRACE_OAK_SPEECH("Task_NewGameScene state7: pre-BlendPalettes");
 #endif
         BlendPalettes(PALETTES_ALL, 16, RGB_BLACK);
 #ifdef PORTABLE
-        firered_runtime_trace_external("Task_NewGameScene state7: post-BlendPalettes");
+        TRACE_OAK_SPEECH("Task_NewGameScene state7: post-BlendPalettes");
 #endif
         break;
     case 10:
@@ -890,45 +916,45 @@ static void Task_NewGameScene(u8 taskId)
 static void ControlsGuide_LoadPage1(void)
 {
 #ifdef PORTABLE
-    firered_runtime_trace_external("ControlsGuide_LoadPage1: pre-TopBarWindowPrintTwoStrings");
+    TRACE_OAK_SPEECH("ControlsGuide_LoadPage1: pre-TopBarWindowPrintTwoStrings");
 #endif
     TopBarWindowPrintTwoStrings(gText_Controls, gText_ABUTTONNext, FALSE, 0, TRUE);
 #ifdef PORTABLE
-    firered_runtime_trace_external("ControlsGuide_LoadPage1: post-TopBarWindowPrintTwoStrings");
-    firered_runtime_trace_external("ControlsGuide_LoadPage1: pre-AddWindow");
+    TRACE_OAK_SPEECH("ControlsGuide_LoadPage1: post-TopBarWindowPrintTwoStrings");
+    TRACE_OAK_SPEECH("ControlsGuide_LoadPage1: pre-AddWindow");
 #endif
     sOakSpeechResources->windowIds[0] = AddWindow(sControlsGuide_WindowTemplates[sOakSpeechResources->currentPage]);
 #ifdef PORTABLE
-    firered_runtime_trace_external("ControlsGuide_LoadPage1: post-AddWindow");
-    firered_runtime_trace_external("ControlsGuide_LoadPage1: pre-PutWindowTilemap");
+    TRACE_OAK_SPEECH("ControlsGuide_LoadPage1: post-AddWindow");
+    TRACE_OAK_SPEECH("ControlsGuide_LoadPage1: pre-PutWindowTilemap");
 #endif
     PutWindowTilemap(sOakSpeechResources->windowIds[0]);
 #ifdef PORTABLE
-    firered_runtime_trace_external("ControlsGuide_LoadPage1: post-PutWindowTilemap");
-    firered_runtime_trace_external("ControlsGuide_LoadPage1: pre-FillWindowPixelBuffer");
+    TRACE_OAK_SPEECH("ControlsGuide_LoadPage1: post-PutWindowTilemap");
+    TRACE_OAK_SPEECH("ControlsGuide_LoadPage1: pre-FillWindowPixelBuffer");
 #endif
     FillWindowPixelBuffer(sOakSpeechResources->windowIds[0], PIXEL_FILL(0));
 #ifdef PORTABLE
-    firered_runtime_trace_external("ControlsGuide_LoadPage1: post-FillWindowPixelBuffer");
-    firered_runtime_trace_external("ControlsGuide_LoadPage1: pre-AddTextPrinterParameterized4");
+    TRACE_OAK_SPEECH("ControlsGuide_LoadPage1: post-FillWindowPixelBuffer");
+    TRACE_OAK_SPEECH("ControlsGuide_LoadPage1: pre-AddTextPrinterParameterized4");
 #endif
     AddTextPrinterParameterized4(sOakSpeechResources->windowIds[0], FONT_NORMAL, 2, 0, 1, 1, sTextColor_White, 0, gControlsGuide_Text_Intro);
 #ifdef PORTABLE
-    firered_runtime_trace_external("ControlsGuide_LoadPage1: post-AddTextPrinterParameterized4");
-    firered_runtime_trace_external("ControlsGuide_LoadPage1: pre-CopyWindowToVram");
+    TRACE_OAK_SPEECH("ControlsGuide_LoadPage1: post-AddTextPrinterParameterized4");
+    TRACE_OAK_SPEECH("ControlsGuide_LoadPage1: pre-CopyWindowToVram");
 #endif
     CopyWindowToVram(sOakSpeechResources->windowIds[0], COPYWIN_FULL);
 #ifdef PORTABLE
-    firered_runtime_trace_external("ControlsGuide_LoadPage1: post-CopyWindowToVram");
-    firered_runtime_trace_external("ControlsGuide_LoadPage1: pre-FillBgTilemapBufferRect_Palette0");
+    TRACE_OAK_SPEECH("ControlsGuide_LoadPage1: post-CopyWindowToVram");
+    TRACE_OAK_SPEECH("ControlsGuide_LoadPage1: pre-FillBgTilemapBufferRect_Palette0");
 #endif
     FillBgTilemapBufferRect_Palette0(1, 0x3000, 1, 3, 5, 16);
 #ifdef PORTABLE
-    firered_runtime_trace_external("ControlsGuide_LoadPage1: pre-CopyBgTilemapBufferToVram");
+    TRACE_OAK_SPEECH("ControlsGuide_LoadPage1: pre-CopyBgTilemapBufferToVram");
 #endif
     CopyBgTilemapBufferToVram(1);
 #ifdef PORTABLE
-    firered_runtime_trace_external("ControlsGuide_LoadPage1: exit");
+    TRACE_OAK_SPEECH("ControlsGuide_LoadPage1: exit");
 #endif
 }
 
@@ -1595,7 +1621,7 @@ static void Task_OakSpeech_DoNamingScreen(u8 taskId)
         snprintf(buffer, sizeof(buffer), "OakSpeech: DoNamingScreen hasPlayerBeenNamed=%u menuWindow=%u",
                  sOakSpeechResources->hasPlayerBeenNamed,
                  gTasks[taskId].tMenuWindowId);
-        firered_runtime_trace_external(buffer);
+        TRACE_OAK_SPEECH(buffer);
 #endif
         GetDefaultName(sOakSpeechResources->hasPlayerBeenNamed, 0);
         if (sOakSpeechResources->hasPlayerBeenNamed == FALSE)
@@ -1949,7 +1975,7 @@ static void CB2_ReturnFromNamingScreen(void)
     {
         char buffer[96];
         snprintf(buffer, sizeof(buffer), "OakSpeech: ReturnFromNaming state=%u", gMain.state);
-        firered_runtime_trace_external(buffer);
+        TRACE_OAK_SPEECH(buffer);
     }
 #endif
 
@@ -1957,7 +1983,7 @@ static void CB2_ReturnFromNamingScreen(void)
     {
     case 0:
 #ifdef PORTABLE
-        firered_runtime_trace_external("OakSpeech: Return state0 pre-reset");
+        TRACE_OAK_SPEECH("OakSpeech: Return state0 pre-reset");
 #endif
         SetVBlankCallback(NULL);
         DmaFill16(3, 0, VRAM, VRAM_SIZE);
@@ -1969,12 +1995,12 @@ static void CB2_ReturnFromNamingScreen(void)
         FreeAllSpritePalettes();
         ResetTempTileDataBuffers();
 #ifdef PORTABLE
-        firered_runtime_trace_external("OakSpeech: Return state0 post-reset");
+        TRACE_OAK_SPEECH("OakSpeech: Return state0 post-reset");
 #endif
         break;
     case 1:
 #ifdef PORTABLE
-        firered_runtime_trace_external("OakSpeech: Return state1 pre-bgs");
+        TRACE_OAK_SPEECH("OakSpeech: Return state1 pre-bgs");
 #endif
         ResetBgsAndClearDma3BusyFlags(0);
         InitBgsFromTemplates(1, sBgTemplates, ARRAY_COUNT(sBgTemplates));
@@ -1985,12 +2011,12 @@ static void CB2_ReturnFromNamingScreen(void)
         ChangeBgX(2, 0, BG_COORD_SET);
         ChangeBgY(2, 0, BG_COORD_SET);
 #ifdef PORTABLE
-        firered_runtime_trace_external("OakSpeech: Return state1 post-bgs");
+        TRACE_OAK_SPEECH("OakSpeech: Return state1 post-bgs");
 #endif
         break;
     case 2:
 #ifdef PORTABLE
-        firered_runtime_trace_external("OakSpeech: Return state2 pre-regs");
+        TRACE_OAK_SPEECH("OakSpeech: Return state2 pre-regs");
 #endif
         SetGpuReg(REG_OFFSET_WIN0H, 0);
         SetGpuReg(REG_OFFSET_WIN0V, 0);
@@ -2000,12 +2026,12 @@ static void CB2_ReturnFromNamingScreen(void)
         SetGpuReg(REG_OFFSET_BLDALPHA, 0);
         SetGpuReg(REG_OFFSET_BLDY, 0);
 #ifdef PORTABLE
-        firered_runtime_trace_external("OakSpeech: Return state2 post-regs");
+        TRACE_OAK_SPEECH("OakSpeech: Return state2 post-regs");
 #endif
         break;
     case 3:
 #ifdef PORTABLE
-        firered_runtime_trace_external("OakSpeech: Return state3 pre-windows");
+        TRACE_OAK_SPEECH("OakSpeech: Return state3 pre-windows");
 #endif
         FreeAllWindowBuffers();
         InitStandardTextBoxWindows();
@@ -2018,21 +2044,21 @@ static void CB2_ReturnFromNamingScreen(void)
         LoadPalette(sOakSpeech_Background_Pals, BG_PLTT_ID(0), sizeof(sOakSpeech_Background_Pals) + PLTT_SIZEOF(48));
 #endif
 #ifdef PORTABLE
-        firered_runtime_trace_external("OakSpeech: Return state3 post-windows");
+        TRACE_OAK_SPEECH("OakSpeech: Return state3 post-windows");
 #endif
         break;
     case 4:
 #ifdef PORTABLE
-        firered_runtime_trace_external("OakSpeech: Return state4 pre-bgtiles");
+        TRACE_OAK_SPEECH("OakSpeech: Return state4 pre-bgtiles");
 #endif
         DecompressAndCopyTileDataToVram(1, sOakSpeech_Background_Tiles, 0, 0, 0);
 #ifdef PORTABLE
-        firered_runtime_trace_external("OakSpeech: Return state4 post-bgtiles");
+        TRACE_OAK_SPEECH("OakSpeech: Return state4 post-bgtiles");
 #endif
         break;
     case 5:
 #ifdef PORTABLE
-        firered_runtime_trace_external("OakSpeech: Return state5 pre-tilemap");
+        TRACE_OAK_SPEECH("OakSpeech: Return state5 pre-tilemap");
 #endif
         if (FreeTempTileDataBuffersIfPossible())
             return;
@@ -2042,12 +2068,12 @@ static void CB2_ReturnFromNamingScreen(void)
         CopyBgTilemapBufferToVram(1);
         CopyBgTilemapBufferToVram(2);
 #ifdef PORTABLE
-        firered_runtime_trace_external("OakSpeech: Return state5 post-tilemap");
+        TRACE_OAK_SPEECH("OakSpeech: Return state5 post-tilemap");
 #endif
         break;
     case 6:
 #ifdef PORTABLE
-        firered_runtime_trace_external("OakSpeech: Return state6 pre-scene");
+        TRACE_OAK_SPEECH("OakSpeech: Return state6 pre-scene");
 #endif
         taskId = CreateTask(Task_OakSpeech_ConfirmName, 0);
         if (sOakSpeechResources->hasPlayerBeenNamed == FALSE)
@@ -2067,12 +2093,12 @@ static void CB2_ReturnFromNamingScreen(void)
         CreatePikachuOrPlatformSprites(taskId, SPRITE_TYPE_PLATFORM);
         gTasks[taskId].tNameNotConfirmed = TRUE;
 #ifdef PORTABLE
-        firered_runtime_trace_external("OakSpeech: Return state6 post-scene");
+        TRACE_OAK_SPEECH("OakSpeech: Return state6 post-scene");
 #endif
         break;
     case 7:
 #ifdef PORTABLE
-        firered_runtime_trace_external("OakSpeech: Return state7 pre-fadein");
+        TRACE_OAK_SPEECH("OakSpeech: Return state7 pre-fadein");
 #endif
         BeginNormalPaletteFade(PALETTES_ALL, 0, 16, 0, RGB_BLACK);
         SetGpuReg(REG_OFFSET_DISPCNT, DISPCNT_OBJ_1D_MAP | DISPCNT_OBJ_ON);
@@ -2084,7 +2110,7 @@ static void CB2_ReturnFromNamingScreen(void)
         gTextFlags.canABSpeedUpPrint = TRUE;
         SetMainCallback2(CB2_NewGameScene);
 #ifdef PORTABLE
-        firered_runtime_trace_external("OakSpeech: Return state7 post-fadein");
+        TRACE_OAK_SPEECH("OakSpeech: Return state7 post-fadein");
 #endif
         return;
     }

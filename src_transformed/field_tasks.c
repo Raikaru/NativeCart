@@ -18,6 +18,31 @@
 
 extern void engine_backend_trace_external(const char *msg);
 
+#ifdef PORTABLE
+#ifndef NDEBUG
+extern char *getenv(const char *name);
+
+static int FieldTasksTraceEnvEnabled(void)
+{
+    static int s_init;
+    static int s_on;
+    const char *e;
+
+    if (s_init)
+        return s_on;
+    s_init = 1;
+    e = getenv("FIRERED_TRACE_FIELD_TASKS");
+    s_on = (e != NULL && e[0] != '\0' && e[0] != '0');
+    return s_on;
+}
+#else
+static int FieldTasksTraceEnvEnabled(void)
+{
+    return 0;
+}
+#endif
+#endif
+
 /*  This file handles some persistent tasks that run in the overworld.
  *  - Task_RunTimeBasedEvents: Triggers ambient cries. In RSE, this also periodically updates local time and RTC events.
  *  - Task_RunPerStepCallback: Calls one of the functions in sPerStepCallbacks, listed below...
@@ -71,12 +96,22 @@ static void Task_RunPerStepCallback(u8 taskId)
     int idx = gTasks[taskId].tCallbackId;
     char _trace[128];
 
-    snprintf(_trace, sizeof(_trace),
-        "PerStepCB: taskId=%d idx=%d func=%p",
-        (int)taskId, idx, (void *)sPerStepCallbacks[idx]);
-    engine_backend_trace_external(_trace);
+#ifdef PORTABLE
+    if (FieldTasksTraceEnvEnabled())
+#endif
+    {
+        snprintf(_trace, sizeof(_trace),
+            "PerStepCB: taskId=%d idx=%d func=%p",
+            (int)taskId, idx, (void *)sPerStepCallbacks[idx]);
+        engine_backend_trace_external(_trace);
+    }
     sPerStepCallbacks[idx](taskId);
-    engine_backend_trace_external("PerStepCB: returned");
+#ifdef PORTABLE
+    if (FieldTasksTraceEnvEnabled())
+#endif
+    {
+        engine_backend_trace_external("PerStepCB: returned");
+    }
 }
 
 #define tAmbientCryState data[1]

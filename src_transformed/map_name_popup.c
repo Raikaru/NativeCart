@@ -8,7 +8,6 @@
 #include "strings.h"
 
 #ifdef PORTABLE
-#include <stdio.h>
 extern void firered_runtime_trace_external(const char *message);
 #endif
 
@@ -223,39 +222,15 @@ static void MapNamePopupPrintMapNameOnWindow(u16 windowId)
     u8 mapName[25];
     u32 maxWidth = 112;
     u32 xpos;
-#ifdef PORTABLE
-    printf("MapNamePopup: mapsec=%u floor=%d\n", gMapHeader.regionMapSectionId, gMapHeader.floorNum);
-    fflush(stdout);
-#endif
     u8 *ptr = GetMapName(mapName, gMapHeader.regionMapSectionId, 0);
-#ifdef PORTABLE
-    printf("MapNamePopup: get-name done first=%02X\n", mapName[0]);
-    fflush(stdout);
-#endif
     if (gMapHeader.floorNum != 0)
     {
         ptr = MapNamePopupAppendFloorNum(ptr, gMapHeader.floorNum);
         maxWidth = gMapHeader.floorNum != FLOOR_ROOFTOP ? 152 : 176;
     }
-#ifdef PORTABLE
-    printf("MapNamePopup: before-width\n");
-    fflush(stdout);
-#endif
     xpos = (maxWidth - GetStringWidth(FONT_NORMAL, mapName, -1)) / 2;
-#ifdef PORTABLE
-    printf("MapNamePopup: width done xpos=%u\n", xpos);
-    fflush(stdout);
-#endif
     FillWindowPixelBuffer(windowId, PIXEL_FILL(1));
-#ifdef PORTABLE
-    printf("MapNamePopup: fill done\n");
-    fflush(stdout);
-#endif
     AddTextPrinterParameterized(windowId, FONT_NORMAL, mapName, xpos, 2, TEXT_SKIP_DRAW, NULL);
-#ifdef PORTABLE
-    printf("MapNamePopup: printer done\n");
-    fflush(stdout);
-#endif
 }
 
 static u8 *MapNamePopupAppendFloorNum(u8 *dest, s8 floorNum)

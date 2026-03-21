@@ -24,12 +24,38 @@
 
 extern void firered_runtime_trace_external(const char *message);
 
+#ifndef NDEBUG
+extern char *getenv(const char *name);
+
+static int TraceBattleTransitionEnvEnabled(void)
+{
+    static int s_init;
+    static int s_on;
+    const char *e;
+
+    if (s_init)
+        return s_on;
+    s_init = 1;
+    e = getenv("FIRERED_TRACE_BATTLE_TRANSITION");
+    s_on = (e != NULL && e[0] != '\0' && e[0] != '0');
+    return s_on;
+}
+#else
+static int TraceBattleTransitionEnvEnabled(void)
+{
+    return 0;
+}
+#endif
+
 static u8 sBattleTransitionTraceCount;
 
 static void TraceBattleTransition(const char *fmt, ...)
 {
     char buffer[256];
     va_list args;
+
+    if (!TraceBattleTransitionEnvEnabled())
+        return;
 
     if (sBattleTransitionTraceCount >= 96)
         return;
@@ -38,7 +64,6 @@ static void TraceBattleTransition(const char *fmt, ...)
     vsnprintf(buffer, sizeof(buffer), fmt, args);
     va_end(args);
     firered_runtime_trace_external(buffer);
-    fflush(stdout);
     sBattleTransitionTraceCount++;
 }
 #endif
