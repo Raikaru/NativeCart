@@ -42,7 +42,6 @@ static void TraceHeldMove(const char *fmt, ...)
     vsnprintf(buffer, sizeof(buffer), fmt, args);
     va_end(args);
     firered_runtime_trace_external(buffer);
-    fflush(stdout);
     sPortableHeldMoveTraceCount++;
 }
 

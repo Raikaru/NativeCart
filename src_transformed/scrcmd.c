@@ -1356,7 +1356,6 @@ bool8 ScrCmd_message(struct ScriptContext * ctx)
                      msg,
                      (unsigned long)ctx->data[0]);
             firered_runtime_trace_external(buffer);
-            fflush(stdout);
         }
     }
 #endif

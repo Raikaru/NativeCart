@@ -59,7 +59,6 @@ static void TraceWarpCheck(const char *fmt, ...)
     vsnprintf(buffer, sizeof(buffer), fmt, args);
     va_end(args);
     firered_runtime_trace_external(buffer);
-    fflush(stdout);
 }
 
 static const u8 *ResolveMapEventScriptPointer(const u8 *script)
