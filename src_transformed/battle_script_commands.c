@@ -37,6 +37,10 @@
 #include "constants/pokemon.h"
 #include "constants/maps.h"
 
+#ifdef PORTABLE
+#include "portable_generated/battle_script_commands_portable_nullfix.h"
+#endif
+
 extern const u8 *const gBattleScriptsForMoveEffects[];
 
 #define DEFENDER_IS_PROTECTED ((gProtectStructs[gBattlerTarget].protected) && (gBattleMoves[gCurrentMove].flags & FLAG_PROTECT_AFFECTED))
@@ -659,8 +663,6 @@ static const struct WindowTemplate sUnusedWinTemplate =
     .paletteNum = 31,
     .baseBlock = 0x3F
 };
-#define sLevelUpBanner_Pal ((const u16 *)NULL)
-#define sLevelUpBanner_Gfx ((const u32 *)NULL)
 
 // unused
 static const u8 sRubyLevelUpStatBoxStats[] =

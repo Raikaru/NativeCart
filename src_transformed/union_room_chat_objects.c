@@ -4,6 +4,10 @@
 #include "graphics.h"
 #include "union_room_chat.h"
 
+#ifdef PORTABLE
+#include "portable_generated/union_room_chat_objects_portable_nullfix.h"
+#endif
+
 enum {
     GFXTAG_SELECTOR_CURSOR,
     GFXTAG_CHAR_SELECT_CURSOR,
@@ -26,11 +30,6 @@ static EWRAM_DATA struct UnionRoomChat3 *sWork = NULL;
 
 static void SpriteCB_TextEntryCursor(struct Sprite *sprite);
 static void SpriteCB_CharacterSelectCursor(struct Sprite *sprite);
-#define sUnionRoomChatInterfacePal ((const u16 *)NULL)
-#define sSelectorCursor_Gfx ((const u32 *)NULL)
-#define sTextEntryCursor_Gfx ((const u32 *)NULL)
-#define sCharacterSelectCursor_Gfx ((const u32 *)NULL)
-#define sRButton_Gfx ((const u32 *)NULL)
 
 static const struct CompressedSpriteSheet sSpriteSheets[] = {
     {

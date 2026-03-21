@@ -11,6 +11,7 @@
 
 #ifdef PORTABLE
 #include "pokemon_storage_system_portable_assets.h"
+#include "portable_generated/pokemon_storage_system_graphics_portable_nullfix.h"
 #define sWallpaperPalettes_Forest sWallpaperPalettes_Forest_Portable
 #define sWallpaperTiles_Forest sWallpaperTiles_Forest_Portable
 #define sWallpaperTilemap_Forest sWallpaperTilemap_Forest_Portable
@@ -199,7 +200,6 @@ static const u16 sWallpaperPalettes_Simple[][16] = INCBIN_U16("graphics/pokemon_
 #endif
 
 // Unused
-#define sWallpaperTilemap_Unused ((const u16 *)NULL)
 
 // Shadow color, text color
 static const u16 sBoxTitleColors[][2] = {

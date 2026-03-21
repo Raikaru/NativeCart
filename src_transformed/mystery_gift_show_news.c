@@ -9,6 +9,10 @@
 #include "list_menu.h"
 #include "constants/mystery_gift.h"
 
+#ifdef PORTABLE
+#include "portable_generated/mystery_gift_show_news_portable_nullfix.h"
+#endif
+
 enum {
     WIN_TITLE,
     WIN_BODY,
@@ -81,19 +85,6 @@ static const struct ScrollArrowsTemplate sArrowsTemplate = {
     .palTag = TAG_ARROWS,
     .palNum = 0
 };
-#define sNews0Pal ((const u16 *)NULL)
-#define sNews6Pal ((const u16 *)NULL)
-#define sNews7Pal ((const u16 *)NULL)
-#define sNews0Gfx ((const u8 *)NULL)
-#define sNews0Map ((const u8 *)NULL)
-#define sNews1Gfx ((const u8 *)NULL)
-#define sNews1Map ((const u8 *)NULL)
-#define sNews2Gfx ((const u8 *)NULL)
-#define sNews2Map ((const u8 *)NULL)
-#define sNews6Gfx ((const u8 *)NULL)
-#define sNews6Map ((const u8 *)NULL)
-#define sNews7Gfx ((const u8 *)NULL)
-#define sNews7Map ((const u8 *)NULL)
 
 static const struct WonderGraphics sNewsGraphics[NUM_WONDER_BGS] = {
     {.titleTextPal = 1, .bodyTextPal = 0, .tiles = sNews0Gfx, .map = sNews0Map, .pal = sNews0Pal},

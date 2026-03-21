@@ -16,6 +16,10 @@
 #include "constants/songs.h"
 #include "constants/maps.h"
 
+#ifdef PORTABLE
+#include "portable_generated/battle_records_portable_nullfix.h"
+#endif
+
 static EWRAM_DATA u16 * sBg3TilemapBuffer_p = NULL;
 
 static void MainCB2_SetUp(void);
@@ -33,9 +37,6 @@ static void ResetBGPos(void);
 static void PrintBattleRecords(void);
 static void CommitWindow(u8 windowId);
 static void LoadFrameGfxOnBg(u8 bgId);
-#define sTiles ((const u16 *)NULL)
-#define sPalette ((const u16 *)NULL)
-#define sTilemap ((const u16 *)NULL)
 
 static const struct WindowTemplate sWindowTemplates[] = {
     {

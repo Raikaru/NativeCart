@@ -13,6 +13,7 @@
 
 #ifdef PORTABLE
 #include "battle_interface_portable_assets.h"
+#include "portable_generated/battle_interface_portable_nullfix.h"
 #define gBattleInterface_Healthbox_Pal gBattleInterface_Healthbox_Pal_Portable
 #define gBattleInterface_Healthbar_Pal gBattleInterface_Healthbar_Pal_Portable
 #define gBattleInterface_Gfx gBattleInterface_Gfx_Portable
@@ -371,7 +372,6 @@ static const struct SubspriteTable sStatusSummaryBar_SubspriteTable_Enter[] = {
 static const struct SubspriteTable sStatusSummaryBar_SubspriteTable_Exit[] = {
     {ARRAY_COUNT(sStatusSummaryBar_Subsprites_Exit), sStatusSummaryBar_Subsprites_Exit}
 };
-#define sBattleInterface_Unused ((const u16 *)NULL)
 
 static const struct CompressedSpriteSheet sPartySummaryBarSpriteSheets[] = {
     {gBattleInterface_PartySummaryBar_Gfx, 16 * TILE_SIZE_4BPP, TAG_PARTY_SUMMARY_BAR_PLAYER_TILE},
@@ -617,7 +617,6 @@ u8 CreateBattlerHealthboxSprites(u8 battlerId)
     healthbarSprite->sHealthboxSpriteId = healthboxSpriteId;
     healthbarSprite->sHealthbarType = healthbarType;
     healthbarSprite->invisible = TRUE;
-
     return healthboxSpriteId;
 }
 

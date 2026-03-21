@@ -11,6 +11,10 @@
 #include "union_room_chat_display.h"
 #include "union_room_chat_objects.h"
 
+#ifdef PORTABLE
+#include "portable_generated/union_room_chat_display_portable_nullfix.h"
+#endif
+
 #define STDMESSAGE_QUIT_CHATTING 0
 #define STDMESSAGE_REGISTER_WHERE 1
 #define STDMESSAGE_REGISTER_HERE 2
@@ -118,10 +122,6 @@ static void LoadWin3(void);
 static void InitScanlineEffect(void);
 static void FillScanlineEffectWithValue1col(s16 a0);
 static void FillScanlineEffectWithValue2col(s16 a0);
-#define sUnionRoomChat_TextEntry_Pal ((const u16 *)NULL)
-#define gUnionRoomChat_Unused_Pal ((const u16 *)NULL) // Loaded, but nothing uses it
-#define sUnionRoomChat_Messages_Pal ((const u16 *)NULL)
-
 static const struct BgTemplate sBgTemplates[] = {
     {
         .bg = 0,

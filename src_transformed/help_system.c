@@ -16,6 +16,10 @@
 #include "constants/maps.h"
 #include "constants/songs.h"
 
+#ifdef PORTABLE
+#include "portable_generated/help_system_portable_nullfix.h"
+#endif
+
 #define HELP_NONE  0
 #define HELP_END   0xFF
 
@@ -1645,7 +1649,6 @@ static const u8 *const sHelpSystemSubmenuItemLists[HELPCONTEXT_COUNT * (TOPIC_CO
     NULL,                          sHowTo_BedroomPCMailbox,    NULL,                       NULL,                    NULL, // HELPCONTEXT_BEDROOM_PC_MAILBOX
     NULL,                          NULL,                       NULL,                       NULL,                    NULL  // HELPCONTEXT_UNUSED
 };
-#define sUnused ((const u16 *)NULL)
 
 static const u8 sHelpSystemContextTopicOrder[TOPIC_COUNT] = {
     TOPIC_ABOUT_GAME, 

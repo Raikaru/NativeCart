@@ -25,6 +25,10 @@
 #include "constants/moves.h"
 #include "constants/trade.h"
 
+#ifdef PORTABLE
+#include "portable_generated/trade_portable_nullfix.h"
+#endif
+
 // IDs for CallTradeMenuFunc
 enum {
     CB_MAIN_MENU,
@@ -220,10 +224,6 @@ static const size_t sSizesAndOffsets[] = {
     sizeof(struct Pokemon),
     0x528 // unk
 };
-#define sTradeMovesBoxTilemap ((const u16 *)NULL)
-#define sTradePartyBoxTilemap ((const u16 *)NULL)
-#define sTradeStripesBG2Tilemap ((const u8 *)NULL)
-#define sTradeStripesBG3Tilemap ((const u8 *)NULL)
 
 static const struct OamData sOamData_MenuText = {
     .shape = SPRITE_SHAPE(32x16),
@@ -321,7 +321,6 @@ static const struct SpriteTemplate sSpriteTemplate_MenuText = {
     .affineAnims = gDummySpriteAffineAnimTable,
     .callback = SpriteCallbackDummy
 };
-#define sMenuText_Pal ((const u16 *)NULL)
 static const struct SpritePalette sSpritePalette_MenuText = {
     .data = sMenuText_Pal,
     .tag = PALTAG_MENU_TEXT

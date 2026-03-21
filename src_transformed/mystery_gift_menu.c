@@ -23,14 +23,16 @@
 #include "constants/songs.h"
 #include "constants/union_room.h"
 
+#ifdef PORTABLE
+#include "portable_generated/mystery_gift_menu_portable_nullfix.h"
+#endif
+
 EWRAM_DATA u8 sDownArrowCounterAndYCoordIdx[8] = {};
 EWRAM_DATA bool8 gGiftIsFromEReader = FALSE;
 
 static void CreateMysteryGiftTask(void);
 static void Task_MysteryGift(u8 taskId);
 extern void CreateEReaderTask(void);
-#define sTextboxBorder_Pal ((const u16 *)NULL)
-#define sTextboxBorder_Gfx ((const u32 *)NULL)
 
 struct MysteryGiftTaskData
 {

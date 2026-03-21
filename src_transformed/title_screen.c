@@ -21,6 +21,7 @@
 #include "title_screen_portable_assets.h"
 extern void firered_runtime_trace_external(const char *message);
 #include <stdio.h>
+#include "portable_generated/title_screen_portable_nullfix.h"
 
 static void TraceTitleScreenState(const char *tag, s16 *data)
 {
@@ -357,12 +358,6 @@ static const u16 sStreakYPositions[] = {
     40, 80, 110, 60, 90, 70, 100, 50
 };
 #endif
-#define sUnused_Tilemap1 ((const u32 *)NULL)
-#define sUnused_Tilemap2 ((const u32 *)NULL)
-#define sUnused_Tilemap3 ((const u32 *)NULL)
-#define sUnused_Tilemap4 ((const u32 *)NULL)
-#define sUnused_Tilemap5 ((const u32 *)NULL)
-#define sUnused_Tilemap6 ((const u32 *)NULL)
 
 static const u32 *const sUnused_Tilemaps[] = {
     sUnused_Tilemap1,

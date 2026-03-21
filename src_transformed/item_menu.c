@@ -38,6 +38,7 @@
 #ifdef PORTABLE
 #include <stdio.h>
 #include "bag_menu_portable_assets.h"
+#include "portable_generated/item_menu_portable_nullfix.h"
 #define gBagBg_Gfx gBagBg_Gfx_Portable
 #define gBagBg_Tilemap gBagBg_Tilemap_Portable
 #define gBagBg_ItemPC_Tilemap gBagBg_ItemPC_Tilemap_Portable
@@ -331,7 +332,6 @@ static const struct ScrollArrowsTemplate sPocketSwitchArrowPairTemplate = {
     .palTag = 111,
     .palNum = 0,
 };
-#define sBlit_SelectButton ((const u8 *)NULL)
 
 #define tSwitchDir     data[11]
 #define tSwitchCounter data[12]

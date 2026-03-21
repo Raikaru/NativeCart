@@ -11,6 +11,10 @@
 #include "constants/songs.h"
 #include "constants/map_types.h"
 
+#ifdef PORTABLE
+#include "portable_generated/fldeff_flash_portable_nullfix.h"
+#endif
+
 struct FlashStruct
 {
     u8 fromType;
@@ -159,12 +163,6 @@ static IntrCallback GetSavedMapPreviewVBlankCallback(u8 taskId)
 {
     return (IntrCallback)GetWordTaskArg(taskId, 5);
 }
-#define sCaveTransitionPalette_White ((const u16 *)NULL)
-#define sCaveTransitionPalette_Black ((const u16 *)NULL)
-#define sCaveTransitionPalette_Enter ((const u16 *)NULL)
-#define sCaveTransitionPalette_Exit ((const u16 *)NULL)
-#define sCaveTransitionTilemap ((const u32 *)NULL)
-#define sCaveTransitionTiles ((const u32 *)NULL)
 
 bool8 SetUpFieldMove_Flash(void)
 {
