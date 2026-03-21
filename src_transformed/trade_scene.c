@@ -34,6 +34,10 @@
 #include "constants/region_map_sections.h"
 #include "constants/moves.h"
 
+#ifdef PORTABLE
+#include "portable_generated/trade_scene_portable_nullfix.h"
+#endif
+
 // Values for signaling to/from the link partner
 enum {
     STATUS_NONE,
@@ -146,33 +150,8 @@ static void CheckPartnersMonForRibbons(void);
 static void Task_AnimateWirelessSignal(u8 taskId);
 static void Task_OpenCenterWhiteColumn(u8 taskId);
 static void Task_CloseCenterWhiteColumn(u8 taskId);
-#define sPokeball_Pal ((const u16 *)NULL)
-#define sPokeball_Gfx ((const u8 *)NULL)
-#define sPokeballSymbol_Gfx ((const u8 *)NULL) // Unused
-#define sCableCloseup_Map ((const u16 *)NULL)
-#define sPokeballSymbol_Map ((const u16 *)NULL)
-#define sUnusedPal1 ((const u16 *)NULL)
-#define sGba_Pal ((const u16 *)NULL)
-#define sShadowPalette ((const u16 *)NULL)
-#define sBlackPalette ((const u16 *)NULL)
-#define sLinkMon_Pal ((const u16 *)NULL)
-#define sLinkMonGlow_Gfx ((const u8 *)NULL)
-#define sLinkMonShadow_Gfx ((const u8 *)NULL)
-#define sCableEnd_Gfx ((const u8 *)NULL)
-#define sGbaScreen_Gfx ((const u8 *)NULL)
 const u16 gTradeOrHatchMonShadowTilemap[]           = INCBIN_U16("graphics/trade/shadow_map.bin");
-#define sGbaAffine_Gfx ((const u8 *)NULL)
 static const u8 sEmptyGfx[64]                       = {};
-#define sGbaAffineMapCable ((const u8 *)NULL)
-#define sGbaAffineMapWireless ((const u8 *)NULL)
-#define sGbaMapWireless ((const u16 *)NULL)
-#define sGbaMapCable ((const u16 *)NULL)
-#define sWirelessCloseup_Map ((const u32 *)NULL)
-#define sWirelessSignalAnimPals_Outbound ((const u16 *)NULL)
-#define sWirelessSignalAnimPals_Inbound ((const u16 *)NULL)
-#define sWirelessSignalAnimPals_Off ((const u16 *)NULL)
-#define sWirelessSignal4bpp ((const u32 *)NULL)
-#define sWirelessSignalTilemap ((const u32 *)NULL)
 
 static const struct OamData sOamData_Pokeball = {
     .affineMode = ST_OAM_AFFINE_NORMAL,

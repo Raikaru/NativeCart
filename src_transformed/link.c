@@ -25,6 +25,10 @@
 #include "constants/battle.h"
 #include "constants/songs.h"
 
+#ifdef PORTABLE
+#include "portable_generated/link_portable_nullfix.h"
+#endif
+
 extern u16 gHeldKeyCodeToSend;
 
 struct BlockTransfer
@@ -154,11 +158,6 @@ static void DoRecv(void);
 static void DoSend(void);
 static void StopTimer(void);
 static void SendRecvDone(void);
-#define sWirelessLinkDisplayPal ((const u16 *)NULL)
-#define sWirelessLinkDisplayGfx ((const u16 *)NULL)
-#define sWirelessLinkDisplayTilemap ((const u16 *)NULL)
-#define sLinkTestFontPal ((const u16 *)NULL)
-#define sLinkTestFontGfx ((const u16 *)NULL)
 
 static const struct BlockRequest sBlockRequests[] = {
     [BLOCK_REQ_SIZE_NONE] = { gBlockSendBuffer, 200 },
@@ -221,7 +220,7 @@ bool8 IsWirelessAdapterConnected(void)
 
 #ifdef PORTABLE
     return FALSE;
-#endif
+#else
 
     SetWirelessCommType1();
     InitRFUAPI();
@@ -236,6 +235,7 @@ bool8 IsWirelessAdapterConnected(void)
     CloseLink();
     RestoreSerialTimer3IntrHandlers();
     return FALSE;
+#endif
 }
 
 void Task_DestroySelf(u8 taskId)

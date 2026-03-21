@@ -9,6 +9,10 @@
 #include "strings.h"
 #include "text_window.h"
 
+#ifdef PORTABLE
+#include "portable_generated/easy_chat_3_portable_nullfix.h"
+#endif
+
 enum {
     GFXTAG_TRIANGLE_CURSOR,
     GFXTAG_RECTANGLE_CURSOR,
@@ -150,21 +154,9 @@ static void CreateStartSelectButtonsSprites(void);
 static void UpdateStartSelectButtonSpriteVisibility(void);
 static void HideStartSelectButtonSprites(void);
 static void CreateFooterWindow(void);
-#define sTriangleCursor_Pal ((const u16 *)NULL)
-#define sRectangleCursor_Pal ((const u16 *)NULL)
-#define sTriangleCursor_Gfx ((const u16 *)NULL)
-#define sScrollIndicator_Gfx ((const u16 *)NULL)
-#define sStartSelectButtons_Gfx ((const u16 *)NULL)
 // In Ruby/Sapphire Easy Chat screens had a black background, and when the player & interviewer were present
 // on screen the interview_frame gfx was shown behind them.
 // In FRLG all Easy Chat screens have a filled background, so these gfx go unused
-#define sRSInterviewFrame_Pal ((const u16 *)NULL)
-#define sRSInterviewFrame_Gfx ((const u32 *)NULL)
-#define sTextInputFrameOrange_Pal ((const u16 *)NULL)
-#define sTextInputFrameGreen_Pal ((const u16 *)NULL)
-#define sTextInputFrame_Gfx ((const u32 *)NULL)
-#define sTitleText_Pal ((const u16 *)NULL)
-#define sText_Pal ((const u16 *)NULL)
 
 static const struct EasyChatPhraseFrameDimensions sPhraseFrameDimensions[] = {
     {

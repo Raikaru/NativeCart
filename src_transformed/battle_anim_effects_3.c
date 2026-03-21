@@ -15,6 +15,10 @@
 #include "constants/songs.h"
 #include "constants/weather.h"
 
+#ifdef PORTABLE
+#include "portable_generated/battle_anim_effects_3_portable_nullfix.h"
+#endif
+
 static void AnimBlackSmoke(struct Sprite *);
 static void AnimBlackSmoke_Step(struct Sprite *);
 static void AnimWhiteHalo(struct Sprite *);
@@ -705,7 +709,6 @@ const struct SpriteTemplate gSweetScentPetalSpriteTemplate =
     .affineAnims = gDummySpriteAffineAnimTable,
     .callback = AnimSweetScentPetal,
 };
-#define sUnusedPalette ((const u16 *)NULL)
 
 static const union AnimCmd sPainSplitAnimCmds[] =
 {

@@ -21,6 +21,7 @@
 #ifdef PORTABLE
 #include <stdarg.h>
 #include <stdio.h>
+#include "portable_generated/battle_transition_portable_nullfix.h"
 
 extern void firered_runtime_trace_external(const char *message);
 
@@ -256,13 +257,6 @@ static void SetTrainerPicSlideDirection(s16 spriteId, bool16 value);
 static void IncrementTrainerPicState(s16 spriteId);
 static s16 IsTrainerPicSlideDone(s16 spriteId);
 static void Mugshots_CreateTrainerPics(struct Task *task);
-#define sBigPokeball_Gfx ((const u32 *)NULL)
-#define sSlidingPokeball_Tilemap ((const u32 *)NULL)
-#define sSlidingPokeball_Gfx ((const u8 *)NULL)
-#define sMugshotBanner_Gfx ((const u32 *)NULL)
-#define sUnusedBrendan_Gfx ((const u8 *)NULL)
-#define sUnusedLass_Gfx ((const u8 *)NULL)
-#define sGridSquare_Gfx ((const u32 *)NULL)
 
 // All battle transitions use the same intro
 static const TaskFunc sTasks_Intro[] =
@@ -616,20 +610,12 @@ static const struct SpriteTemplate sSpriteTemplate_UnusedBrendanLass[] =
 };
 
 // this palette is shared by big pokeball and sliding pokeball
-#define sFieldEffectPal_Pokeball ((const u16 *)NULL)
 
 const struct SpritePalette gSpritePalette_Pokeball =
 {
     .data = sFieldEffectPal_Pokeball,
     .tag = FLDEFF_PAL_TAG_POKEBALL_TRAIL,
 };
-#define sMugshotPal_Lorelei ((const u16 *)NULL)
-#define sMugshotPal_Bruno ((const u16 *)NULL)
-#define sMugshotPal_Agatha ((const u16 *)NULL)
-#define sMugshotPal_Lance ((const u16 *)NULL)
-#define sMugshotPal_Blue ((const u16 *)NULL)
-#define sMugshotPal_Red ((const u16 *)NULL)
-#define sMugshotPal_Green ((const u16 *)NULL)
 
 static const u16 *const sOpponentMugshotsPals[MUGSHOTS_COUNT] =
 {
@@ -645,15 +631,12 @@ static const u16 *const sPlayerMugshotsPals[GENDER_COUNT] =
     [MALE]   = sMugshotPal_Red,
     [FEMALE] = sMugshotPal_Green,
 };
-#define sUnusedTrainerPalette ((const u16 *)NULL)
 
 static const struct SpritePalette sSpritePalette_UnusedTrainer =
 {
     .data = sUnusedTrainerPalette, 
     .tag = PALTAG_UNUSED_MUGSHOT,
 };
-#define sBigPokeball_Tilemap ((const u16 *)NULL)
-#define sMugshotsTilemap ((const u16 *)NULL)
 
 void BattleTransition_StartOnField(u8 transitionId)
 {

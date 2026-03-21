@@ -26,6 +26,10 @@
 #include "constants/songs.h"
 #include "constants/maps.h"
 
+#ifdef PORTABLE
+#include "portable_generated/hall_of_fame_portable_nullfix.h"
+#endif
+
 #define HALL_OF_FAME_MAX_TEAMS 50
 #define HALL_OF_FAME_BG_PAL    RGB(22, 24, 29)
 
@@ -284,8 +288,6 @@ static const struct SpriteTemplate sSpriteTemplate_Confetti = {
     .affineAnims = gDummySpriteAffineAnimTable,
     .callback = SpriteCB_Confetti
 };
-#define sHallOfFame_Pal ((const u16 *)NULL)
-#define sHallOfFame_Gfx ((const u32 *)NULL)
 
 static const struct HallofFameMon sDummyHofMon = {
     .tid = 0x03EA03EA, // (u16[]){1002, 1002} corrupted sprite template?

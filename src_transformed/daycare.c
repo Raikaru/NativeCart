@@ -30,6 +30,10 @@
 #include "constants/daycare.h"
 #include "constants/region_map_sections.h"
 
+#ifdef PORTABLE
+#include "portable_generated/daycare_portable_nullfix.h"
+#endif
+
 // Combination of RSE's Day-Care (re-used on Four Island), FRLG's Day-Care, and egg_hatch.c
 
 extern const struct Evolution gEvolutionTable[][EVOS_PER_MON];
@@ -133,9 +137,6 @@ static const u8 *const sCompatibilityMessages[] =
 
 static const u8 sNewLineText[] = _("\n");
 static const u8 sJapaneseEggNickname[] = _("タマゴ"); // "tamago" ("egg" in Japanese)
-#define sEggPalette ((const u16 *)NULL)
-#define sEggHatchTiles ((const u8 *)NULL)
-#define sEggShardTiles ((const u8 *)NULL)
 
 static const struct OamData sOamData_EggHatch =
 {

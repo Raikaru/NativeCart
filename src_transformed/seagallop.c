@@ -13,6 +13,10 @@
 #include "constants/maps.h"
 #include "constants/seagallop.h"
 
+#ifdef PORTABLE
+#include "portable_generated/seagallop_portable_nullfix.h"
+#endif
+
 #define TILESTAG_FERRY 3000
 #define TILESTAG_WAKE  4000
 
@@ -38,13 +42,6 @@ static void SpriteCB_Ferry(struct Sprite *sprite);
 static void CreateWakeSprite(s16 x);
 static void SpriteCB_Wake(struct Sprite *sprite);
 static bool8 GetDirectionOfTravel(void);
-#define sWaterTiles ((const u16 *)NULL)
-#define sWaterPal ((const u16 *)NULL)
-#define sWaterTilemap_WB ((const u16 *)NULL)
-#define sWaterTilemap_EB ((const u16 *)NULL)
-#define sFerrySpriteTiles ((const u16 *)NULL)
-#define sFerryAndWakePal ((const u16 *)NULL)
-#define sWakeSpriteTiles ((const u16 *)NULL)
 
 static const struct BgTemplate sBGTemplates[] = {
     {

@@ -48,11 +48,8 @@ static bool32 IsOutwardSpiralDotsTaskRunning(void);
 static void Task_LevelUpVerticalSprites(u8 taskId);
 static void CreateLevelUpVerticalSprite(u8 taskId, s16 *data);
 static void SpriteCB_LevelUpVertical(struct Sprite *sprite);
-#define sBg_Pal ((const u16 *)NULL)
-#define sBg_TmHm_Pal ((const u16 *)NULL)
-#define sBg_Gfx ((const u32 *)NULL)
-#define sBg_Tilemap ((const u32 *)NULL)
 #ifdef PORTABLE
+#include "portable_generated/pokemon_special_anim_scene_portable_nullfix.h"
 static const u32 sLevelUp_Pal_Portable[] = {
     0x7FFF0000, 0x7F5A7F9C, 0x7ED67F18, 0x7E527E94, 0x7DCE7E10, 0x7D4A7D8C, 0x7CC67D08, 0x7C427C84,
 };
@@ -65,10 +62,6 @@ static const u32 sLevelUp_Gfx_Portable[] = {
 #define sLevelUp_Pal ((const u16 *)NULL)
 #define sLevelUp_Gfx ((const u32 *)NULL)
 #endif
-#define sStar_Pal ((const u16 *)NULL)
-#define sStar_Gfx ((const u32 *)NULL)
-#define sOutwardSpiralDots_Pal ((const u16 *)NULL)
-#define sOutwardSpiralDots_Gfx ((const u32 *)NULL)
 
 static const struct BgTemplate sBgTemplates[] = {
     {
