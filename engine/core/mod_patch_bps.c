@@ -1,10 +1,48 @@
 #include "mod_patch_bps.h"
 
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 #define MOD_PATCH_MAX_OUTPUT (128u * 1024u * 1024u)
+
+/* FIRERED_TRACE_MOD_LAUNCH=1 — BPS-only diagnostics (stderr). */
+static int mod_bps_trace_on(void)
+{
+    static int tri = -1;
+    const char *e;
+
+    if (tri >= 0)
+        return tri;
+    e = getenv("FIRERED_TRACE_MOD_LAUNCH");
+    tri = (e != NULL && e[0] != '\0' && strcmp(e, "0") != 0);
+    return tri;
+}
+
+static void mod_bps_tracef(const char *fmt, ...)
+{
+    va_list ap;
+    char buf[896];
+
+    if (!mod_bps_trace_on())
+        return;
+    va_start(ap, fmt);
+    vsnprintf(buf, sizeof(buf), fmt, ap);
+    va_end(ap);
+    fprintf(stderr, "[firered BPS] %s\n", buf);
+    fflush(stderr);
+}
+
+static void mod_bps_trace_fail(const char *err, size_t err_cap)
+{
+    if (!mod_bps_trace_on())
+        return;
+    if (err != NULL && err_cap > 0 && err[0] != '\0')
+        mod_bps_tracef("FAIL: %s", err);
+    else
+        mod_bps_tracef("FAIL: (no error message buffer)");
+}
 
 static void set_err(char *err, size_t err_cap, const char *msg)
 {
@@ -29,6 +67,11 @@ static uint32_t crc32_bytes(const uint8_t *data, size_t size)
             crc = (crc >> 1) ^ (0xEDB88320u & (0u - (crc & 1u)));
     }
     return crc ^ 0xFFFFFFFFu;
+}
+
+static uint32_t bps_read_u32_le(const uint8_t *p)
+{
+    return (uint32_t)p[0] | ((uint32_t)p[1] << 8) | ((uint32_t)p[2] << 16) | ((uint32_t)p[3] << 24);
 }
 
 /*
@@ -87,29 +130,45 @@ int mod_patch_bps_apply(
     uint32_t expect_patch_crc;
     uint32_t calc_patch_crc;
     uint8_t *target = NULL;
-    /* Match gdextension/memory/rom_overlay.cpp: source_offset is ROM index for
-     * Source* ops and is repurposed as the target-buffer read index for TargetCopy. */
-    size_t source_offset;
-    size_t target_offset;
+    /*
+     * Three cursors (Flips libbps / beat spec — do not alias):
+     * - target_write: output length / write head (Flips outat - outstart).
+     * - source_copy_pos: ROM read cursor for SourceCopy only (Flips inreadat - instart).
+     * - target_copy_pos: read cursor for TargetCopy (Flips outreadat - outstart).
+     *   TargetCopy bounds (libbps): outreadat < outat initially; outreadat+length <= outend.
+     *   Do NOT require outreadat+length <= outat — the byte loop may read bytes written earlier
+     *   in the same command (overlap past the initial write head).
+     * SourceRead copies source[target_write..] -> target (same index as output progress).
+     */
+    size_t target_write;
+    size_t source_copy_pos;
+    size_t target_copy_pos;
 
     *out_rom = NULL;
     *out_len = 0;
 
+    mod_bps_tracef("apply enter source_len=%zu patch_len=%zu", source_len, patch_len);
+    /* Fingerprint: if you still see TargetCopy OOB with an old binary, this line will be missing. */
+    mod_bps_tracef("bps_apply_impl=split_src_tgt_copy_cursor");
+
     if (source == NULL || patch == NULL)
     {
         set_err(err, err_cap, "BPS: null source or patch buffer");
+        mod_bps_trace_fail(err, err_cap);
         return 0;
     }
 
     if (patch_len < 4 + 12)
     {
         set_err(err, err_cap, "BPS: patch file too small");
+        mod_bps_trace_fail(err, err_cap);
         return 0;
     }
 
     if (memcmp(patch, "BPS1", 4) != 0)
     {
         set_err(err, err_cap, "BPS: missing BPS1 magic (not a BPS patch?)");
+        mod_bps_trace_fail(err, err_cap);
         return 0;
     }
 
@@ -122,13 +181,22 @@ int mod_patch_bps_apply(
     if (pos + metadata_len > max_pos)
     {
         set_err(err, err_cap, "BPS: invalid metadata length");
+        mod_bps_trace_fail(err, err_cap);
         return 0;
     }
     pos += metadata_len;
 
+    mod_bps_tracef(
+        "decoded header expect_source_size=%zu target_size=%zu metadata_len=%zu (pos after meta=%zu)",
+        source_size_expect,
+        target_size,
+        metadata_len,
+        pos);
+
     if (target_size == 0 || target_size > MOD_PATCH_MAX_OUTPUT)
     {
         set_err(err, err_cap, "BPS: unreasonable output size");
+        mod_bps_trace_fail(err, err_cap);
         return 0;
     }
 
@@ -138,40 +206,58 @@ int mod_patch_bps_apply(
             snprintf(err, err_cap,
                 "BPS: base ROM size mismatch (have %zu bytes, patch expects %zu)",
                 source_len, source_size_expect);
+        mod_bps_trace_fail(err, err_cap);
         return 0;
     }
 
+    /* Footer: source, target, patch CRC32 each little-endian (Flips libbps, beat/BPS spec). */
     crc_pos = patch_len - 12;
-    expect_source_crc = ((uint32_t)patch[crc_pos] << 24) | ((uint32_t)patch[crc_pos + 1] << 16)
-        | ((uint32_t)patch[crc_pos + 2] << 8) | (uint32_t)patch[crc_pos + 3];
-    expect_target_crc = ((uint32_t)patch[crc_pos + 4] << 24) | ((uint32_t)patch[crc_pos + 5] << 16)
-        | ((uint32_t)patch[crc_pos + 6] << 8) | (uint32_t)patch[crc_pos + 7];
-    expect_patch_crc = ((uint32_t)patch[crc_pos + 8] << 24) | ((uint32_t)patch[crc_pos + 9] << 16)
-        | ((uint32_t)patch[crc_pos + 10] << 8) | (uint32_t)patch[crc_pos + 11];
+    expect_source_crc = bps_read_u32_le(patch + crc_pos);
+    expect_target_crc = bps_read_u32_le(patch + crc_pos + 4);
+    expect_patch_crc = bps_read_u32_le(patch + crc_pos + 8);
 
-    calc_patch_crc = crc32_bytes(patch, crc_pos);
-    if (calc_patch_crc != expect_patch_crc && getenv("FIRERED_BPS_IGNORE_PATCH_CRC") == NULL)
+    /* Patch-file CRC is over all bytes except the last 4 (the patch CRC field), not minus 12. */
+    calc_patch_crc = crc32_bytes(patch, patch_len - 4u);
     {
-        fprintf(stderr, "BPS warning: patch file CRC mismatch (set FIRERED_BPS_IGNORE_PATCH_CRC=1 to ignore)\n");
-    }
+        uint32_t calc_source_crc = crc32_bytes(source, source_len);
 
-    if (crc32_bytes(source, source_len) != expect_source_crc)
-    {
-        set_err(err, err_cap, "BPS: base ROM CRC does not match patch (wrong clean ROM?)");
-        return 0;
+        mod_bps_tracef(
+            "footer expect_crc src=0x%08x tgt=0x%08x patch=0x%08x",
+            (unsigned)expect_source_crc,
+            (unsigned)expect_target_crc,
+            (unsigned)expect_patch_crc);
+        mod_bps_tracef(
+            "calc_crc source=0x%08x patch_file=0x%08x",
+            (unsigned)calc_source_crc,
+            (unsigned)calc_patch_crc);
+
+        if (calc_patch_crc != expect_patch_crc && getenv("FIRERED_BPS_IGNORE_PATCH_CRC") == NULL)
+        {
+            mod_bps_tracef("WARN patch_file_crc mismatch (non-fatal; set FIRERED_BPS_IGNORE_PATCH_CRC=1 to silence)");
+            fprintf(stderr, "BPS warning: patch file CRC mismatch (set FIRERED_BPS_IGNORE_PATCH_CRC=1 to ignore)\n");
+        }
+
+        if (calc_source_crc != expect_source_crc)
+        {
+            set_err(err, err_cap, "BPS: base ROM CRC does not match patch (wrong clean ROM?)");
+            mod_bps_trace_fail(err, err_cap);
+            return 0;
+        }
     }
 
     target = (uint8_t *)malloc(target_size);
     if (target == NULL)
     {
         set_err(err, err_cap, "BPS: out of memory allocating output ROM");
+        mod_bps_trace_fail(err, err_cap);
         return 0;
     }
 
-    source_offset = 0;
-    target_offset = 0;
+    target_write = 0;
+    source_copy_pos = 0;
+    target_copy_pos = 0;
 
-    while (pos < max_pos && target_offset < target_size)
+    while (pos < max_pos && target_write < target_size)
     {
         uint64_t action_data = bps_decode_var(patch, &pos, max_pos);
         unsigned action = (unsigned)(action_data & 3u);
@@ -180,9 +266,10 @@ int mod_patch_bps_apply(
         uint64_t off_enc;
         int64_t off;
 
-        if (len > target_size - target_offset)
+        if (len > target_size - target_write)
         {
             set_err(err, err_cap, "BPS: decode overflow (length past end of output)");
+            mod_bps_trace_fail(err, err_cap);
             free(target);
             return 0;
         }
@@ -190,27 +277,28 @@ int mod_patch_bps_apply(
         switch (action)
         {
         case BPS_SOURCE_READ:
-            if (source_offset + len > source_len)
+            if (target_write + len > source_len)
             {
                 set_err(err, err_cap, "BPS: SourceRead out of bounds");
+                mod_bps_trace_fail(err, err_cap);
                 free(target);
                 return 0;
             }
-            memcpy(target + target_offset, source + source_offset, len);
-            source_offset += len;
-            target_offset += len;
+            memcpy(target + target_write, source + target_write, len);
+            target_write += len;
             break;
 
         case BPS_TARGET_READ:
             if (pos + len > max_pos)
             {
                 set_err(err, err_cap, "BPS: TargetRead out of bounds");
+                mod_bps_trace_fail(err, err_cap);
                 free(target);
                 return 0;
             }
-            memcpy(target + target_offset, patch + pos, len);
+            memcpy(target + target_write, patch + pos, len);
             pos += len;
-            target_offset += len;
+            target_write += len;
             break;
 
         case BPS_SOURCE_COPY:
@@ -220,26 +308,28 @@ int mod_patch_bps_apply(
             {
                 size_t u = (size_t)(-off);
 
-                if (u > source_offset)
+                if (u > source_copy_pos)
                 {
                     set_err(err, err_cap, "BPS: SourceCopy negative offset underflow");
+                    mod_bps_trace_fail(err, err_cap);
                     free(target);
                     return 0;
                 }
-                source_offset -= u;
+                source_copy_pos -= u;
             }
             else
-                source_offset += (size_t)off;
+                source_copy_pos += (size_t)off;
 
-            if (source_offset + len > source_len)
+            if (source_copy_pos + len > source_len)
             {
                 set_err(err, err_cap, "BPS: SourceCopy out of bounds");
+                mod_bps_trace_fail(err, err_cap);
                 free(target);
                 return 0;
             }
-            memcpy(target + target_offset, source + source_offset, len);
-            source_offset += len;
-            target_offset += len;
+            memcpy(target + target_write, source + source_copy_pos, len);
+            source_copy_pos += len;
+            target_write += len;
             break;
 
         case BPS_TARGET_COPY:
@@ -249,20 +339,30 @@ int mod_patch_bps_apply(
             {
                 size_t u = (size_t)(-off);
 
-                if (u > source_offset)
+                if (u > target_copy_pos)
                 {
                     set_err(err, err_cap, "BPS: TargetCopy negative offset underflow");
+                    mod_bps_trace_fail(err, err_cap);
                     free(target);
                     return 0;
                 }
-                source_offset -= u;
+                target_copy_pos -= u;
             }
             else
-                source_offset += (size_t)off;
+                target_copy_pos += (size_t)off;
 
-            if (source_offset + len > target_offset)
+            /* Alcaro Flips libbps: outreadat < outat; outreadat+length <= outend (not <= outat). */
+            if (target_copy_pos >= target_write)
+            {
+                set_err(err, err_cap, "BPS: TargetCopy read offset at or past write head");
+                mod_bps_trace_fail(err, err_cap);
+                free(target);
+                return 0;
+            }
+            if (target_copy_pos + len > target_size)
             {
                 set_err(err, err_cap, "BPS: TargetCopy out of bounds");
+                mod_bps_trace_fail(err, err_cap);
                 free(target);
                 return 0;
             }
@@ -270,22 +370,24 @@ int mod_patch_bps_apply(
                 size_t i;
 
                 for (i = 0; i < len; i++)
-                    target[target_offset + i] = target[source_offset + i];
+                    target[target_write + i] = target[target_copy_pos + i];
             }
-            source_offset += len;
-            target_offset += len;
+            target_copy_pos += len;
+            target_write += len;
             break;
 
         default:
             set_err(err, err_cap, "BPS: unknown action");
+            mod_bps_trace_fail(err, err_cap);
             free(target);
             return 0;
         }
     }
 
-    if (target_offset != target_size)
+    if (target_write != target_size)
     {
         set_err(err, err_cap, "BPS: output size mismatch after apply");
+        mod_bps_trace_fail(err, err_cap);
         free(target);
         return 0;
     }
@@ -293,6 +395,11 @@ int mod_patch_bps_apply(
     if (crc32_bytes(target, target_size) != expect_target_crc)
     {
         set_err(err, err_cap, "BPS: output CRC mismatch (corrupt patch or wrong base?)");
+        mod_bps_tracef(
+            "calc output_crc=0x%08x expect_target_crc=0x%08x",
+            (unsigned)crc32_bytes(target, target_size),
+            (unsigned)expect_target_crc);
+        mod_bps_trace_fail(err, err_cap);
         free(target);
         return 0;
     }
@@ -301,5 +408,6 @@ int mod_patch_bps_apply(
     *out_len = target_size;
     if (err != NULL && err_cap > 0)
         err[0] = '\0';
+    mod_bps_tracef("apply OK output_len=%zu output_crc=0x%08x", target_size, (unsigned)expect_target_crc);
     return 1;
 }
