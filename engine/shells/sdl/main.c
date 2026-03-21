@@ -16,6 +16,7 @@
 #include "../../core/engine_runtime.h"
 #include "../../core/engine_video.h"
 #include "../../../cores/firered/firered_core.h"
+#include "../../../include/gba/flash_internal.h"
 
 #define SDL_SHELL_DEFAULT_SCALE 4
 #define SDL_SHELL_DEFAULT_STATE_PATH "sdl_shell.state"
@@ -277,6 +278,8 @@ static bool sdl_shell_init_video(SdlShellContext *ctx)
         return false;
     }
 
+    SDL_SetHint("SDL_RENDER_SCALE_QUALITY", "0");
+
     ctx->window = SDL_CreateWindow(
         SDL_SHELL_WINDOW_TITLE,
         frame.width * ctx->scale,
@@ -313,6 +316,8 @@ static bool sdl_shell_init_video(SdlShellContext *ctx)
         fprintf(stderr, "SDL_CreateTexture failed: %s\n", SDL_GetError());
         return false;
     }
+
+    SDL_SetTextureScaleMode(ctx->texture, SDL_SCALEMODE_NEAREST);
 
     return true;
 }
@@ -495,6 +500,15 @@ static void sdl_shell_handle_event(SdlShellContext *ctx, const SDL_Event *event)
         break;
     case SDLK_F5:
         engine_save_state(ctx->state_path);
+        // Also export a raw battery-backed flash image so mGBA can import.
+        // Note: this reflects the latest in-game flash contents; mGBA
+        // cannot restore an emulator snapshot like FRSTATE1.
+        {
+            char export_path[1024];
+            snprintf(export_path, sizeof(export_path), "%s.sav", ctx->state_path);
+            PortableFlash_Export(export_path);
+            fprintf(stderr, "Exported mGBA save: %s\n", export_path);
+        }
         break;
     case SDLK_F9:
         if (engine_load_state(ctx->state_path) != 0)
