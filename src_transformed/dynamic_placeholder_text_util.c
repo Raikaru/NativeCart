@@ -4,6 +4,428 @@
 
 static EWRAM_DATA const u8 *sStringPointers[8] = {0};
 
+#ifdef PORTABLE
+static const u8 sPortableAsciiToGba[128] =
+{
+    /* 0x00 */ 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    /* 0x08 */ 0x00, 0x00, 0xFE, 0x00, 0x00, 0x00, 0x00, 0x00,
+    /* 0x10 */ 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    /* 0x18 */ 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    /* 0x20 */ 0x00, 0xAB, 0x00, 0x00, 0x00, 0x5B, 0x2D, 0xB4,
+    /* 0x28 */ 0x5C, 0x5D, 0x00, 0x2E, 0xB8, 0xAE, 0xAD, 0xBA,
+    /* 0x30 */ 0xA1, 0xA2, 0xA3, 0xA4, 0xA5, 0xA6, 0xA7, 0xA8,
+    /* 0x38 */ 0xA9, 0xAA, 0xF0, 0x36, 0x85, 0x35, 0x86, 0xAC,
+    /* 0x40 */ 0x00, 0xBB, 0xBC, 0xBD, 0xBE, 0xBF, 0xC0, 0xC1,
+    /* 0x48 */ 0xC2, 0xC3, 0xC4, 0xC5, 0xC6, 0xC7, 0xC8, 0xC9,
+    /* 0x50 */ 0xCA, 0xCB, 0xCC, 0xCD, 0xCE, 0xCF, 0xD0, 0xD1,
+    /* 0x58 */ 0xD2, 0xD3, 0xD4, 0x00, 0x00, 0x00, 0x00, 0x00,
+    /* 0x60 */ 0x00, 0xD5, 0xD6, 0xD7, 0xD8, 0xD9, 0xDA, 0xDB,
+    /* 0x68 */ 0xDC, 0xDD, 0xDE, 0xDF, 0xE0, 0xE1, 0xE2, 0xE3,
+    /* 0x70 */ 0xE4, 0xE5, 0xE6, 0xE7, 0xE8, 0xE9, 0xEA, 0xEB,
+    /* 0x78 */ 0xEC, 0xED, 0xEE, 0x00, 0x00, 0x00, 0x00, 0x00,
+};
+
+static u8 PortableAsciiToGba(u8 c)
+{
+    if (c < 0x80)
+        return sPortableAsciiToGba[c];
+    return c;
+}
+
+static bool8 PortableTryDecodeUtf8Char(const u8 *src, u8 *outChar, u8 *outConsumed)
+{
+    if (src[0] == 0xC2)
+    {
+        switch (src[1])
+        {
+        case 0xA5:
+            *outChar = CHAR_CURRENCY;
+            *outConsumed = 2;
+            return TRUE;
+        case 0xB7:
+            *outChar = CHAR_BULLET;
+            *outConsumed = 2;
+            return TRUE;
+        }
+    }
+    else if (src[0] == 0xC3)
+    {
+        switch (src[1])
+        {
+        case 0x97:
+            *outChar = CHAR_MULT_SIGN;
+            *outConsumed = 2;
+            return TRUE;
+        case 0x89:
+        case 0xA9:
+            *outChar = CHAR_E_ACUTE;
+            *outConsumed = 2;
+            return TRUE;
+        }
+    }
+    else if (src[0] == 0xE2 && src[1] == 0x80)
+    {
+        switch (src[2])
+        {
+        case 0x98:
+            *outChar = CHAR_SGL_QUOTE_LEFT;
+            *outConsumed = 3;
+            return TRUE;
+        case 0x99:
+            *outChar = CHAR_SGL_QUOTE_RIGHT;
+            *outConsumed = 3;
+            return TRUE;
+        case 0x9C:
+            *outChar = CHAR_DBL_QUOTE_LEFT;
+            *outConsumed = 3;
+            return TRUE;
+        case 0x9D:
+            *outChar = CHAR_DBL_QUOTE_RIGHT;
+            *outConsumed = 3;
+            return TRUE;
+        case 0xA6:
+            *outChar = CHAR_ELLIPSIS;
+            *outConsumed = 3;
+            return TRUE;
+        }
+    }
+
+    return FALSE;
+}
+
+static bool8 PortableDynamicStringLooksLikeCString(const u8 *src)
+{
+    u32 i;
+
+    if (src == NULL || src[0] == '\0')
+        return FALSE;
+
+    for (i = 0; i < 256;)
+    {
+        u8 decoded;
+        u8 consumed;
+
+        if (src[i] == EOS)
+            return FALSE;
+        if (src[i] == '\0')
+            return TRUE;
+        if (src[i] < 0x80)
+        {
+            i++;
+            continue;
+        }
+        if (!PortableTryDecodeUtf8Char(&src[i], &decoded, &consumed))
+            return FALSE;
+        i += consumed;
+    }
+
+    return FALSE;
+}
+
+static bool8 PortableTryReadHexByte(const u8 *src, u8 *outValue, u8 *outConsumed)
+{
+    u32 i = 0;
+    u32 digits = 0;
+    u8 value = 0;
+
+    if (src[0] == '0' && (src[1] == 'x' || src[1] == 'X'))
+        i = 2;
+
+    while (digits < 2)
+    {
+        u8 ch = src[i];
+        u8 nibble;
+
+        if (ch >= '0' && ch <= '9')
+            nibble = ch - '0';
+        else if (ch >= 'a' && ch <= 'f')
+            nibble = ch - 'a' + 10;
+        else if (ch >= 'A' && ch <= 'F')
+            nibble = ch - 'A' + 10;
+        else
+            break;
+
+        value = (value << 4) | nibble;
+        i++;
+        digits++;
+    }
+
+    if (digits == 0)
+        return FALSE;
+
+    *outValue = value;
+    *outConsumed = i;
+    return TRUE;
+}
+
+static bool8 PortableTryMatchLiteralToken(const u8 *src, const char *token)
+{
+    while (*token != '\0')
+    {
+        if (*src++ != (u8)*token++)
+            return FALSE;
+    }
+    return TRUE;
+}
+
+static bool8 PortableTryEncodeTextColor(const u8 *src, u8 *outColor, u8 *outConsumed)
+{
+    struct ColorToken
+    {
+        const char *name;
+        u8 value;
+    };
+    static const struct ColorToken sColorTokens[] =
+    {
+        { "TRANSPARENT", TEXT_COLOR_TRANSPARENT },
+        { "WHITE", TEXT_COLOR_WHITE },
+        { "DARK_GRAY", TEXT_COLOR_DARK_GRAY },
+        { "LIGHT_GRAY", TEXT_COLOR_LIGHT_GRAY },
+        { "RED", TEXT_COLOR_RED },
+        { "LIGHT_RED", TEXT_COLOR_LIGHT_RED },
+        { "GREEN", TEXT_COLOR_GREEN },
+        { "LIGHT_GREEN", TEXT_COLOR_LIGHT_GREEN },
+        { "BLUE", TEXT_COLOR_BLUE },
+        { "LIGHT_BLUE", TEXT_COLOR_LIGHT_BLUE },
+        { "DYNAMIC_COLOR1", TEXT_DYNAMIC_COLOR_1 },
+        { "DYNAMIC_COLOR2", TEXT_DYNAMIC_COLOR_2 },
+        { "DYNAMIC_COLOR3", TEXT_DYNAMIC_COLOR_3 },
+        { "DYNAMIC_COLOR4", TEXT_DYNAMIC_COLOR_4 },
+        { "DYNAMIC_COLOR5", TEXT_DYNAMIC_COLOR_5 },
+        { "DYNAMIC_COLOR6", TEXT_DYNAMIC_COLOR_6 },
+    };
+    u32 i;
+
+    for (i = 0; i < ARRAY_COUNT(sColorTokens); i++)
+    {
+        size_t len = strlen(sColorTokens[i].name);
+        if (strncmp((const char *)src, sColorTokens[i].name, len) == 0)
+        {
+            *outColor = sColorTokens[i].value;
+            *outConsumed = (u8)len;
+            return TRUE;
+        }
+    }
+
+    return FALSE;
+}
+
+static bool8 PortableTryEncodeDynamicPlaceholderToken(const u8 *src, u8 *outBytes, u8 *outConsumed, u8 *outProduced)
+{
+    u8 value;
+    u8 consumed;
+
+    if (PortableTryMatchLiteralToken(src, "{LV_2}"))
+    {
+        outBytes[0] = CHAR_EXTRA_SYMBOL;
+        outBytes[1] = CHAR_LV_2;
+        *outConsumed = (u8)strlen("{LV_2}");
+        *outProduced = 2;
+        return TRUE;
+    }
+
+    if (PortableTryMatchLiteralToken(src, "{DYNAMIC "))
+    {
+        if (PortableTryReadHexByte(src + strlen("{DYNAMIC "), &value, &consumed)
+         && src[strlen("{DYNAMIC ") + consumed] == '}')
+        {
+            outBytes[0] = CHAR_DYNAMIC;
+            outBytes[1] = value;
+            *outConsumed = (u8)(strlen("{DYNAMIC ") + consumed + 1);
+            *outProduced = 2;
+            return TRUE;
+        }
+    }
+
+    if (PortableTryMatchLiteralToken(src, "{COLOR "))
+    {
+        if (PortableTryEncodeTextColor(src + strlen("{COLOR "), &value, &consumed)
+         && src[strlen("{COLOR ") + consumed] == '}')
+        {
+            outBytes[0] = EXT_CTRL_CODE_BEGIN;
+            outBytes[1] = EXT_CTRL_CODE_COLOR;
+            outBytes[2] = value;
+            *outConsumed = (u8)(strlen("{COLOR ") + consumed + 1);
+            *outProduced = 3;
+            return TRUE;
+        }
+    }
+
+    if (PortableTryMatchLiteralToken(src, "{HIGHLIGHT "))
+    {
+        if (PortableTryEncodeTextColor(src + strlen("{HIGHLIGHT "), &value, &consumed)
+         && src[strlen("{HIGHLIGHT ") + consumed] == '}')
+        {
+            outBytes[0] = EXT_CTRL_CODE_BEGIN;
+            outBytes[1] = EXT_CTRL_CODE_HIGHLIGHT;
+            outBytes[2] = value;
+            *outConsumed = (u8)(strlen("{HIGHLIGHT ") + consumed + 1);
+            *outProduced = 3;
+            return TRUE;
+        }
+    }
+
+    if (PortableTryMatchLiteralToken(src, "{SHADOW "))
+    {
+        if (PortableTryEncodeTextColor(src + strlen("{SHADOW "), &value, &consumed)
+         && src[strlen("{SHADOW ") + consumed] == '}')
+        {
+            outBytes[0] = EXT_CTRL_CODE_BEGIN;
+            outBytes[1] = EXT_CTRL_CODE_SHADOW;
+            outBytes[2] = value;
+            *outConsumed = (u8)(strlen("{SHADOW ") + consumed + 1);
+            *outProduced = 3;
+            return TRUE;
+        }
+    }
+
+    if (PortableTryMatchLiteralToken(src, "{CLEAR_TO "))
+    {
+        if (PortableTryReadHexByte(src + strlen("{CLEAR_TO "), &value, &consumed)
+         && src[strlen("{CLEAR_TO ") + consumed] == '}')
+        {
+            outBytes[0] = EXT_CTRL_CODE_BEGIN;
+            outBytes[1] = EXT_CTRL_CODE_CLEAR_TO;
+            outBytes[2] = value;
+            *outConsumed = (u8)(strlen("{CLEAR_TO ") + consumed + 1);
+            *outProduced = 3;
+            return TRUE;
+        }
+    }
+
+    if (PortableTryMatchLiteralToken(src, "{PAUSE_UNTIL_PRESS}"))
+    {
+        outBytes[0] = EXT_CTRL_CODE_BEGIN;
+        outBytes[1] = EXT_CTRL_CODE_PAUSE_UNTIL_PRESS;
+        *outConsumed = (u8)strlen("{PAUSE_UNTIL_PRESS}");
+        *outProduced = 2;
+        return TRUE;
+    }
+
+    if (PortableTryMatchLiteralToken(src, "{PAUSE_MUSIC}"))
+    {
+        outBytes[0] = EXT_CTRL_CODE_BEGIN;
+        outBytes[1] = EXT_CTRL_CODE_PAUSE_MUSIC;
+        *outConsumed = (u8)strlen("{PAUSE_MUSIC}");
+        *outProduced = 2;
+        return TRUE;
+    }
+
+    if (PortableTryMatchLiteralToken(src, "{RESUME_MUSIC}"))
+    {
+        outBytes[0] = EXT_CTRL_CODE_BEGIN;
+        outBytes[1] = EXT_CTRL_CODE_RESUME_MUSIC;
+        *outConsumed = (u8)strlen("{RESUME_MUSIC}");
+        *outProduced = 2;
+        return TRUE;
+    }
+
+    if (PortableTryMatchLiteralToken(src, "{FONT_SMALL}"))
+    {
+        outBytes[0] = EXT_CTRL_CODE_BEGIN;
+        outBytes[1] = EXT_CTRL_CODE_FONT;
+        outBytes[2] = FONT_SMALL;
+        *outConsumed = (u8)strlen("{FONT_SMALL}");
+        *outProduced = 3;
+        return TRUE;
+    }
+
+    if (PortableTryMatchLiteralToken(src, "{FONT_NORMAL}"))
+    {
+        outBytes[0] = EXT_CTRL_CODE_BEGIN;
+        outBytes[1] = EXT_CTRL_CODE_FONT;
+        outBytes[2] = FONT_NORMAL;
+        *outConsumed = (u8)strlen("{FONT_NORMAL}");
+        *outProduced = 3;
+        return TRUE;
+    }
+
+    if (PortableTryMatchLiteralToken(src, "{PAUSE "))
+    {
+        if (PortableTryReadHexByte(src + strlen("{PAUSE "), &value, &consumed)
+         && src[strlen("{PAUSE ") + consumed] == '}')
+        {
+            outBytes[0] = EXT_CTRL_CODE_BEGIN;
+            outBytes[1] = EXT_CTRL_CODE_PAUSE;
+            outBytes[2] = value;
+            *outConsumed = (u8)(strlen("{PAUSE ") + consumed + 1);
+            *outProduced = 3;
+            return TRUE;
+        }
+    }
+
+    return FALSE;
+}
+
+static const u8 *DynamicPlaceholderTextUtil_NormalizePortableSrc(const u8 *src)
+{
+    static u8 sPortableNormalizedSrc[1024];
+    u8 *dest;
+
+    if (!PortableDynamicStringLooksLikeCString(src))
+        return src;
+
+    dest = sPortableNormalizedSrc;
+    while (*src != '\0' && *src != EOS)
+    {
+        u8 decoded;
+        u8 consumed;
+        u8 produced;
+        u8 bytes[4];
+        u8 i;
+
+        if (*src == '{' && PortableTryEncodeDynamicPlaceholderToken(src, bytes, &consumed, &produced))
+        {
+            for (i = 0; i < produced; i++)
+                *dest++ = bytes[i];
+            src += consumed;
+            continue;
+        }
+
+        if (PortableTryDecodeUtf8Char(src, &decoded, &consumed))
+        {
+            *dest++ = decoded;
+            src += consumed;
+            continue;
+        }
+
+        if (*src == '\n')
+        {
+            *dest++ = CHAR_NEWLINE;
+            src++;
+            continue;
+        }
+
+        if (*src == '\\')
+        {
+            if (src[1] == 'n')
+            {
+                *dest++ = CHAR_NEWLINE;
+                src += 2;
+                continue;
+            }
+            if (src[1] == 'p')
+            {
+                *dest++ = CHAR_PROMPT_CLEAR;
+                src += 2;
+                continue;
+            }
+            if (src[1] == 'l')
+            {
+                *dest++ = CHAR_PROMPT_SCROLL;
+                src += 2;
+                continue;
+            }
+        }
+
+        *dest++ = PortableAsciiToGba(*src++);
+    }
+
+    *dest = EOS;
+    return sPortableNormalizedSrc;
+}
+#endif
+
 #define COLORS(a, b)((a) | (b << 4))
 
 static const u8 sTextColorTable[] =
@@ -108,6 +530,9 @@ void DynamicPlaceholderTextUtil_SetPlaceholderPtr(u8 idx, const u8 *ptr)
 
 u8 *DynamicPlaceholderTextUtil_ExpandPlaceholders(u8 *dest, const u8 *src)
 {
+#ifdef PORTABLE
+    src = DynamicPlaceholderTextUtil_NormalizePortableSrc(src);
+#endif
     while (*src != EOS)
     {
         if (*src != CHAR_DYNAMIC)
