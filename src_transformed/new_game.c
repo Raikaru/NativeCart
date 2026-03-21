@@ -32,6 +32,36 @@
 
 #ifdef PORTABLE
 extern void firered_runtime_trace_external(const char *message);
+
+#ifndef NDEBUG
+extern char *getenv(const char *name);
+
+static int TraceNewGameEnvEnabled(void)
+{
+    static int s_init;
+    static int s_on;
+    const char *e;
+
+    if (s_init)
+        return s_on;
+    s_init = 1;
+    e = getenv("FIRERED_TRACE_NEW_GAME");
+    s_on = (e != NULL && e[0] != '\0' && e[0] != '0');
+    return s_on;
+}
+#else
+static int TraceNewGameEnvEnabled(void)
+{
+    return 0;
+}
+#endif
+
+static void TraceNewGame(const char *msg)
+{
+    if (!TraceNewGameEnvEnabled())
+        return;
+    firered_runtime_trace_external(msg);
+}
 #endif
 
 // this file's functions
@@ -123,12 +153,12 @@ void NewGameInitData(void)
     u8 rivalName[PLAYER_NAME_LENGTH + 1];
 
 #ifdef PORTABLE
-    firered_runtime_trace_external("NewGameInitData: post-ResetQuestLog");
-    firered_runtime_trace_external("NewGameInitData: pre-StringCopy rival");
+    TraceNewGame("NewGameInitData: post-ResetQuestLog");
+    TraceNewGame("NewGameInitData: pre-StringCopy rival");
 #endif
     StringCopy(rivalName, gSaveBlock1Ptr->rivalName);
 #ifdef PORTABLE
-    firered_runtime_trace_external("NewGameInitData: post-StringCopy rival");
+    TraceNewGame("NewGameInitData: post-StringCopy rival");
 #endif
     gDifferentSaveFile = TRUE;
     gSaveBlock2Ptr->encryptionKey = 0;
@@ -136,12 +166,12 @@ void NewGameInitData(void)
     ZeroEnemyPartyMons();
     ClearBattleTower();
 #ifdef PORTABLE
-    firered_runtime_trace_external("NewGameInitData: pre-ClearSav1");
+    TraceNewGame("NewGameInitData: pre-ClearSav1");
 #endif
     ClearSav1();
 #ifdef PORTABLE
-    firered_runtime_trace_external("NewGameInitData: post-ClearSav1");
-    firered_runtime_trace_external("NewGameInitData: pre-ClearMailData");
+    TraceNewGame("NewGameInitData: post-ClearSav1");
+    TraceNewGame("NewGameInitData: pre-ClearMailData");
 #endif
     ClearMailData();
     gSaveBlock2Ptr->specialSaveWarpFlags = 0;
@@ -152,7 +182,7 @@ void NewGameInitData(void)
     PlayTimeCounter_Reset();
     ClearPokedexFlags();
 #ifdef PORTABLE
-    firered_runtime_trace_external("NewGameInitData: pre-InitEventData");
+    TraceNewGame("NewGameInitData: pre-InitEventData");
 #endif
     InitEventData();
     ResetFameChecker();
@@ -165,12 +195,12 @@ void NewGameInitData(void)
     gPlayerPartyCount = 0;
     ZeroPlayerPartyMons();
 #ifdef PORTABLE
-    firered_runtime_trace_external("NewGameInitData: pre-ResetPokemonStorageSystem");
+    TraceNewGame("NewGameInitData: pre-ResetPokemonStorageSystem");
 #endif
     ResetPokemonStorageSystem();
 #ifdef PORTABLE
-    firered_runtime_trace_external("NewGameInitData: post-ResetPokemonStorageSystem");
-    firered_runtime_trace_external("NewGameInitData: pre-ClearRoamerData");
+    TraceNewGame("NewGameInitData: post-ResetPokemonStorageSystem");
+    TraceNewGame("NewGameInitData: pre-ClearRoamerData");
 #endif
     ClearRoamerData();
     gSaveBlock1Ptr->registeredItem = 0;
@@ -184,26 +214,26 @@ void NewGameInitData(void)
     ClearMysteryGift();
     SetAllRenewableItemFlags();
 #ifdef PORTABLE
-    firered_runtime_trace_external("NewGameInitData: pre-WarpToPlayersRoom");
+    TraceNewGame("NewGameInitData: pre-WarpToPlayersRoom");
 #endif
     WarpToPlayersRoom();
 #ifdef PORTABLE
-    firered_runtime_trace_external("NewGameInitData: post-WarpToPlayersRoom");
-    firered_runtime_trace_external("NewGameInitData: pre-RunScriptImmediately");
+    TraceNewGame("NewGameInitData: post-WarpToPlayersRoom");
+    TraceNewGame("NewGameInitData: pre-RunScriptImmediately");
 #endif
     RunScriptImmediately(EventScript_ResetAllMapFlags);
 #ifdef PORTABLE
-    firered_runtime_trace_external("NewGameInitData: post-RunScriptImmediately");
-    firered_runtime_trace_external("NewGameInitData: pre-StringCopy restore rival");
+    TraceNewGame("NewGameInitData: post-RunScriptImmediately");
+    TraceNewGame("NewGameInitData: pre-StringCopy restore rival");
 #endif
     StringCopy(gSaveBlock1Ptr->rivalName, rivalName);
 #ifdef PORTABLE
-    firered_runtime_trace_external("NewGameInitData: post-StringCopy restore rival");
-    firered_runtime_trace_external("NewGameInitData: pre-ResetTrainerTowerResults");
+    TraceNewGame("NewGameInitData: post-StringCopy restore rival");
+    TraceNewGame("NewGameInitData: pre-ResetTrainerTowerResults");
 #endif
     ResetTrainerTowerResults();
 #ifdef PORTABLE
-    firered_runtime_trace_external("NewGameInitData: exit");
+    TraceNewGame("NewGameInitData: exit");
 #endif
 }
 

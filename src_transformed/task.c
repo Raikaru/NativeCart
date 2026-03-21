@@ -5,6 +5,29 @@
 #ifndef PORTABLE_BUILD
 #define PORTABLE_BUILD
 #endif
+
+#ifndef NDEBUG
+extern char *getenv(const char *name);
+
+static int TraceTasksEnvEnabled(void)
+{
+    static int s_init;
+    static int s_on;
+    const char *e;
+
+    if (s_init)
+        return s_on;
+    s_init = 1;
+    e = getenv("FIRERED_TRACE_TASKS");
+    s_on = (e != NULL && e[0] != '\0' && e[0] != '0');
+    return s_on;
+}
+#else
+static int TraceTasksEnvEnabled(void)
+{
+    return 0;
+}
+#endif
 #endif
 
 #ifdef PORTABLE
@@ -21,6 +44,9 @@ static void TraceTaskCreate(const char *fmt, ...)
     char buffer[256];
     va_list args;
 
+    if (!TraceTasksEnvEnabled())
+        return;
+
     if (sTaskTraceCount >= 64)
         return;
 
@@ -28,7 +54,6 @@ static void TraceTaskCreate(const char *fmt, ...)
     vsnprintf(buffer, sizeof(buffer), fmt, args);
     va_end(args);
     firered_runtime_trace_external(buffer);
-    fflush(stdout);
     sTaskTraceCount++;
 }
 #endif
@@ -163,13 +188,27 @@ void DestroyTask(u8 taskId)
 void RunTasks(void)
 {
 #ifdef PORTABLE
-    firered_runtime_trace_external("CrashTrace: RunTasks enter");
+    if (TraceTasksEnvEnabled())
+        firered_runtime_trace_external("CrashTrace: RunTasks enter");
 #endif
     u8 taskId = FindFirstActiveTask();
 
     if (taskId != NUM_TASKS)
     {
 #ifdef PORTABLE_BUILD
+#ifdef PORTABLE
+        if (TraceTasksEnvEnabled())
+        {
+            int _t;
+            for (_t = 0; _t < NUM_TASKS; _t++)
+                if (gTasks[_t].isActive)
+                {
+                    char buffer[128];
+                    snprintf(buffer, sizeof(buffer), "RunTasks: active id=%d func=%p", _t, gTasks[_t].func);
+                    firered_runtime_trace_external(buffer);
+                }
+        }
+#else
         {
             int _t;
             for (_t = 0; _t < NUM_TASKS; _t++)
@@ -181,9 +220,11 @@ void RunTasks(void)
                 }
         }
 #endif
+#endif
         do
         {
 #ifdef PORTABLE
+            if (TraceTasksEnvEnabled())
             {
                 char buffer[160];
 
@@ -193,6 +234,7 @@ void RunTasks(void)
 #endif
             gTasks[taskId].func(taskId);
 #ifdef PORTABLE
+            if (TraceTasksEnvEnabled())
             {
                 char buffer[96];
 

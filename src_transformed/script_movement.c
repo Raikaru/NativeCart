@@ -5,22 +5,49 @@
 #include "constants/event_objects.h"
 #include "constants/event_object_movement.h"
 
+extern void engine_backend_trace_external(const char *message);
+
 #ifdef PORTABLE
 #include <stdarg.h>
 #include <stdio.h>
 
 extern void firered_runtime_trace_external(const char *message);
 
+#ifndef NDEBUG
+extern char *getenv(const char *name);
+
+static int TraceMoveScriptEnvEnabled(void)
+{
+    static int s_init;
+    static int s_on;
+    const char *e;
+
+    if (s_init)
+        return s_on;
+    s_init = 1;
+    e = getenv("FIRERED_TRACE_MOVE_SCRIPT");
+    s_on = (e != NULL && e[0] != '\0' && e[0] != '0');
+    return s_on;
+}
+#else
+static int TraceMoveScriptEnvEnabled(void)
+{
+    return 0;
+}
+#endif
+
 static void TraceMovementScript(const char *fmt, ...)
 {
     char buffer[256];
     va_list args;
 
+    if (!TraceMoveScriptEnvEnabled())
+        return;
+
     va_start(args, fmt);
     vsnprintf(buffer, sizeof(buffer), fmt, args);
     va_end(args);
     firered_runtime_trace_external(buffer);
-    fflush(stdout);
 }
 #endif
 
@@ -245,6 +272,8 @@ static void ScriptMovement_TakeStep(u8 taskId, u8 moveScrId, u8 objEventId, cons
         return;
     }
 
+#if defined(PORTABLE)
+    if (TraceMoveScriptEnvEnabled())
     {
         char _ms[128];
         snprintf(_ms, sizeof(_ms),
@@ -252,6 +281,15 @@ static void ScriptMovement_TakeStep(u8 taskId, u8 moveScrId, u8 objEventId, cons
             moveScrId, objEventId, movementScript[0]);
         engine_backend_trace_external(_ms);
     }
+#else
+    {
+        char _ms[128];
+        snprintf(_ms, sizeof(_ms),
+            "MoveScript: dispatch slot=%d obj=%d action=%02X",
+            moveScrId, objEventId, movementScript[0]);
+        engine_backend_trace_external(_ms);
+    }
+#endif
 
     nextMoveActionId = *movementScript;
 #ifdef PORTABLE
@@ -259,10 +297,20 @@ static void ScriptMovement_TakeStep(u8 taskId, u8 moveScrId, u8 objEventId, cons
 #endif
     if (nextMoveActionId == MOVEMENT_ACTION_STEP_END)
     {
+#if defined(PORTABLE)
+        if (TraceMoveScriptEnvEnabled())
+            engine_backend_trace_external("MoveScript: action FE handler enter");
+#else
         engine_backend_trace_external("MoveScript: action FE handler enter");
+#endif
         SetMovementScriptFinished(taskId, moveScrId);
         FreezeObjectEvent(&gObjectEvents[objEventId]);
+#if defined(PORTABLE)
+        if (TraceMoveScriptEnvEnabled())
+            engine_backend_trace_external("MoveScript: action FE handler exit");
+#else
         engine_backend_trace_external("MoveScript: action FE handler exit");
+#endif
 #ifdef PORTABLE
         TraceMovementScript("MoveScript: end task=%u slot=%u obj=%u", taskId, moveScrId, objEventId);
 #endif
@@ -285,5 +333,10 @@ static void ScriptMovement_TakeStep(u8 taskId, u8 moveScrId, u8 objEventId, cons
 #endif
     }
 
+#if defined(PORTABLE)
+    if (TraceMoveScriptEnvEnabled())
+        engine_backend_trace_external("MoveScript: dispatch returned");
+#else
     engine_backend_trace_external("MoveScript: dispatch returned");
+#endif
 }
