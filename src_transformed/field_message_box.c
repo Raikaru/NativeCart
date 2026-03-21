@@ -21,7 +21,6 @@ static void TraceFieldMessage(const char *fmt, ...)
     vsnprintf(buffer, sizeof(buffer), fmt, args);
     va_end(args);
     firered_runtime_trace_external(buffer);
-    fflush(stdout);
 }
 
 static void TraceFieldMessageBytes(const char *label, const u8 *str)

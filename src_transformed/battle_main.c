@@ -34,7 +34,6 @@
 
 extern bool8 gShouldProcessSpriteCopyRequests;
 extern u8 gSpriteCopyRequestCount;
-extern void firered_runtime_trace_external(const char *message);
 #endif
 #include "scanline_effect.h"
 #include "task.h"
@@ -52,27 +51,7 @@ extern void firered_runtime_trace_external(const char *message);
 #include "constants/trainers.h"
 
 #ifdef PORTABLE
-#include <stdarg.h>
-#include <stdio.h>
-
-extern void firered_runtime_trace_external(const char *message);
-
-static u8 sBattleMainTraceCount;
-
-static void TraceBattleMain(const char *fmt, ...)
-{
-    char buffer[256];
-    va_list args;
-
-    if (sBattleMainTraceCount >= 255)
-        return;
-
-    va_start(args, fmt);
-    vsnprintf(buffer, sizeof(buffer), fmt, args);
-    va_end(args);
-    firered_runtime_trace_external(buffer);
-    sBattleMainTraceCount++;
-}
+#define TraceBattleMain(...) ((void)0)
 #endif
 
 static void SpriteCB_UnusedDebugSprite(struct Sprite *sprite);
@@ -659,7 +638,6 @@ const u8 *const gStatusConditionStringsTable[][2] =
 void CB2_InitBattle(void)
 {
 #ifdef PORTABLE
-    sBattleMainTraceCount = 0;
     TraceBattleMain("BattleMain: CB2_InitBattle flags=%08X", gBattleTypeFlags);
 #endif
     MoveSaveBlocks_ResetHeap();
@@ -1565,48 +1543,31 @@ static void CB2_HandleStartMultiBattle(void)
 void BattleMainCB2(void)
 {
 #ifdef PORTABLE
-    firered_runtime_trace_external("BattleMainDirect: CB2 enter");
     TraceBattleMain("BattleMain: BattleMainCB2 enter mainFunc=%p", gBattleMainFunc);
-    firered_runtime_trace_external("BattleMainDirect: pre-AnimateSprites");
     TraceBattleMain("BattleMain: BattleMainCB2 pre-AnimateSprites");
 #endif
     AnimateSprites();
 #ifdef PORTABLE
-    firered_runtime_trace_external("BattleMainDirect: post-AnimateSprites");
-    firered_runtime_trace_external("BattleMainDirect: pre-BuildOamBuffer");
     TraceBattleMain("BattleMain: BattleMainCB2 post-AnimateSprites");
     TraceBattleMain("BattleMain: BattleMainCB2 pre-BuildOamBuffer");
 #endif
     BuildOamBuffer();
 #ifdef PORTABLE
-    firered_runtime_trace_external("BattleMainDirect: post-BuildOamBuffer");
-    firered_runtime_trace_external("BattleMainDirect: pre-RunTextPrinters");
     TraceBattleMain("BattleMain: BattleMainCB2 post-BuildOamBuffer");
     TraceBattleMain("BattleMain: BattleMainCB2 pre-RunTextPrinters");
 #endif
     RunTextPrinters();
 #ifdef PORTABLE
-    firered_runtime_trace_external("BattleMainDirect: post-RunTextPrinters");
-    firered_runtime_trace_external("BattleMain: pre-UpdatePaletteFade A");
-    firered_runtime_trace_external("BattleMainDirect: pre-UpdatePaletteFade");
-    firered_runtime_trace_external("BattleMain: pre-UpdatePaletteFade B");
     TraceBattleMain("BattleMain: BattleMainCB2 post-RunTextPrinters");
-    firered_runtime_trace_external("BattleMain: pre-UpdatePaletteFade C");
     TraceBattleMain("BattleMain: BattleMainCB2 pre-UpdatePaletteFade");
-    firered_runtime_trace_external("BattleMain: pre-UpdatePaletteFade D");
 #endif
     UpdatePaletteFade();
 #ifdef PORTABLE
-    firered_runtime_trace_external("BattleMainDirect: post-UpdatePaletteFade");
-    firered_runtime_trace_external("BattleMain: post-UpdatePaletteFade");
-    firered_runtime_trace_external("BattleMainDirect: pre-RunTasks");
     TraceBattleMain("BattleMain: BattleMainCB2 post-UpdatePaletteFade");
     TraceBattleMain("BattleMain: BattleMainCB2 pre-RunTasks");
 #endif
     RunTasks();
 #ifdef PORTABLE
-    firered_runtime_trace_external("BattleMainDirect: post-RunTasks");
-    firered_runtime_trace_external("BattleMainDirect: pre-exit");
     TraceBattleMain("BattleMain: BattleMainCB2 post-RunTasks");
     TraceBattleMain("BattleMain: BattleMainCB2 pre-exit");
 #endif
@@ -1618,10 +1579,7 @@ void BattleMainCB2(void)
         BeginNormalPaletteFade(PALETTES_ALL, 0, 0, 16, RGB_BLACK);
         SetMainCallback2(CB2_QuitPokedudeBattle);
     }
-#ifdef PORTABLE
-    firered_runtime_trace_external("BattleMainDirect: exit");
     TraceBattleMain("BattleMain: BattleMainCB2 exit");
-#endif
 }
 
 void FreeRestoreBattleData(void)
@@ -1810,8 +1768,6 @@ static void HBlankCB_Battle(void)
 void VBlankCB_Battle(void)
 {
 #ifdef PORTABLE
-    static u16 sBattleRenderTraceCount;
-    char renderBuffer[192];
     TraceBattleMain("BattleMain: VBlankCB_Battle pre-Random");
 #endif
     // Change gRngSeed every vblank.
@@ -1841,23 +1797,6 @@ void VBlankCB_Battle(void)
 #ifdef PORTABLE
     TraceBattleMain("BattleMain: VBlankCB_Battle post-ProcessSpriteCopyRequests");
     TraceBattleMain("BattleMain: VBlankCB_Battle pre-TransferPlttBuffer");
-    if (sBattleRenderTraceCount < 32)
-    {
-        snprintf(renderBuffer, sizeof(renderBuffer),
-                 "BattleRender: frame=%u proc=%u req=%u faded0=%04X faded1=%04X unfaded0=%04X unfaded1=%04X oam0tile=%u oam0x=%u oam0y=%u",
-                 gMain.vblankCounter1 ? *gMain.vblankCounter1 : 0,
-                 gShouldProcessSpriteCopyRequests,
-                 gSpriteCopyRequestCount,
-                 gPlttBufferFaded[0],
-                 gPlttBufferFaded[1],
-                 gPlttBufferUnfaded[0],
-                 gPlttBufferUnfaded[1],
-                 gMain.oamBuffer[0].tileNum,
-                 gMain.oamBuffer[0].x,
-                 gMain.oamBuffer[0].y);
-        firered_runtime_trace_external(renderBuffer);
-        sBattleRenderTraceCount++;
-    }
 #endif
     TransferPlttBuffer();
 #ifdef PORTABLE
@@ -2405,33 +2344,12 @@ void BeginBattleIntro(void)
 
 static void BattleMainCB1(void)
 {
-#ifdef PORTABLE
-    firered_runtime_trace_external("BattleMainCB1: entry");
-    firered_runtime_trace_external("BattleMainCB1: pre-mainFunc");
-#endif
     gBattleMainFunc();
-#ifdef PORTABLE
-    firered_runtime_trace_external("BattleMainCB1: post-mainFunc");
-#endif
 
     for (gActiveBattler = 0; gActiveBattler < gBattlersCount; gActiveBattler++)
     {
-#ifdef PORTABLE
-        printf("BattleMainCB1: pre-controller i=%d func=%p\n", gActiveBattler, (void *)gBattlerControllerFuncs[gActiveBattler]);
-        fflush(stdout);
-#endif
         gBattlerControllerFuncs[gActiveBattler]();
-#ifdef PORTABLE
-        {
-            char buffer[96];
-            snprintf(buffer, sizeof(buffer), "BattleMainCB1: post-controller i=%d", gActiveBattler);
-            firered_runtime_trace_external(buffer);
-        }
-#endif
     }
-#ifdef PORTABLE
-    firered_runtime_trace_external("BattleMainCB1: exit");
-#endif
 }
 
 static void BattleStartClearSetData(void)
