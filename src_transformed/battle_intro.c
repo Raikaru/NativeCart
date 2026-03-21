@@ -8,29 +8,8 @@
 #include "trig.h"
 
 #ifdef PORTABLE
-#include <stdarg.h>
-#include <stdio.h>
-
-extern void firered_runtime_trace_external(const char *message);
 extern void BattleMainCB2(void);
-
-static u8 sBattleIntroTraceCount;
-
-static void TraceBattleIntro(const char *fmt, ...)
-{
-    char buffer[256];
-    va_list args;
-
-    if (sBattleIntroTraceCount >= 128)
-        return;
-
-    va_start(args, fmt);
-    vsnprintf(buffer, sizeof(buffer), fmt, args);
-    va_end(args);
-    firered_runtime_trace_external(buffer);
-    fflush(stdout);
-    sBattleIntroTraceCount++;
-}
+#define TraceBattleIntro(...) ((void)0)
 
 static bool8 ShouldFastCompleteBattleIntroTask(u8 taskId)
 {
