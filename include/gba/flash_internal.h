@@ -75,6 +75,10 @@ u32 ProgramFlashSectorAndVerifyNBytes(u16 sectorNum, void *dataSrc, u32 n);
 // mGBA) can consume the latest save data.
 #ifdef PORTABLE
 void PortableFlash_Export(const char *path);
+/* Coalesce host disk writes during multi-sector flash operations (in-memory image stays consistent). */
+void PortableFlash_BeginIoBatch(void);
+void PortableFlash_EndIoBatch(void);
+int PortableFlash_GetIoBatchDepth(void);
 #if defined(FIRERED)
 /* After writes: fix SaveBlock2+0xAC in BOTH GBA save slots (PKHeX uses the first valid slot). */
 void PortableFlash_PatchPkhexFrLgFingerprintAllSlots(void);

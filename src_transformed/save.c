@@ -123,8 +123,14 @@ void ClearSaveData(void)
 {
     u16 i;
 
+#ifdef PORTABLE
+    PortableFlash_BeginIoBatch();
+#endif
     for (i = 0; i < SECTORS_COUNT; i++)
         EraseFlashSector(i);
+#ifdef PORTABLE
+    PortableFlash_EndIoBatch();
+#endif
 }
 
 void Save_ResetSaveCounters(void)
@@ -174,8 +180,14 @@ static u8 WriteSaveSectorOrSlot(u16 sectorId, const struct SaveSectorLocation *l
         gSaveCounter++;
         status = SAVE_STATUS_OK;
 
+#ifdef PORTABLE
+        PortableFlash_BeginIoBatch();
+#endif
         for (i = 0; i < NUM_SECTORS_PER_SLOT; i++)
             HandleWriteSector(i, locations);
+#ifdef PORTABLE
+        PortableFlash_EndIoBatch();
+#endif
 
         // Check for any bad sectors
         if (gDamagedSaveSectors != 0) // skip the damaged sector.
@@ -680,15 +692,27 @@ u8 HandleSavingData(u8 saveType)
     switch (saveType)
     {
     case SAVE_HALL_OF_FAME_ERASE_BEFORE: // Unused
+#ifdef PORTABLE
+        PortableFlash_BeginIoBatch();
+#endif
         for (i = SECTOR_ID_HOF_1; i < SECTORS_COUNT; i++)
             EraseFlashSector(i);
+#ifdef PORTABLE
+        PortableFlash_EndIoBatch();
+#endif
         // fallthrough
     case SAVE_HALL_OF_FAME:
         if (GetGameStat(GAME_STAT_ENTERED_HOF) < 999)
             IncrementGameStat(GAME_STAT_ENTERED_HOF);
         tempAddr = gDecompressionBuffer;
+#ifdef PORTABLE
+        PortableFlash_BeginIoBatch();
+#endif
         HandleWriteSectorNBytes(SECTOR_ID_HOF_1, tempAddr, SECTOR_DATA_SIZE);
         HandleWriteSectorNBytes(SECTOR_ID_HOF_2, tempAddr + SECTOR_DATA_SIZE, SECTOR_DATA_SIZE);
+#ifdef PORTABLE
+        PortableFlash_EndIoBatch();
+#endif
         // fallthrough
     case SAVE_NORMAL:
     default:
@@ -698,8 +722,14 @@ u8 HandleSavingData(u8 saveType)
     case SAVE_LINK:
         SaveSerializedGame();
         // only SaveBlock2 and SaveBlock1 (ignores storage in PC)
+#ifdef PORTABLE
+        PortableFlash_BeginIoBatch();
+#endif
         for(i = SECTOR_ID_SAVEBLOCK2; i <= SECTOR_ID_SAVEBLOCK1_END; i++)
             WriteSaveSectorOrSlot(i, gRamSaveSectorLocations);
+#ifdef PORTABLE
+        PortableFlash_EndIoBatch();
+#endif
         break;
     case SAVE_EREADER: // unused
         SaveSerializedGame();
@@ -707,8 +737,14 @@ u8 HandleSavingData(u8 saveType)
         WriteSaveSectorOrSlot(SECTOR_ID_SAVEBLOCK2, gRamSaveSectorLocations);
         break;
     case SAVE_OVERWRITE_DIFFERENT_FILE:
+#ifdef PORTABLE
+        PortableFlash_BeginIoBatch();
+#endif
         for (i = SECTOR_ID_HOF_1; i < SECTORS_COUNT; i++)
             EraseFlashSector(i);
+#ifdef PORTABLE
+        PortableFlash_EndIoBatch();
+#endif
         SaveSerializedGame();
         WriteSaveSectorOrSlot(FULL_SAVE_SLOT, gRamSaveSectorLocations);
         break;
