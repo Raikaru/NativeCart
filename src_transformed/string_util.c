@@ -303,6 +303,26 @@ static u8 *PortableCopyGbaString(u8 *dest, const u8 *src)
     *dest = EOS;
     return dest;
 }
+
+static bool8 PortableLeadingNullLooksLikeGbaString(const u8 *src)
+{
+    u32 i;
+    bool8 sawNonZero = FALSE;
+
+    if (src == NULL || src[0] != '\0')
+        return FALSE;
+
+    for (i = 1; i < 32; i++)
+    {
+        if (src[i] == EOS)
+            return sawNonZero;
+        if (src[i] != '\0')
+            sawNonZero = TRUE;
+    }
+
+    return FALSE;
+}
+
 #endif
 
 #define STRING_IS_TERMINATOR(ch) ((ch) == EOS)
@@ -410,7 +430,24 @@ u8 *StringCopy_PlayerName(u8 *dest, const u8 *src)
 
 u8 *StringCopy(u8 *dest, const u8 *src)
 {
+    if (src == NULL)
+    {
+        *dest = EOS;
+        return dest;
+    }
+
 #ifdef PORTABLE
+    /* Empty C strings begin with '\0', but some real GBA strings do too because
+     * CHAR_SPACE is encoded as 0x00. Preserve those GBA-space-prefixed strings. */
+    if (src[0] == '\0')
+    {
+        if (!PortableLeadingNullLooksLikeGbaString(src))
+        {
+            *dest = EOS;
+            return dest;
+        }
+    }
+
     if (PortableStringLooksLikeCString(src))
         return PortableCopyCStringAsGba(dest, src);
 #endif
@@ -615,14 +652,17 @@ u8 *StringExpandPlaceholders(u8 *dest, const u8 *src)
 #ifdef PORTABLE
     static u8 sPortableExpandedTemplate[1000];
 
-    /* Some portable templates are mixed-format C literals: they begin as
-       ASCII text, but already embed raw GBA control bytes like \xFB. Treat
-       those as template strings too so the ASCII portion is normalized before
-       placeholder expansion. */
+    /* Portable templates can be:
+     * - ordinary C/UTF-8 strings, including ones that start with non-ASCII
+     *   bytes like "x" (multiplication sign) in "x{STR_VAR_1}"
+     * - mixed C literals that begin ASCII but already embed raw GBA control
+     *   bytes like \xFB
+     * Normalize either form before placeholder expansion, but leave real GBA
+     * strings alone. */
     if (src != NULL
      && src[0] != '\0'
      && src[0] != EOS
-     && src[0] < 0x80)
+     && (PortableStringLooksLikeCString(src) || src[0] < 0x80))
     {
         PortableNormalizeTemplateString(sPortableExpandedTemplate, src);
         src = sPortableExpandedTemplate;
@@ -650,7 +690,13 @@ u8 *StringExpandPlaceholders(u8 *dest, const u8 *src)
                  || placeholderId == PLACEHOLDER_ID_STRING_VAR_2
                  || placeholderId == PLACEHOLDER_ID_STRING_VAR_3)
                 {
-                    dest = PortableCopyGbaString(dest, expandedString);
+                    /* Portable placeholder buffers may be either C/UTF-8 or genuine
+                     * GBA strings. Right-aligned numeric buffers can start with GBA
+                     * spaces (0x00), so preserve those with a raw GBA copy. */
+                    if (PortableStringLooksLikeCString(expandedString))
+                        dest = PortableCopyCStringAsGba(dest, expandedString);
+                    else
+                        dest = PortableCopyGbaString(dest, expandedString);
                     break;
                 }
 #endif
