@@ -4,6 +4,7 @@
 #define BATTLE_INTERFACE_TEXTBOX_DEFINE_GLOBALS
 #include "battle_interface_portable_assets.h"
 #undef BATTLE_INTERFACE_TEXTBOX_DEFINE_GLOBALS
+#include "interface_assets_portable.h"
 #define POKEMON_STORAGE_GRAPHICS_DEFINE_GLOBALS
 #include "pokemon_storage_system_portable_assets.h"
 #undef POKEMON_STORAGE_GRAPHICS_DEFINE_GLOBALS
@@ -28,7 +29,9 @@ const u32 gUnusedPal_OldCharmap[] = INCBIN_U32("graphics/unused/old_charmap.gbap
 const u32 gSmokescreenImpactTiles[] = INCBIN_U32("graphics/battle_anims/sprites/smokescreen_impact.4bpp.lz");
 const u32 gSmokescreenImpactPalette[] = INCBIN_U32("graphics/battle_anims/sprites/smokescreen_impact.gbapal.lz");
 
+#ifndef PORTABLE
 #include "data/graphics/interface_pokeballs.h"
+#endif
 
 #ifdef PORTABLE
 const u32 gBlankGfxCompressed[] = {
@@ -1161,9 +1164,11 @@ const u32 gGhostFrontPic[] = INCBIN_U32("graphics/pokemon/ghost/front.4bpp.lz");
 
 #include "data/graphics/mail.h"
 
+#ifndef PORTABLE
 const u16 gMenuInfoElements1_Pal[] = INCBIN_U16("graphics/interface/dex_caught_pokeball.gbapal");
 const u16 gMenuInfoElements2_Pal[] = INCBIN_U16("graphics/interface/pokemon_types.gbapal");
 const u8 gMenuInfoElements_Gfx[] = INCBIN_U8("graphics/interface/menu_info.4bpp");
+#endif
 
 const u16 gMoveRelearner_Pal[] = INCBIN_U16("graphics/interface/learn_move.gbapal");
 const u32 gMoveRelearner_Gfx[] = INCBIN_U32("graphics/interface/learn_move.4bpp.lz");

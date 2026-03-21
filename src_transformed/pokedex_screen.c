@@ -69,6 +69,7 @@
 #define sTilemap_AreaMap_SevenIsland sTilemap_AreaMap_SevenIsland_Portable
 #define sBlitTiles_WideEllipse sBlitTiles_WideEllipse_Portable
 #define sPalette_Silhouette sPalette_Silhouette_Portable
+#define sCategoryPageIconWindowBg sCategoryPageIconWindowBg_Portable
 #endif
 
 #define TAG_AREA_MARKERS 2001
@@ -821,7 +822,9 @@ struct {
     {&sWindowTemplate_AreaMap_SixIsland,   sTilemap_AreaMap_SixIsland},
     {&sWindowTemplate_AreaMap_SevenIsland, sTilemap_AreaMap_SevenIsland},
 };
-#define sCategoryPageIconWindowBg ((const u16 *)NULL)
+#ifndef PORTABLE
+static const u16 sCategoryPageIconWindowBg[] = INCBIN_U16("graphics/pokedex/page_icon_tilemap.bin");
+#endif
 
 // Circular window x/y; Rectangular window x/y
 static const u8 sPageIconCoords_1Mon[1][4] = {

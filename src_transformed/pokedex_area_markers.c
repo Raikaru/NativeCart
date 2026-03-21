@@ -6,6 +6,15 @@
 #include "pokedex_area_markers.h"
 #include "pokedex.h"
 
+#ifdef PORTABLE
+#include "pokedex_area_markers_portable_assets.h"
+#define sMarkerPal sMarkerPal_Portable
+#define sMarkerTiles sMarkerTiles_Portable
+#else
+static const u16 sMarkerPal[] = INCBIN_U16("graphics/pokedex/area_markers/marker.gbapal");
+static const u32 sMarkerTiles[] = INCBIN_U32("graphics/pokedex/area_markers/marker.4bpp.lz");
+#endif
+
 /*
     Controls the red ellipse markers that appear on the pokedex maps to show where a species is found.
     All of the markers together are a single sprite, with each individual marker being represented by
@@ -34,8 +43,6 @@ enum {
     MARKER_LARGE_H,
     MARKER_LARGE_V,
 };
-#define sMarkerPal ((const u16 *)NULL)
-#define sMarkerTiles ((const u32 *)NULL)
 
 static const struct Subsprite sSubsprite_Circular = {
     .size = SPRITE_SIZE(8x8),
