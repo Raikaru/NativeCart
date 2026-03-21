@@ -3,12 +3,6 @@
 #include "util.h"
 #include "decompress.h"
 #include "task.h"
-#include <stdio.h>
-
-#ifdef PORTABLE
-extern void firered_runtime_trace_external(const char *message);
-#endif
-
 enum
 {
     NORMAL_FADE,
@@ -108,17 +102,7 @@ void TransferPlttBuffer(void)
     {
         void *src = gPlttBufferFaded;
         void *dest = (void *)PLTT;
-#ifdef PORTABLE
-        {
-            char buffer[128];
-            snprintf(buffer, sizeof(buffer), "PlttTransfer: faded[0]=%04X faded[1]=%04X unfaded[0]=%04X",
-                gPlttBufferFaded[0], gPlttBufferFaded[1], gPlttBufferUnfaded[0]);
-            firered_runtime_trace_external(buffer);
-        }
-        CpuCopy16(src, dest, PLTT_SIZE);
-#else
         DmaCopy16(3, src, dest, PLTT_SIZE);
-#endif
         sPlttBufferTransferPending = FALSE;
         if (gPaletteFade.mode == HARDWARE_FADE && gPaletteFade.active)
             UpdateBlendRegisters();
@@ -127,10 +111,6 @@ void TransferPlttBuffer(void)
 
 u8 UpdatePaletteFade(void)
 {
-    firered_runtime_trace_external("UpdatePaletteFade: body enter");
-#ifdef PORTABLE
-    firered_runtime_trace_external("CrashTrace: UpdatePaletteFade enter");
-#endif
     u8 result;
     u8 dummy = 0;
 
