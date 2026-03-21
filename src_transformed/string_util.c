@@ -6,6 +6,7 @@
 #include <stdio.h>
 
 extern void firered_runtime_trace_external(const char *message);
+extern char *getenv(const char *name);
 extern struct SaveBlock2 gSaveBlock2;
 extern struct SaveBlock1 gSaveBlock1;
 
@@ -15,8 +16,21 @@ static u8 sPortableRivalName[PLAYER_NAME_LENGTH + 1];
 
 static void TraceStringExpand(const char *fmt, ...)
 {
+    static int sExpandTraceInit;
+    static int sExpandTraceEnabled;
     char buffer[256];
     va_list args;
+    const char *env;
+
+    if (!sExpandTraceInit)
+    {
+        env = getenv("FIRERED_TRACE_STRING_EXPAND");
+        sExpandTraceEnabled = (env != NULL && env[0] != '\0' && env[0] != '0');
+        sExpandTraceInit = 1;
+    }
+
+    if (!sExpandTraceEnabled)
+        return;
 
     if (sStringTraceCount >= 64)
         return;
@@ -25,7 +39,6 @@ static void TraceStringExpand(const char *fmt, ...)
     vsnprintf(buffer, sizeof(buffer), fmt, args);
     va_end(args);
     firered_runtime_trace_external(buffer);
-    fflush(stdout);
     sStringTraceCount++;
 }
 
@@ -602,7 +615,14 @@ u8 *StringExpandPlaceholders(u8 *dest, const u8 *src)
 #ifdef PORTABLE
     static u8 sPortableExpandedTemplate[1000];
 
-    if (PortableStringLooksLikeCString(src))
+    /* Some portable templates are mixed-format C literals: they begin as
+       ASCII text, but already embed raw GBA control bytes like \xFB. Treat
+       those as template strings too so the ASCII portion is normalized before
+       placeholder expansion. */
+    if (src != NULL
+     && src[0] != '\0'
+     && src[0] != EOS
+     && src[0] < 0x80)
     {
         PortableNormalizeTemplateString(sPortableExpandedTemplate, src);
         src = sPortableExpandedTemplate;
