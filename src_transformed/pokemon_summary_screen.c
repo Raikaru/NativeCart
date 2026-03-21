@@ -34,6 +34,9 @@
 #include "mon_markings.h"
 #include "pokemon_storage_system.h"
 #include "constants/sound.h"
+#ifdef PORTABLE
+#include "pokemon_summary_screen_portable_assets.h"
+#endif
 
 // needs conflicting header to match (curIndex is s8 in the function, but has to be defined as u8 here)
 extern s16 SeekToNextMonInBox(struct BoxPokemon * boxMons, u8 curIndex, u8 maxIndex, u8 flags);
@@ -139,6 +142,7 @@ static void PokeSum_DestroyMonMarkingsSprite(void);
 static void PokeSum_UpdateMonMarkingsAnim(void);
 static s8 SeekToNextMonInSingleParty(s8 direction);
 static s8 SeekToNextMonInMultiParty(s8 direction);
+static bool32 PokeSum_IsLiveSpritePointer(const struct Sprite *sprite);
 
 struct PokemonSummaryScreenData
 {
@@ -327,6 +331,19 @@ static EWRAM_DATA u8 sMoveSelectionCursorPos = 0;
 static EWRAM_DATA u8 sMoveSwapCursorPos = 0;
 static EWRAM_DATA struct MonPicBounceState * sMonPicBounceState = NULL;
 
+static bool32 PokeSum_IsLiveSpritePointer(const struct Sprite *sprite)
+{
+    ptrdiff_t spriteIndex;
+
+    if (sprite == NULL)
+        return FALSE;
+    if (sprite < gSprites || sprite >= gSprites + MAX_SPRITES)
+        return FALSE;
+
+    spriteIndex = sprite - gSprites;
+    return gSprites[spriteIndex].inUse;
+}
+
 extern const u32 gSummaryScreen_PageSkills_Tilemap[];
 extern const u32 gSummaryScreen_PageMoves_Tilemap[];
 extern const u32 gSummaryScreen_PageInfo_Tilemap[];
@@ -339,12 +356,33 @@ extern const u32 gSummaryScreen_StatusAilmentIcon_Gfx[];
 extern const u16 gSummaryScreen_StatusAilmentIcon_Pal[];
 extern const u32 gSummaryScreen_HpBar_Gfx[];
 extern const u32 gSummaryScreen_ExpBar_Gfx[];
+#ifdef PORTABLE
+#define gSummaryScreen_PageSkills_Tilemap gSummaryScreen_PageSkills_Tilemap_Portable
+#define gSummaryScreen_PageMoves_Tilemap gSummaryScreen_PageMoves_Tilemap_Portable
+#define gSummaryScreen_PageInfo_Tilemap gSummaryScreen_PageInfo_Tilemap_Portable
+#define gSummaryScreen_PageMovesInfo_Tilemap gSummaryScreen_PageMovesInfo_Tilemap_Portable
+#define gSummaryScreen_PageEgg_Tilemap gSummaryScreen_PageEgg_Tilemap_Portable
+#define gSummaryScreen_Bg_Pal gSummaryScreen_Bg_Pal_Portable
+#define gSummaryScreen_Bg_Gfx gSummaryScreen_Bg_Gfx_Portable
+#define gSummaryScreen_HpExpBar_Pal gSummaryScreen_HpExpBar_Pal_Portable
+#define gSummaryScreen_StatusAilmentIcon_Gfx gSummaryScreen_StatusAilmentIcon_Gfx_Portable
+#define gSummaryScreen_StatusAilmentIcon_Pal gSummaryScreen_StatusAilmentIcon_Pal_Portable
+#define gSummaryScreen_HpBar_Gfx gSummaryScreen_HpBar_Gfx_Portable
+#define gSummaryScreen_ExpBar_Gfx gSummaryScreen_ExpBar_Gfx_Portable
+#define sTextHeaderPalette sTextHeaderPalette_Portable
+#define sMonMarkingSpritePalette sMonMarkingSpritePalette_Portable
+#define sTextMovesPalette sTextMovesPalette_Portable
+#define sMoveSelectionCursorPals sMoveSelectionCursorPals_Portable
+#define sMoveSelectionCursorTiles_Left sMoveSelectionCursorTiles_Left_Portable
+#define sMoveSelectionCursorTiles_Right sMoveSelectionCursorTiles_Right_Portable
+#else
 #define sTextHeaderPalette ((const u32 *)NULL)
 #define sMonMarkingSpritePalette ((const u16 *)NULL)
 #define sTextMovesPalette ((const u32 *)NULL)
 #define sMoveSelectionCursorPals ((const u16 *)NULL)
 #define sMoveSelectionCursorTiles_Left ((const u32 *)NULL)
 #define sMoveSelectionCursorTiles_Right ((const u32 *)NULL)
+#endif
 
 static const struct OamData sMoveSelectionCursorOamData =
 {
@@ -557,8 +595,13 @@ static const union AnimCmd * const sHpOrExpBarAnimTable[] =
     sHpOrExpAnim_10,
     sHpOrExpAnim_11
 };
+#ifdef PORTABLE
+#define sPokeSummary_HpBarPalYellow sPokeSummary_HpBarPalYellow_Portable
+#define sPokeSummary_HpBarPalRed sPokeSummary_HpBarPalRed_Portable
+#else
 #define sPokeSummary_HpBarPalYellow ((const u16 *)NULL)
 #define sPokeSummary_HpBarPalRed ((const u16 *)NULL)
+#endif
 
 static const struct OamData sPokerusIconObjOamData = {
     .y = 0,
@@ -585,8 +628,13 @@ static const union AnimCmd * const sPokerusIconObjAnimTable[] =
 {
     sPokerusIconObjAnim0
 };
+#ifdef PORTABLE
+#define sPokerusIconObjPal sPokerusIconObjPal_Portable
+#define sPokerusIconObjTiles sPokerusIconObjTiles_Portable
+#else
 #define sPokerusIconObjPal ((const u16 *)NULL)
 #define sPokerusIconObjTiles ((const u32 *)NULL)
+#endif
 
 static const struct OamData sStarObjOamData =
 {
@@ -614,10 +662,17 @@ static const union AnimCmd * const sStarObjAnimTable[] =
 {
     sStarObjAnim0
 };
+#ifdef PORTABLE
+#define sStarObjPal sStarObjPal_Portable
+#define sStarObjTiles sStarObjTiles_Portable
+#define sBgTilemap_MovesInfoPage sBgTilemap_MovesInfoPage_Portable
+#define sBgTilemap_MovesPage sBgTilemap_MovesPage_Portable
+#else
 #define sStarObjPal ((const u16 *)NULL)
 #define sStarObjTiles ((const u32 *)NULL)
 #define sBgTilemap_MovesInfoPage ((const u32 *)NULL)
 #define sBgTilemap_MovesPage ((const u32 *)NULL)
+#endif
 
 #include "data/text/nature_names.h"
 
@@ -2972,6 +3027,9 @@ static void CommitStaticWindowTilemaps(void)
 
 static void Task_DestroyResourcesOnExit(u8 taskId)
 {
+    SetVBlankCallback(NULL);
+    SetHBlankCallback(NULL);
+
     PokeSum_DestroySprites();
     FreeAllSpritePalettes();
 
@@ -3118,6 +3176,9 @@ static void VBlankCB_PokemonSummaryScreen(void)
     LoadOam();
     ProcessSpriteCopyRequests();
     TransferPlttBuffer();
+
+    if (sMonSummaryScreen == NULL)
+        return;
 
     if (sMonSummaryScreen->flippingPages == FALSE)
         return;
@@ -4875,7 +4936,9 @@ static void PokeSum_CreateMonMarkingsSprite(void)
 {
     u32 markings = GetMonData(&sMonSummaryScreen->currentMon, MON_DATA_MARKINGS);
 
-    DestroySpriteAndFreeResources(sMonSummaryScreen->markingSprite);
+    if (PokeSum_IsLiveSpritePointer(sMonSummaryScreen->markingSprite))
+        DestroySpriteAndFreeResources(sMonSummaryScreen->markingSprite);
+    sMonSummaryScreen->markingSprite = NULL;
     sMonSummaryScreen->markingSprite = CreateMonMarkingAllCombosSprite(TAG_PSS_UNK_8C, TAG_PSS_UNK_8C, sMonMarkingSpritePalette);
 
     if (sMonSummaryScreen->markingSprite != NULL)
@@ -4890,12 +4953,17 @@ static void PokeSum_CreateMonMarkingsSprite(void)
 
 static void PokeSum_DestroyMonMarkingsSprite(void)
 {
-    DestroySpriteAndFreeResources(sMonSummaryScreen->markingSprite);
+    if (PokeSum_IsLiveSpritePointer(sMonSummaryScreen->markingSprite))
+        DestroySpriteAndFreeResources(sMonSummaryScreen->markingSprite);
+    sMonSummaryScreen->markingSprite = NULL;
 }
 
 static void PokeSum_ShowOrHideMonMarkingsSprite(u8 invisible)
 {
     u32 markings = GetMonData(&sMonSummaryScreen->currentMon, MON_DATA_MARKINGS);
+
+    if (!PokeSum_IsLiveSpritePointer(sMonSummaryScreen->markingSprite))
+        return;
 
     if (markings == 0)
         sMonSummaryScreen->markingSprite->invisible = TRUE;
@@ -4906,6 +4974,9 @@ static void PokeSum_ShowOrHideMonMarkingsSprite(u8 invisible)
 static void PokeSum_UpdateMonMarkingsAnim(void)
 {
     u32 markings = GetMonData(&sMonSummaryScreen->currentMon, MON_DATA_MARKINGS);
+
+    if (!PokeSum_IsLiveSpritePointer(sMonSummaryScreen->markingSprite))
+        return;
 
     StartSpriteAnim(sMonSummaryScreen->markingSprite, markings);
     PokeSum_ShowOrHideMonMarkingsSprite(FALSE);
