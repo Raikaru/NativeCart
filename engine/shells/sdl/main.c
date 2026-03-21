@@ -15,6 +15,7 @@
 #include "../../core/engine_input.h"
 #include "../../core/engine_runtime.h"
 #include "../../core/engine_video.h"
+#include "../../core/mod_patch_bps.h"
 #include "../../../cores/firered/firered_core.h"
 
 #define SDL_SHELL_DEFAULT_SCALE 4
@@ -61,7 +62,159 @@ typedef struct SdlShellContext
 
 static void sdl_shell_print_usage(const char *program)
 {
-    fprintf(stderr, "Usage: %s <rom.gba> [state_file]\n", program);
+    fprintf(
+        stderr,
+        "Usage: %s <rom.gba> [--bps <patch.bps>] [--mod-manifest <file>] [state_file]\n"
+        "       FIRERED_BPS_PATCH may set a default .bps if --bps is not used.\n"
+        "       --mod-manifest: first non-empty, non-# line is a .bps path relative to the manifest directory.\n",
+        program);
+}
+
+static const char *sdl_shell_path_sep_last(const char *path)
+{
+    const char *slash;
+    const char *bslash;
+
+    slash = strrchr(path, '/');
+    bslash = strrchr(path, '\\');
+    if (slash == NULL)
+        return bslash;
+    if (bslash == NULL)
+        return slash;
+    return slash > bslash ? slash : bslash;
+}
+
+/*
+ * Reads the first non-empty, non-comment line from a tiny manifest file.
+ * The line is a path to a .bps relative to the manifest's directory.
+ * Returns 1 and writes NUL-terminated absolute/resolved path into out_path if found.
+ */
+static int sdl_shell_read_mod_manifest_bps(const char *manifest_path, char *out_path, size_t out_cap)
+{
+    FILE *file;
+    char line[768];
+    const char *sep;
+    size_t dir_len;
+
+    if (manifest_path == NULL || out_path == NULL || out_cap == 0)
+        return 0;
+
+    file = fopen(manifest_path, "rb");
+    if (file == NULL)
+        return 0;
+
+    while (fgets(line, sizeof(line), file) != NULL)
+    {
+        char *start = line;
+        char *end;
+        size_t len;
+
+        while (*start == ' ' || *start == '\t' || *start == '\r')
+            start++;
+        if (*start == '\0' || *start == '\n')
+            continue;
+        if (*start == '#')
+            continue;
+
+        end = start + strlen(start);
+        while (end > start && (end[-1] == '\n' || end[-1] == '\r' || end[-1] == ' ' || end[-1] == '\t'))
+            end--;
+        *end = '\0';
+
+        sep = sdl_shell_path_sep_last(manifest_path);
+        if (sep != NULL && sep != manifest_path)
+        {
+            dir_len = (size_t)(sep - manifest_path);
+            if (dir_len + 1 + strlen(start) + 1 > out_cap)
+            {
+                fclose(file);
+                return 0;
+            }
+            memcpy(out_path, manifest_path, dir_len);
+            out_path[dir_len] = '/';
+            memcpy(out_path + dir_len + 1, start, strlen(start) + 1);
+        }
+        else
+        {
+            if (strlen(start) + 1 > out_cap)
+            {
+                fclose(file);
+                return 0;
+            }
+            memcpy(out_path, start, strlen(start) + 1);
+        }
+
+        fclose(file);
+        return 1;
+    }
+
+    fclose(file);
+    return 0;
+}
+
+typedef struct SdlShellArgs
+{
+    const char *rom_path;
+    const char *state_path;
+    const char *bps_path;
+    int used_manifest;
+    char manifest_bps_storage[1024];
+} SdlShellArgs;
+
+static int sdl_shell_parse_args(int argc, char **argv, SdlShellArgs *out)
+{
+    int i;
+
+    memset(out, 0, sizeof(*out));
+    out->state_path = SDL_SHELL_DEFAULT_STATE_PATH;
+
+    if (argc < 2)
+        return 0;
+
+    out->rom_path = argv[1];
+    i = 2;
+    while (i < argc)
+    {
+        if (strcmp(argv[i], "--bps") == 0)
+        {
+            if (i + 1 >= argc)
+                return 0;
+            out->bps_path = argv[i + 1];
+            i += 2;
+            continue;
+        }
+        if (strcmp(argv[i], "--mod-manifest") == 0)
+        {
+            if (i + 1 >= argc)
+                return 0;
+            if (!sdl_shell_read_mod_manifest_bps(argv[i + 1], out->manifest_bps_storage, sizeof(out->manifest_bps_storage)))
+            {
+                fprintf(stderr, "Invalid or empty mod manifest: %s\n", argv[i + 1]);
+                return 0;
+            }
+            out->used_manifest = 1;
+            i += 2;
+            continue;
+        }
+        if (argv[i][0] == '-')
+            return 0;
+
+        out->state_path = argv[i];
+        i += 1;
+    }
+
+    if (out->bps_path == NULL && out->used_manifest)
+        out->bps_path = out->manifest_bps_storage;
+
+    if (out->bps_path == NULL)
+    {
+        const char *env_bps = getenv("FIRERED_BPS_PATCH");
+
+        if (env_bps != NULL && env_bps[0] != '\0')
+            out->bps_path = env_bps;
+    }
+
+    return 1;
 }
 
 static void sdl_shell_write_marker(const char *path, const char *contents)
@@ -526,6 +679,7 @@ static void sdl_shell_shutdown(SdlShellContext *ctx)
 int main(int argc, char **argv)
 {
     SdlShellContext ctx;
+    SdlShellArgs args;
     uint8_t *rom_data;
     size_t rom_size;
     Uint64 perf_freq;
@@ -533,7 +687,7 @@ int main(int argc, char **argv)
     Uint64 fps_window_start;
     unsigned int fps_frames;
 
-    if (argc < 2)
+    if (!sdl_shell_parse_args(argc, argv, &args))
     {
         sdl_shell_print_usage(argv[0]);
         return 1;
@@ -541,7 +695,7 @@ int main(int argc, char **argv)
 
     memset(&ctx, 0, sizeof(ctx));
     ctx.scale = SDL_SHELL_DEFAULT_SCALE;
-    ctx.state_path = (argc >= 3) ? argv[2] : SDL_SHELL_DEFAULT_STATE_PATH;
+    ctx.state_path = args.state_path;
     ctx.has_focus = true;
     ctx.audio_selftest_enabled = (getenv("FIRERED_AUDIO_SELFTEST") != NULL);
     ctx.running = true;
@@ -550,11 +704,50 @@ int main(int argc, char **argv)
     fps_window_start = SDL_GetTicks();
     fps_frames = 0;
 
-    rom_data = sdl_shell_read_file(argv[1], &rom_size);
+    rom_data = sdl_shell_read_file(args.rom_path, &rom_size);
     if (rom_data == NULL)
     {
-        fprintf(stderr, "Failed to read ROM: %s\n", argv[1]);
+        fprintf(stderr, "Failed to read base ROM (check path and permissions): %s\n", args.rom_path);
         return 1;
+    }
+
+    if (args.bps_path != NULL)
+    {
+        char errbuf[512];
+        uint8_t *patch_data;
+        size_t patch_size;
+        uint8_t *patched_rom = NULL;
+        size_t patched_size = 0;
+
+        fprintf(stderr, "Runtime mod: applying BPS \"%s\" (in memory; base ROM on disk is not modified)\n", args.bps_path);
+        patch_data = sdl_shell_read_file(args.bps_path, &patch_size);
+        if (patch_data == NULL)
+        {
+            fprintf(stderr, "Failed to read BPS patch: %s\n", args.bps_path);
+            free(rom_data);
+            return 1;
+        }
+
+        if (!mod_patch_bps_apply(
+                rom_data,
+                rom_size,
+                patch_data,
+                patch_size,
+                &patched_rom,
+                &patched_size,
+                errbuf,
+                sizeof(errbuf)))
+        {
+            fprintf(stderr, "BPS apply failed: %s\n", errbuf[0] != '\0' ? errbuf : "(no details)");
+            free(patch_data);
+            free(rom_data);
+            return 1;
+        }
+
+        free(patch_data);
+        free(rom_data);
+        rom_data = patched_rom;
+        rom_size = patched_size;
     }
 
     engine_set_core(firered_core_get());
