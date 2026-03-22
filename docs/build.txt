@@ -1,30 +1,33 @@
 Build notes
 
-Current working Godot build
-- `cd gdextension`
-- `scons -Q platform=windows target=debug -j4`
+Canonical host: SDL/native (`engine/shells/sdl`).
 
-Current working SDL debug build
+Current working SDL debug build (example Windows paths — adjust for your SDL3 install)
 - `cd engine/shells/sdl`
-- `scons -Q platform=windows target=debug -j4 sdl_include_dir="D:\Godot\SDL3-3.4.2\x86_64-w64-mingw32\include" sdl_lib_dir="D:\Godot\SDL3-3.4.2\x86_64-w64-mingw32\lib" sdl_bin_dir="D:\Godot\SDL3-3.4.2\x86_64-w64-mingw32\bin"`
+- `scons -Q platform=windows target=debug -j4 sdl_include_dir="C:\path\to\SDL3\x86_64-w64-mingw32\include" sdl_lib_dir="C:\path\to\SDL3\x86_64-w64-mingw32\lib" sdl_bin_dir="C:\path\to\SDL3\x86_64-w64-mingw32\bin"` (or set `SDL3_INCLUDE_DIR` / `SDL3_LIB_DIR` / `SDL3_BIN_DIR`)
+
+Outputs (under repo `build/` after a successful build)
+- `decomp_engine_sdl.exe` (or `decomp_engine_sdl` on Unix)
+- `runtime_progress_runner.exe` (or `runtime_progress_runner`) — headless core smoke
+- `SDL3.dll` on Windows when `sdl_bin_dir` is provided
 
 Preferred validation path
 - validate portable runtime, UI, and crash fixes on the SDL debug shell first
-- use the Godot shell as an integration check rather than the primary bug triage shell
 - if a native crash survives targeted tracing, use WinDbg early and capture:
   - `!analyze -v`
   - `.ecxr`
   - `kv`
 
-Current transition behavior
-- Runtime/renderer/memory/audio/input/platform now build through canonical
+Portable build plumbing
+- Runtime/renderer/memory/audio/input/platform build through canonical
   `engine/core/` translation units.
 - Legacy FireRed runtime code still exists in `pokefirered_core/src/` as a
   compatibility wrapper layer for old symbol/include paths.
-- FireRed-only portable shims and generated portable data now build through
-  canonical `cores/firered/portable/` and `cores/firered/generated/data/` paths.
-- Godot-facing source now routes through the engine/core abstractions.
+- FireRed-only portable shims and generated portable data build through
+  `cores/firered/portable/` and `cores/firered/generated/data/`.
+- Portable data generators live under `tools/portable_generators/` and are invoked
+  from `engine/shells/sdl/SConstruct` via `tools/portable_scons_helpers.py`.
 
-Verification target for this refactor
-- successful library build
-- FireRed ROM still loads and frame stepping still works through the Godot shell
+Verification
+- successful SDL debug build and ROM boot under `engine/shells/sdl`
+- optional: `build/runtime_progress_runner.exe baserom.gba` for headless stepping
