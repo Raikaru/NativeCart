@@ -1,22 +1,15 @@
 # INSTALL
 
-This file explains how to install the dependencies needed to build the current
-public `decomp-engine` repository and its FireRed Godot shell.
+This file explains how to install dependencies for the `decomp-engine` repository.
+The **only** supported portable host is the **SDL/native shell** (`engine/shells/sdl`).
 
 ## What You Need
-
-At minimum, the current build path needs:
 
 - Python 3.10+
 - SCons 4.x
 - a C/C++ toolchain
-- [godot-cpp](https://github.com/godotengine/godot-cpp) installed separately as an external dependency
-- a Godot 4.x editor/runtime for manual testing
+- **SDL3** development headers and libraries
 - a legally obtained FireRed ROM for local testing only
-
-Optional for the SDL shell:
-
-- SDL3 development headers and libraries
 
 ## Recommended Windows Setup
 
@@ -28,7 +21,7 @@ Install:
 2. MSYS2 / MinGW-w64 GCC toolchain
 3. SCons
 4. Git
-5. Godot 4.x
+5. SDL3 (for the canonical shell)
 
 ### Windows Dependency Install
 
@@ -64,70 +57,25 @@ xcode-select --install
 python3 -m pip install --user scons
 ```
 
-## Clone Required Dependencies
-
-`godot-cpp` is not committed to this repository. Install it locally.
-
-Recommended default: clone it at the repository root so the current SCons setup finds it automatically.
-
-```bash
-git clone https://github.com/godotengine/godot-cpp.git
-```
-
-The current SCons build expects `godot-cpp` by default at:
-
-```text
-./godot-cpp
-```
-
-If you keep it elsewhere, pass `godot_cpp_path=/path/to/godot-cpp` to SCons.
-
 ## Build Steps
 
-### 1. Build the Godot extension
-
-```bash
-cd gdextension
-scons -Q platform=windows target=debug -j4
-```
-
-Adjust `platform` and parallelism as needed for your machine.
-
-Examples:
-
-```bash
-scons -Q platform=linux target=debug -j4
-scons -Q platform=macos target=debug -j4
-scons -Q platform=windows target=release -j4
-```
-
-### 2. Output locations
-
-Main outputs:
-
-- `gdextension/bin/libpokefirered.debug.windows.x86_64.dll`
-- `build/libfirered_core.a`
-- `build/runtime_progress_runner.exe`
-
-## Optional SDL Shell Build
-
-The repository also includes a standalone SDL shell in `engine/shells/sdl/`.
-
-Build it with:
+### SDL/native shell (canonical)
 
 ```bash
 cd engine/shells/sdl
 scons -Q platform=windows target=debug -j4
 ```
 
-The SDL shell currently defaults to a debug build for stability.
-If you want a faster optimized build, pass `target=release`.
+The SDL build produces:
 
-The current SDL release build intentionally keeps the FireRed/game side on the
-stable unoptimized codegen path to avoid known 64-bit release-only regressions
-while the remaining UB in transformed portable code is still being isolated.
+- `build/decomp_engine_sdl.exe` (or `decomp_engine_sdl` on Unix)
+- `build/runtime_progress_runner.exe` (or `runtime_progress_runner`) — headless core smoke binary
+- `build/SDL3.dll` on Windows when `sdl_bin_dir` is set (see below)
 
-If SDL3 is installed in a custom location, pass:
+The shell defaults to a debug build for stability. For an optimized shell build, pass
+`target=release`. See [engine/shells/sdl/README.md](engine/shells/sdl/README.md).
+
+If SDL3 is in a custom location:
 
 ```bash
 scons sdl_include_dir=/path/to/include sdl_lib_dir=/path/to/SDL3/lib sdl_bin_dir=/path/to/SDL3/bin
@@ -136,10 +84,16 @@ scons sdl_include_dir=/path/to/include sdl_lib_dir=/path/to/SDL3/lib sdl_bin_dir
 On Windows, the SDL build copies `SDL3.dll` from `sdl_bin_dir` into `build/`
 so `build/decomp_engine_sdl.exe` can run without manually editing `PATH`.
 
-Run it with:
+Run:
 
 ```bash
 build/decomp_engine_sdl.exe baserom.gba
+```
+
+Headless core check:
+
+```bash
+build/runtime_progress_runner.exe baserom.gba
 ```
 
 ## Runtime Test Requirements
@@ -152,21 +106,16 @@ baserom.gba
 
 That file is ignored by `.gitignore` and should not be committed.
 
-## Minimal Verification
+## CI and local portable check
 
-After building, a lightweight runtime verification command is:
+Pull requests run **`.github/workflows/portable_host.yml`**: Ubuntu 24.04, **SDL**
+debug build from `engine/shells/sdl` (includes **`runtime_progress_runner`**).
 
-```bash
-build/runtime_progress_runner.exe baserom.gba
-```
+To match locally:
 
-That confirms the FireRed core still boots and frame-steps through the engine split.
-
-## Godot Manual Testing
-
-Open the project in Godot 4.x and run the smoke/manual scene from the repository.
-
-If your Godot executable is not on `PATH`, launch it directly and open this repo as a project.
+- **Linux / macOS:** `bash tools/verify_portable_default.sh` (set `SDL3_INCLUDE_DIR` /
+  `SDL3_LIB_DIR` if SCons cannot find SDL3).
+- **Windows (PowerShell):** `tools/verify_portable_default.ps1`
 
 ## Optional Notes
 
@@ -176,14 +125,6 @@ If your Godot executable is not on `PATH`, launch it directly and open this repo
   for the refactored public architecture is now split between `engine/` and `cores/firered/`
 
 ## Troubleshooting
-
-### `godot-cpp library not found`
-
-Make sure `godot-cpp/` exists at the repository root, or pass a custom path:
-
-```bash
-scons godot_cpp_path=/absolute/path/to/godot-cpp
-```
 
 ### `scons` not found
 

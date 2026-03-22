@@ -3,7 +3,8 @@ decomp-engine architecture
 Layers
 - `engine/` contains reusable shell-facing runtime abstractions.
 - `cores/` contains game-specific implementations that satisfy `GameCore`.
-- `engine/shells/` contains host integrations such as Godot.
+- `engine/shells/` contains the **SDL/native** host integration (canonical and only
+  supported shell).
 
 Current transition state
 - `engine/interfaces/game_core.h` defines the contract between shell and core.
@@ -25,7 +26,7 @@ Current transition state
 Rendering pipeline
 - The active `GameCore` advances one frame at a time.
 - The shell asks `engine_video_get_frame()` for an RGBA framebuffer.
-- The Godot shell uploads that frame into an `ImageTexture`.
+- The SDL shell blits/uploads that buffer through SDL textures.
 
 Portable runtime
 - Portable memory mapping, platform shims, renderer internals, and frame-threading

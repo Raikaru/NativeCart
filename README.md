@@ -5,22 +5,21 @@ engine shell from a FireRed-specific game core.
 
 The current public layout is split into:
 
-- `engine/` - reusable runtime, renderer, shell interfaces, and Godot shell code
-- `engine/shells/sdl/` - standalone SDL shell using the same engine/core APIs
-- `cores/firered/` - FireRed-specific adapter, portable glue, and generated data
-- `gdextension/` - compatibility-facing build entrypoint for the Godot shell
+- `engine/` — reusable runtime, renderer, shell interfaces, and the **SDL/native** shell
+- `engine/shells/sdl/` — **canonical** standalone host using the same engine/core APIs
+- `cores/firered/` — FireRed-specific adapter, portable glue, and generated data
+- `tools/portable_generators/` — shared portable data generators (invoked from the SDL SCons build)
 
-The FireRed runtime currently boots, steps frames, and renders through the Godot
-host path used by this repository.
+The FireRed portable runtime boots, steps frames, and renders through **engine/core**;
+the **SDL shell** is the only supported day-to-day host.
 
 ## Repository Layout
 
-- `engine/core/` - canonical runtime, renderer, memory, input, audio, and platform code
-- `engine/interfaces/` - generic interfaces such as `GameCore`
-- `engine/shells/godot/` - Godot shell implementation
-- `cores/firered/` - FireRed core adapter and FireRed-only portable data/glue
-- `docs/architecture.txt` - architecture summary
-- `INSTALL.md` - setup and compile instructions
+- `engine/core/` — canonical runtime, renderer, memory, input, audio, and platform code
+- `engine/interfaces/` — generic interfaces such as `GameCore`
+- `cores/firered/` — FireRed core adapter and FireRed-only portable data/glue
+- `docs/architecture.txt` — architecture summary
+- `INSTALL.md` — setup and compile instructions
 
 ## Legal / Asset Note
 
@@ -36,7 +35,6 @@ other local-only artifacts that should not be published.
 - [pret](https://github.com/pret) and the `pokefirered` decomp community for the
   original reverse-engineering and decompilation work this project builds on
 - Nintendo, Game Freak, and Creatures for the original Pokemon FireRed game
-- [godot-cpp](https://github.com/godotengine/godot-cpp) for the Godot GDExtension bindings
 - Contributors to this portable runtime / shell split and FireRed host integration
 
 ## Documentation
@@ -45,26 +43,23 @@ other local-only artifacts that should not be published.
 - Architecture notes: [docs/architecture.txt](docs/architecture.txt)
 - Build notes: [docs/build.txt](docs/build.txt)
 - Portable runtime troubleshooting notes: [docs/portable_runtime_notes.md](docs/portable_runtime_notes.md)
+- SDL portable CI + local scripts: [.github/workflows/portable_host.yml](.github/workflows/portable_host.yml), `tools/verify_portable_default.sh`, `tools/verify_portable_default.ps1` (see [INSTALL.md](INSTALL.md))
 
 ## External Dependencies
 
-- `godot-cpp` is intentionally not vendored in this repository
-- clone it separately as described in [INSTALL.md](INSTALL.md)
+- **SDL3** — required for the native shell (see [INSTALL.md](INSTALL.md))
 
 ## Current Status
 
-- canonical reusable runtime path lives in `engine/core/`
-- SDL and Godot both now exist as shells over the generic engine/core path
-- the SDL shell is currently the primary debugging and validation shell
-- canonical FireRed-specific portable/generated glue lives in `cores/firered/`
-- compatibility wrappers remain in `pokefirered_core/` and `gdextension/` so the
-  current build still works while the public architecture is cleaner
+- Canonical reusable runtime path lives in `engine/core/`
+- **SDL/native** is the debugging, validation, and primary host shell
+- Canonical FireRed-specific portable/generated glue lives in `cores/firered/`
+- `pokefirered_core/` remains as a compatibility layer alongside `engine/` and `cores/firered/`
 
 ## Release Checklist
 
 - confirm no ROMs, saves, logs, or local build artifacts are staged
 - confirm `.gitignore` still covers local-only copyrighted inputs and generated outputs
-- build with `cd gdextension && scons -Q platform=windows target=debug -j4`
-- smoke-check with `build/runtime_progress_runner.exe baserom.gba`
+- build SDL debug from `engine/shells/sdl` (see [INSTALL.md](INSTALL.md)); optional `tools/verify_portable_default.ps1` / `.sh` matches CI
+- smoke-check with `build/runtime_progress_runner.exe baserom.gba` and/or `build/decomp_engine_sdl.exe baserom.gba`
 - review `README.md`, `INSTALL.md`, `docs/architecture.txt`, and `docs/build.txt`
-- verify `godot-cpp/` is installed locally as an external dependency and not tracked in git

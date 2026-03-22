@@ -4,11 +4,6 @@ baserom*.gba
 
 # Build products
 build/
-gdextension/bin/
-gdextension/demo/bin/
-godot-cpp/
-godot-cpp/bin/
-gdextension/godot-cpp/
 
 # Object files, libraries, and executables
 *.o
@@ -34,11 +29,6 @@ gdextension/godot-cpp/
 __pycache__/
 *.pyc
 
-# Godot cache / editor state
-.godot/
-/android/
-*.import
-
 # Runtime logs, saves, and transient debugging output
 *.log
 *.sav
@@ -47,7 +37,6 @@ __pycache__/
 *.uid
 *~
 nul
-gdextension/nul
 
 # Local AI / agent workflow files
 AGENTS.md
