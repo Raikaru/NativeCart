@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 
-import glob
 import os
 import platform
 import shutil
@@ -49,9 +48,9 @@ opts.Add(EnumVariable("target", "Build target", "debug", ["debug", "release"]))
 opts.Add(EnumVariable("arch", "Target architecture", "x86_64", ["x86_64", "x86_32", "arm64", "arm32"]))
 opts.Add(BoolVariable("asan", "Build SDL shell with AddressSanitizer", False))
 opts.Add(BoolVariable("experimental_audio", "Build with transformed m4a runtime enabled", False))
-opts.Add(PathVariable("sdl_include_dir", "Path to SDL3 headers", os.environ.get("SDL3_INCLUDE_DIR", "D:/Godot/SDL3-3.4.2/x86_64-w64-mingw32/include"), PathVariable.PathAccept))
-opts.Add(PathVariable("sdl_lib_dir", "Path to SDL3 libraries", os.environ.get("SDL3_LIB_DIR", "D:/Godot/SDL3-3.4.2/x86_64-w64-mingw32/lib"), PathVariable.PathAccept))
-opts.Add(PathVariable("sdl_bin_dir", "Path to SDL3 runtime DLLs", os.environ.get("SDL3_BIN_DIR", "D:/Godot/SDL3-3.4.2/x86_64-w64-mingw32/bin"), PathVariable.PathAccept))
+opts.Add(PathVariable("sdl_include_dir", "Path to SDL3 headers", os.environ.get("SDL3_INCLUDE_DIR", "C:/SDL3/x86_64-w64-mingw32/include"), PathVariable.PathAccept))
+opts.Add(PathVariable("sdl_lib_dir", "Path to SDL3 libraries", os.environ.get("SDL3_LIB_DIR", "C:/SDL3/x86_64-w64-mingw32/lib"), PathVariable.PathAccept))
+opts.Add(PathVariable("sdl_bin_dir", "Path to SDL3 runtime DLLs", os.environ.get("SDL3_BIN_DIR", "C:/SDL3/x86_64-w64-mingw32/bin"), PathVariable.PathAccept))
 
 if ARGUMENTS.get("platform", detect_platform()) == "windows":
     env = Environment(tools=["mingw", "gcc", "ar"], variables=opts)
@@ -62,60 +61,32 @@ Help(opts.GenerateHelpText(env))
 
 project_dir = Dir(".").abspath
 root_dir = Dir("../../..").abspath
-core_dir = os.path.join(root_dir, "pokefirered_core")
-core_include_dir = os.path.join(core_dir, "include")
-core_src_dir = os.path.join(core_dir, "src")
-engine_root_dir = os.path.join(root_dir, "engine")
-engine_core_dir = os.path.join(engine_root_dir, "core")
-engine_interfaces_dir = os.path.join(engine_root_dir, "interfaces")
-firered_core_module_dir = os.path.join(root_dir, "cores", "firered")
-firered_portable_dir = os.path.join(firered_core_module_dir, "portable")
-firered_generated_data_dir = os.path.join(firered_core_module_dir, "generated", "data")
-generated_dir = os.path.join(core_dir, "generated")
-generated_include_dir = os.path.join(generated_dir, "include")
-generated_src_dir = os.path.join(generated_dir, "src")
+_tools_dir = os.path.join(root_dir, "tools")
+if _tools_dir not in sys.path:
+    sys.path.insert(0, _tools_dir)
+import portable_scons_helpers as _psh
+
+_pc = _psh.portable_repo_paths(root_dir)
+_psh.run_portable_generators(root_dir, _pc["generated_dir"])
+core_dir = _pc["core_dir"]
+core_include_dir = _pc["core_include_dir"]
+core_src_dir = _pc["core_src_dir"]
+engine_root_dir = _pc["engine_root_dir"]
+engine_core_dir = _pc["engine_core_dir"]
+engine_interfaces_dir = _pc["engine_interfaces_dir"]
+firered_core_module_dir = _pc["firered_core_module_dir"]
+firered_portable_dir = _pc["firered_portable_dir"]
+firered_generated_data_dir = _pc["firered_generated_data_dir"]
+generated_dir = _pc["generated_dir"]
+generated_include_dir = _pc["generated_include_dir"]
+generated_src_dir = _pc["generated_src_dir"]
+engine_src_dir = _pc["engine_src_dir"]
+engine_transformed_dir = _pc["engine_transformed_dir"]
+engine_include_dir = _pc["engine_include_dir"]
+engine_gba_include_dir = _pc["engine_gba_include_dir"]
 build_dir = os.path.join(root_dir, "build")
 sdl_build_dir = os.path.join(build_dir, "sdl")
 sdl_object_dir = os.path.join(sdl_build_dir, "obj")
-
-engine_src_dir = os.path.join(root_dir, "src")
-engine_transformed_dir = os.path.join(root_dir, "src_transformed")
-engine_include_dir = os.path.join(root_dir, "include")
-engine_gba_include_dir = os.path.join(engine_include_dir, "gba")
-
-generator_script = os.path.join(root_dir, "gdextension", "tools", "generate_portable_region_map_overrides.py")
-subprocess.check_call([sys.executable, generator_script, root_dir, generated_dir])
-battle_script_generator = os.path.join(root_dir, "gdextension", "tools", "generate_portable_battle_script_data.py")
-subprocess.check_call([sys.executable, battle_script_generator, root_dir, generated_dir])
-battle_ai_generator = os.path.join(root_dir, "gdextension", "tools", "generate_portable_battle_ai_data.py")
-subprocess.check_call([sys.executable, battle_ai_generator, root_dir, generated_dir])
-battle_anim_generator = os.path.join(root_dir, "gdextension", "tools", "generate_portable_battle_anim_data.py")
-subprocess.check_call([sys.executable, battle_anim_generator, root_dir, generated_dir])
-event_script_generator = os.path.join(root_dir, "gdextension", "tools", "generate_portable_event_script_data.py")
-subprocess.check_call([sys.executable, event_script_generator, root_dir, generated_dir])
-cry_generator = os.path.join(root_dir, "gdextension", "tools", "generate_portable_cry_data.py")
-subprocess.check_call([sys.executable, cry_generator, root_dir, generated_dir])
-item_generator = os.path.join(root_dir, "gdextension", "tools", "generate_portable_item_data.py")
-subprocess.check_call([sys.executable, item_generator, root_dir, generated_dir])
-map_generator = os.path.join(root_dir, "gdextension", "tools", "generate_portable_map_data.py")
-subprocess.check_call([sys.executable, map_generator, root_dir, generated_dir])
-
-
-def merged_engine_sources():
-    originals = {os.path.basename(path): path for path in glob.glob(os.path.join(engine_src_dir, "*.c"))}
-    transformed = {os.path.basename(path): path for path in glob.glob(os.path.join(engine_transformed_dir, "*.c"))}
-    originals.update(transformed)
-    originals.pop("librfu_intr.c", None)
-    originals.pop("isagbprn.c", None)
-    if not env["experimental_audio"]:
-        originals.pop("m4a.c", None)
-        originals.pop("m4a_tables.c", None)
-    originals.pop("main.c", None)
-    originals.pop("multiboot.c", None)
-    originals.pop("region_map.c", None)
-    originals.pop("script.c", None)
-    originals.pop("wild_encounter.c", None)
-    return [originals[name] for name in sorted(originals.keys())]
 
 
 def object_target_for(source_path):
@@ -133,63 +104,10 @@ def build_objects(builder_env, sources):
     return objects
 
 
-def release_sensitive_sources(root_dir):
-    stable_prefixes = [
-        os.path.normcase(os.path.join(root_dir, "src")),
-        os.path.normcase(os.path.join(root_dir, "src_transformed")),
-        os.path.normcase(os.path.join(root_dir, "cores", "firered")),
-        os.path.normcase(os.path.join(root_dir, "pokefirered_core")),
-    ]
-
-    return stable_prefixes
-
-
-engine_sources = merged_engine_sources()
-portable_asm_sources = [
-    os.path.join(firered_portable_dir, "isagbprn_portable.c"),
-    os.path.join(firered_portable_dir, "libgcnmultiboot_portable.c"),
-    os.path.join(firered_portable_dir, "m4a_portable.c"),
-    os.path.join(firered_portable_dir, "main_portable.c"),
-    os.path.join(firered_portable_dir, "multiboot_programs_portable.c"),
-    os.path.join(firered_portable_dir, "multiboot_portable.c"),
-    os.path.join(firered_portable_dir, "script_portable.c"),
-    os.path.join(firered_portable_dir, "librfu_intr_portable.c"),
-]
-core_sources = [
-    os.path.join(engine_core_dir, "core_loader.c"),
-    os.path.join(engine_core_dir, "engine_runtime.c"),
-    os.path.join(engine_core_dir, "engine_video.c"),
-    os.path.join(engine_core_dir, "engine_audio.c"),
-    os.path.join(engine_core_dir, "engine_input.c"),
-    os.path.join(engine_core_dir, "engine_runtime_backend.c"),
-    os.path.join(engine_core_dir, "mod_patch_bps.c"),
-    os.path.join(engine_core_dir, "engine_renderer_backend.c"),
-    os.path.join(engine_core_dir, "engine_memory.c"),
-    os.path.join(engine_core_dir, "engine_audio_backend.c"),
-    os.path.join(engine_core_dir, "engine_input_backend.c"),
-    os.path.join(firered_core_module_dir, "firered_core.c"),
-    os.path.join(core_src_dir, "firered_runtime.c"),
-    os.path.join(core_src_dir, "firered_memory.c"),
-    os.path.join(core_src_dir, "firered_video.c"),
-    os.path.join(core_src_dir, "firered_audio.c"),
-    os.path.join(core_src_dir, "firered_input.c"),
-    os.path.join(engine_core_dir, "engine_platform_portable.c"),
-    os.path.join(firered_portable_dir, "mystery_event_script_portable.c"),
-    os.path.join(firered_portable_dir, "portable_script_pointer_resolver.c"),
-    os.path.join(firered_portable_dir, "rom_header_portable.c"),
-    os.path.join(firered_portable_dir, "region_map_portable.c"),
-    os.path.join(firered_portable_dir, "wild_encounter_portable.c"),
-    os.path.join(firered_generated_data_dir, "battle_scripts_portable_data.c"),
-    os.path.join(firered_generated_data_dir, "battle_ai_scripts_portable_data.c"),
-    os.path.join(firered_generated_data_dir, "battle_anim_scripts_portable_data.c"),
-    os.path.join(firered_generated_data_dir, "cry_tables_portable_data.c"),
-    os.path.join(firered_generated_data_dir, "event_scripts_portable_data.c"),
-    os.path.join(firered_generated_data_dir, "field_effect_scripts_portable_data.c"),
-    os.path.join(firered_generated_data_dir, "map_data_portable.c"),
-    os.path.join(firered_generated_data_dir, "map_object_event_scripts_portable_data.c"),
-]
-
-release_sensitive_prefixes = release_sensitive_sources(root_dir)
+engine_sources = _psh.merged_engine_c_sources(env["experimental_audio"], _pc)
+portable_asm_sources = _psh.portable_asm_c_sources(_pc)
+core_sources = _psh.core_c_sources(_pc)
+release_sensitive_prefixes = _psh.portable_release_sensitive_prefixes(root_dir)
 
 c_env = env.Clone()
 c_env["CC"] = "gcc"
@@ -281,6 +199,19 @@ firered_core_lib = c_env.Command(
     source=core_objects,
     action=build_static_archive,
 )
+
+runner_env = c_env.Clone()
+runner_libs = []
+if env["platform"] == "windows":
+    runner_libs = ["winmm", "ws2_32", "crypt32"]
+runner_program = runner_env.Program(
+    target=os.path.join(build_dir, "runtime_progress_runner"),
+    source=[os.path.join(root_dir, "tools", "runtime_progress_runner.c"), firered_core_lib],
+    LIBPATH=[env["sdl_lib_dir"]] if env["sdl_lib_dir"] else [],
+    LIBS=runner_libs,
+)
+runner_env.Depends(runner_program, firered_core_lib)
+Default(runner_program)
 
 shell_program = os.path.join(build_dir, "decomp_engine_sdl")
 libs = ["SDL3"]

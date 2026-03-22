@@ -1,0 +1,6 @@
+#ifndef GUARD_FIRERED_PORTABLE_ROM_REGION_MAP_MAPSEC_NAMES_H
+#define GUARD_FIRERED_PORTABLE_ROM_REGION_MAP_MAPSEC_NAMES_H
+
+void firered_portable_rom_region_map_mapsec_names_refresh_after_rom_load(void);
+
+#endif /* GUARD_FIRERED_PORTABLE_ROM_REGION_MAP_MAPSEC_NAMES_H */

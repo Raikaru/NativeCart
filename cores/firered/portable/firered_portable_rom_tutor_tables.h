@@ -1,0 +1,6 @@
+#ifndef GUARD_FIRERED_PORTABLE_ROM_TUTOR_TABLES_H
+#define GUARD_FIRERED_PORTABLE_ROM_TUTOR_TABLES_H
+
+void firered_portable_rom_tutor_tables_refresh_after_rom_load(void);
+
+#endif /* GUARD_FIRERED_PORTABLE_ROM_TUTOR_TABLES_H */

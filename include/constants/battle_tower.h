@@ -79,4 +79,12 @@
 #define BTSPECIAL_RESULT_QUICKSAVE 4
 #define BTSPECIAL_RESULT_INACTIVE  5
 
+/*
+ * Sizes of gBattleTowerLevel50Mons_Compiled / gBattleTowerLevel100Mons_Compiled
+ * (vanilla FireRed: 300 entries each). Kept in constants so portable ROM refresh
+ * can validate packs without including the giant data headers in a second TU.
+ */
+#define BATTLE_TOWER_LEVEL50_MON_COUNT  300
+#define BATTLE_TOWER_LEVEL100_MON_COUNT 300
+
 #endif //GUARD_CONSTANTS_BATTLE_TOWER_H

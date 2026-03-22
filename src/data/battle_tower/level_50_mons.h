@@ -1,4 +1,4 @@
-const struct BattleTowerPokemonTemplate gBattleTowerLevel50Mons[] =
+const struct BattleTowerPokemonTemplate gBattleTowerLevel50Mons_Compiled[] =
 {
 	{
 		.species = SPECIES_PIKACHU,

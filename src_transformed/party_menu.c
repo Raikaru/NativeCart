@@ -35,6 +35,7 @@
 #include "new_menu_helpers.h"
 #include "metatile_behavior.h"
 #include "overworld.h"
+#include "map_header_scalars_access.h"
 #include "party_menu.h"
 #include "player_pc.h"
 #include "pokedex.h"
@@ -427,6 +428,10 @@ ALIGNED(4) EWRAM_DATA u8 gBattlePartyCurrentOrder[PARTY_SIZE / 2] = {0}; // bits
 COMMON_DATA void (*gItemUseCB)(u8, TaskFunc) = NULL;
 
 #include "data/pokemon/tutor_learnsets.h"
+#ifdef PORTABLE
+#define sTutorMoves ((gTutorMovesActive) != NULL ? (gTutorMovesActive) : (sTutorMoves_Compiled))
+#define sTutorLearnsets ((gTutorLearnsetsActive) != NULL ? (gTutorLearnsetsActive) : (sTutorLearnsets_Compiled))
+#endif
 #include "data/party_menu.h"
 
 void InitPartyMenu(u8 menuType, u8 layout, u8 partyAction, bool8 keepCursorPos, u8 messageId, TaskFunc task, MainCallback callback)
@@ -4140,7 +4145,13 @@ static void SetUsedFieldMoveQuestLogEvent(struct Pokemon *mon, u8 fieldMove)
     switch (data->fieldMove)
     {
     case FIELD_MOVE_TELEPORT:
-        data->mapSec = Overworld_GetMapHeaderByGroupAndId(gSaveBlock1Ptr->lastHealLocation.mapGroup, gSaveBlock1Ptr->lastHealLocation.mapNum)->regionMapSectionId;
+        {
+            const struct MapHeader *h = Overworld_GetMapHeaderByGroupAndId(gSaveBlock1Ptr->lastHealLocation.mapGroup,
+                gSaveBlock1Ptr->lastHealLocation.mapNum);
+
+            data->mapSec = FireredRomMapHeaderScalarsRegionMapSec((u16)(u8)gSaveBlock1Ptr->lastHealLocation.mapGroup,
+                (u16)(u8)gSaveBlock1Ptr->lastHealLocation.mapNum, h->regionMapSectionId);
+        }
         break;
     case FIELD_MOVE_DIG:
         data->mapSec = gMapHeader.regionMapSectionId;
@@ -4166,12 +4177,11 @@ void SetUsedFlyQuestLogEvent(const u8 *healLocCtrlData)
     map->group = healLocCtrlData[0];
     map->num = healLocCtrlData[1];
     mapHeader = Overworld_GetMapHeaderByGroupAndId(map->group, map->num);
-    Free(map);
-
     data = Alloc(sizeof(*data));
     data->species = GetMonData(&gPlayerParty[GetCursorSelectionMonId()], MON_DATA_SPECIES_OR_EGG);
     data->fieldMove = FIELD_MOVE_FLY;
-    data->mapSec = mapHeader->regionMapSectionId;
+    data->mapSec = FireredRomMapHeaderScalarsRegionMapSec((u16)(u8)map->group, (u16)(u8)map->num, mapHeader->regionMapSectionId);
+    Free(map);
     SetQuestLogEvent(QL_EVENT_USED_FIELD_MOVE, (const u16 *)data);
     Free(data);
 }

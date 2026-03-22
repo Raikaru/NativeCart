@@ -12,6 +12,11 @@
 #include "constants/battle_anim.h"
 #include <stdint.h>
 
+#ifdef PORTABLE
+#include "data.h"
+#include "portable/firered_portable_rom_battle_anims_general_table.h"
+#endif
+
 /*
     This file handles the commands for the macros defined in
     battle_anim_script.inc and used in battle_anim_scripts.s
@@ -236,7 +241,21 @@ void LaunchBattleAnimation(const u8 *const animsTable[], u16 tableId, bool8 isMo
 
     sMonAnimTaskIdArray[0] = TASK_NONE;
     sMonAnimTaskIdArray[1] = TASK_NONE;
-    sBattleAnimScriptPtr = animsTable[tableId];
+#ifdef PORTABLE
+    if (animsTable == gBattleAnims_General)
+    {
+        const u8 *romScript = firered_portable_rom_battle_anim_general_script_ptr(tableId);
+
+        if (romScript != NULL)
+            sBattleAnimScriptPtr = romScript;
+        else
+            sBattleAnimScriptPtr = animsTable[tableId];
+    }
+    else
+#endif
+    {
+        sBattleAnimScriptPtr = animsTable[tableId];
+    }
     gAnimScriptActive = TRUE;
     sAnimFramesToWait = 0;
     gAnimScriptCallback = RunAnimScriptCommand;

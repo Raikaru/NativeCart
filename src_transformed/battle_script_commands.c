@@ -36,9 +36,11 @@
 #include "constants/abilities.h"
 #include "constants/pokemon.h"
 #include "constants/maps.h"
+#include "constants/nature_power_moves.h"
 
 #ifdef PORTABLE
 #include "portable_generated/battle_script_commands_portable_nullfix.h"
+#include "portable/firered_portable_rom_battle_terrain_tables.h"
 #endif
 
 extern const u8 *const gBattleScriptsForMoveEffects[];
@@ -739,7 +741,7 @@ static const u8 sFlailHpScaleToPowerTable[] =
     48, 20
 };
 
-static const u16 sNaturePowerMoves[] =
+static const u16 sNaturePowerMoves_Compiled[NATURE_POWER_MOVES_ROW_COUNT] =
 {
     [BATTLE_TERRAIN_GRASS]      = MOVE_STUN_SPORE,
     [BATTLE_TERRAIN_LONG_GRASS] = MOVE_RAZOR_LEAF,
@@ -791,7 +793,7 @@ static const struct PickupItem sPickupItems[] =
 
 };
 
-static const u8 sTerrainToType[] =
+static const u8 sTerrainToType_Compiled[NATURE_POWER_MOVES_ROW_COUNT] =
 {
     [BATTLE_TERRAIN_GRASS]      = TYPE_GRASS,
     [BATTLE_TERRAIN_LONG_GRASS] = TYPE_GRASS,
@@ -804,6 +806,25 @@ static const u8 sTerrainToType[] =
     [BATTLE_TERRAIN_BUILDING]   = TYPE_NORMAL,
     [BATTLE_TERRAIN_PLAIN]      = TYPE_NORMAL,
 };
+
+#ifdef PORTABLE
+static const u16 *NaturePowerMovesSelectTable(void)
+{
+    const u16 *rom = firered_portable_rom_battle_terrain_nature_power_moves();
+
+    return (rom != NULL) ? rom : sNaturePowerMoves_Compiled;
+}
+
+static const u8 *TerrainToTypeSelectTable(void)
+{
+    const u8 *rom = firered_portable_rom_battle_terrain_to_type();
+
+    return (rom != NULL) ? rom : sTerrainToType_Compiled;
+}
+#else
+#define NaturePowerMovesSelectTable() sNaturePowerMoves_Compiled
+#define TerrainToTypeSelectTable() sTerrainToType_Compiled
+#endif
 
 // - ITEM_ULTRA_BALL skips Master Ball and ITEM_NONE
 static const u8 sBallCatchBonuses[] =
@@ -8719,7 +8740,7 @@ static void Cmd_setcharge(void)
 static void Cmd_callterrainattack(void)
 {
     gHitMarker &= ~HITMARKER_ATTACKSTRING_PRINTED;
-    gCurrentMove = sNaturePowerMoves[gBattleTerrain];
+    gCurrentMove = NaturePowerMovesSelectTable()[gBattleTerrain];
     gBattlerTarget = GetMoveTarget(gCurrentMove, NO_TARGET_OVERRIDE);
     BattleScriptPush(gBattleScriptsForMoveEffects[gBattleMoves[gCurrentMove].effect]);
     gBattlescriptCurrInstr++;
@@ -9389,10 +9410,10 @@ static void Cmd_tryrecycleitem(void)
 
 static void Cmd_settypetoterrain(void)
 {
-    if (!IS_BATTLER_OF_TYPE(gBattlerAttacker, sTerrainToType[gBattleTerrain]))
+    if (!IS_BATTLER_OF_TYPE(gBattlerAttacker, TerrainToTypeSelectTable()[gBattleTerrain]))
     {
-        SET_BATTLER_TYPE(gBattlerAttacker, sTerrainToType[gBattleTerrain]);
-        PREPARE_TYPE_BUFFER(gBattleTextBuff1, sTerrainToType[gBattleTerrain]);
+        SET_BATTLER_TYPE(gBattlerAttacker, TerrainToTypeSelectTable()[gBattleTerrain]);
+        PREPARE_TYPE_BUFFER(gBattleTextBuff1, TerrainToTypeSelectTable()[gBattleTerrain]);
 
         gBattlescriptCurrInstr += 5;
     }

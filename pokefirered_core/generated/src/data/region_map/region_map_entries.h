@@ -1,7 +1,9 @@
 #ifndef GUARD_DATA_REGION_MAP_REGION_MAP_ENTRIES_H
 #define GUARD_DATA_REGION_MAP_REGION_MAP_ENTRIES_H
 
-static const u8 *const sMapNames[] = {
+#include "constants/region_map_mapsec_names.h"
+
+const u8 *const gRegionMapMapsecNames_Compiled[REGION_MAP_MAPSEC_NAME_ENTRY_COUNT] = {
     [MAPSEC_PALLET_TOWN - KANTO_MAPSEC_START] = sMapsecName_PALLET_TOWN,
     [MAPSEC_VIRIDIAN_CITY - KANTO_MAPSEC_START] = sMapsecName_VIRIDIAN_CITY,
     [MAPSEC_PEWTER_CITY - KANTO_MAPSEC_START] = sMapsecName_PEWTER_CITY,
@@ -113,7 +115,7 @@ static const u8 *const sMapNames[] = {
     [MAPSEC_SPECIAL_AREA - KANTO_MAPSEC_START] = sMapsecName_CELADON_DEPT_,
 };
 
-static const u16 sMapSectionTopLeftCorners[MAPSEC_COUNT][2] = {
+static const u16 sMapSectionTopLeftCorners_Compiled[MAPSEC_COUNT][2] = {
     [MAPSEC_PALLET_TOWN - KANTO_MAPSEC_START] = { 4, 11 },
     [MAPSEC_VIRIDIAN_CITY - KANTO_MAPSEC_START] = { 4, 8 },
     [MAPSEC_PEWTER_CITY - KANTO_MAPSEC_START] = { 4, 4 },
@@ -225,7 +227,7 @@ static const u16 sMapSectionTopLeftCorners[MAPSEC_COUNT][2] = {
     [MAPSEC_SPECIAL_AREA - KANTO_MAPSEC_START] = { 0, 0 },
 };
 
-static const u16 sMapSectionDimensions[MAPSEC_COUNT][2] = {
+static const u16 sMapSectionDimensions_Compiled[MAPSEC_COUNT][2] = {
     [MAPSEC_PALLET_TOWN - KANTO_MAPSEC_START] = { 1, 1 },
     [MAPSEC_VIRIDIAN_CITY - KANTO_MAPSEC_START] = { 1, 1 },
     [MAPSEC_PEWTER_CITY - KANTO_MAPSEC_START] = { 1, 1 },

@@ -1,3 +1,4 @@
-# First non-empty, non-comment line: path to .bps relative to this file's directory.
-# Example:
+# First non-empty, non-comment line: path to a .bps or .ups relative to this file's directory.
+# Examples:
 # patches/my_hack.bps
+# patches/my_hack.ups

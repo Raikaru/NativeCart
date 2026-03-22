@@ -1,7 +1,7 @@
 # SDL Shell
 
-This directory contains a standalone SDL shell for the generic engine/core +
-`cores/firered/` runtime path.
+This directory contains the **canonical** SDL/native shell for the generic
+`engine/core/` + `cores/firered/` runtime path — the **only** supported portable host.
 
 Current scope:
 
@@ -26,8 +26,6 @@ Current scope:
 - `Esc` = quit
 
 ## Build
-
-This shell is not part of the default Godot build.
 
 Build it from this directory with SCons:
 
@@ -60,8 +58,8 @@ The default Windows paths assume an SDL3 install where headers live under
 `.../include`, libraries live under `.../lib`, and the runtime DLL lives under
 `.../bin`.
 
-SDL-specific intermediates now live under `build/sdl/` so SDL and Godot builds do
-not wipe each other's archives/objects.
+SDL-specific intermediates live under `build/sdl/` (separate from the top-level
+`build/` outputs such as `runtime_progress_runner`).
 
 ## Run
 
@@ -70,6 +68,19 @@ build/decomp_engine_sdl.exe baserom.gba
 ```
 
 Optional second argument sets the state file path.
+
+## In-game save file (battery flash image)
+
+Portable builds persist the 128 KiB flash image as `firered_save.sav`.
+
+- **Default location:** per-user app data under a neutral folder `FireRedPortable`,
+  e.g. on Windows `%APPDATA%\FireRedPortable\firered_save.sav`.
+- **Older saves** outside `FireRedPortable` can be used by setting
+  `FIRERED_PORTABLE_FLASH_PATH`, or by copying/renaming the `.sav` into the
+  default folder.
+- **Overrides (optional):**
+  - `FIRERED_PORTABLE_FLASH_PATH` — full path to the `.sav` file.
+  - `FIRERED_SAVE_DIR` — directory containing `firered_save.sav`.
 
 ## Debugging Notes
 

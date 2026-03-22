@@ -16,6 +16,12 @@
 
 #define PORTABLE_FLASH_FILE_NAME "firered_save.sav"
 #define PORTABLE_FLASH_PATH_SIZE 1024
+/* Full path to the 128 KiB flash image; highest priority. */
+#define PORTABLE_FLASH_ENV_PATH "FIRERED_PORTABLE_FLASH_PATH"
+/* Directory containing firered_save.sav (optional; used if FIRERED_PORTABLE_FLASH_PATH unset). */
+#define PORTABLE_FLASH_ENV_DIR "FIRERED_SAVE_DIR"
+/* Neutral per-user app folder. */
+#define PORTABLE_FLASH_APP_FOLDER "FireRedPortable"
 
 COMMON_DATA u8 gFlashTimeoutFlag = 0;
 COMMON_DATA u8 (*PollFlashStatus)(u8 *) = NULL;
@@ -33,6 +39,7 @@ static u8 sPortableFlashBank = 0;
 static u8 sPortableFlashData[FLASH_ROM_SIZE_1M];
 
 static void PortableFlash_Load(void);
+void PortableFlash_Flush(void);
 
 #ifdef PORTABLE
 static int s_portable_flash_io_batch_depth;
@@ -62,29 +69,49 @@ static void PortableFlash_Reset(void)
     memset(sPortableFlashData, 0xFF, sizeof(sPortableFlashData));
 }
 
-static void PortableFlash_GetPath(char *path, size_t pathSize)
+/* Primary path: env overrides, then neutral app-data layout. All writes go here. */
+static void PortableFlash_GetPrimaryPath(char *path, size_t pathSize)
 {
+    const char *override;
     const char *base;
+
+    override = getenv(PORTABLE_FLASH_ENV_PATH);
+    if (override != NULL && override[0] != '\0')
+    {
+        snprintf(path, pathSize, "%s", override);
+        return;
+    }
+
+    override = getenv(PORTABLE_FLASH_ENV_DIR);
+    if (override != NULL && override[0] != '\0')
+    {
+#ifdef _WIN32
+        snprintf(path, pathSize, "%s\\%s", override, PORTABLE_FLASH_FILE_NAME);
+#else
+        snprintf(path, pathSize, "%s/%s", override, PORTABLE_FLASH_FILE_NAME);
+#endif
+        return;
+    }
 
 #ifdef _WIN32
     base = getenv("APPDATA");
     if (base != NULL && base[0] != '\0')
     {
-        snprintf(path, pathSize, "%s\\Godot\\app_userdata\\GodotFireRed\\%s", base, PORTABLE_FLASH_FILE_NAME);
+        snprintf(path, pathSize, "%s\\%s\\%s", base, PORTABLE_FLASH_APP_FOLDER, PORTABLE_FLASH_FILE_NAME);
         return;
     }
 #elif defined(__APPLE__)
     base = getenv("HOME");
     if (base != NULL && base[0] != '\0')
     {
-        snprintf(path, pathSize, "%s/Library/Application Support/Godot/app_userdata/GodotFireRed/%s", base, PORTABLE_FLASH_FILE_NAME);
+        snprintf(path, pathSize, "%s/Library/Application Support/%s/%s", base, PORTABLE_FLASH_APP_FOLDER, PORTABLE_FLASH_FILE_NAME);
         return;
     }
 #else
     base = getenv("HOME");
     if (base != NULL && base[0] != '\0')
     {
-        snprintf(path, pathSize, "%s/.local/share/godot/app_userdata/GodotFireRed/%s", base, PORTABLE_FLASH_FILE_NAME);
+        snprintf(path, pathSize, "%s/.local/share/%s/%s", base, PORTABLE_FLASH_APP_FOLDER, PORTABLE_FLASH_FILE_NAME);
         return;
     }
 #endif
@@ -102,7 +129,7 @@ static void PortableFlash_Load(void)
         return;
 
     PortableFlash_Reset();
-    PortableFlash_GetPath(path, sizeof(path));
+    PortableFlash_GetPrimaryPath(path, sizeof(path));
     file = fopen(path, "rb");
     if (file != NULL)
     {
@@ -154,7 +181,7 @@ void PortableFlash_Flush(void)
     FILE *file;
 
     PortableFlash_Load();
-    PortableFlash_GetPath(path, sizeof(path));
+    PortableFlash_GetPrimaryPath(path, sizeof(path));
     PortableFlash_EnsureParentDirExists(path);
     file = fopen(path, "wb");
     if (file != NULL)

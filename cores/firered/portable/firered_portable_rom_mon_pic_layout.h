@@ -1,0 +1,6 @@
+#ifndef GUARD_FIRERED_PORTABLE_ROM_MON_PIC_LAYOUT_H
+#define GUARD_FIRERED_PORTABLE_ROM_MON_PIC_LAYOUT_H
+
+void firered_portable_rom_mon_pic_layout_refresh_after_rom_load(void);
+
+#endif /* GUARD_FIRERED_PORTABLE_ROM_MON_PIC_LAYOUT_H */

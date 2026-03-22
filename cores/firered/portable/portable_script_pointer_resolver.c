@@ -1,6 +1,13 @@
 #include "global.h"
 #include "../../../engine/core/engine_internal.h"
 
+#include "portable/firered_portable_rom_battle_ai_fragment_prefix.h"
+#include "portable/firered_portable_rom_event_script_pointer_overlay.h"
+#include "portable/firered_portable_rom_map_object_event_script_pointer_overlay.h"
+#include "portable/firered_portable_rom_battle_script_pointer_overlay.h"
+#include "portable/firered_portable_rom_field_effect_pointer_overlay.h"
+#include "portable/firered_portable_rom_battle_anim_pointer_overlay.h"
+
 #include <string.h>
 
 #define FIRERED_PORTABLE_PTR_TOKEN_BASE_BATTLE 0x80000000u
@@ -225,7 +232,16 @@ const void *firered_portable_resolve_script_ptr(uint32_t value)
         uint32_t tokenIndex = value - FIRERED_PORTABLE_PTR_TOKEN_BASE_MAP_OBJECT;
 
         if (tokenIndex < gFireredPortableMapObjectEventScriptPtrCount)
-            return gFireredPortableMapObjectEventScriptPtrs[tokenIndex];
+        {
+            const void *ptr;
+
+            ptr = NULL;
+            if (tokenIndex >= FIRERED_PORTABLE_MAP_OBJECT_EVENT_SCRIPT_ROM_OVERLAY_FIRST_INDEX)
+                ptr = (const void *)firered_portable_rom_map_object_event_script_pointer_overlay_ptr(tokenIndex);
+            if (ptr == NULL)
+                ptr = gFireredPortableMapObjectEventScriptPtrs[tokenIndex];
+            return ptr;
+        }
         return NULL;
     }
 
@@ -233,7 +249,16 @@ const void *firered_portable_resolve_script_ptr(uint32_t value)
     {
         uint32_t tokenIndex = value - FIRERED_PORTABLE_PTR_TOKEN_BASE_BATTLE_ANIM;
         if (tokenIndex < gFireredPortableBattleAnimPtrCount)
-            return gFireredPortableBattleAnimPtrs[tokenIndex];
+        {
+            const void *ptr;
+
+            ptr = NULL;
+            if (tokenIndex >= FIRERED_PORTABLE_BATTLE_ANIM_ROM_OVERLAY_FIRST_INDEX)
+                ptr = (const void *)firered_portable_rom_battle_anim_pointer_overlay_ptr(tokenIndex);
+            if (ptr == NULL)
+                ptr = gFireredPortableBattleAnimPtrs[tokenIndex];
+            return ptr;
+        }
         return NULL;
     }
 
@@ -241,7 +266,14 @@ const void *firered_portable_resolve_script_ptr(uint32_t value)
     {
         uint32_t tokenIndex = value - FIRERED_PORTABLE_PTR_TOKEN_BASE_BATTLE_AI;
         if (tokenIndex < gFireredPortableBattleAiPtrCount)
-            return firered_portable_fix_battle_ai_ptr(gFireredPortableBattleAiPtrs[tokenIndex]);
+        {
+            const void *ptr;
+
+            ptr = (const void *)firered_portable_rom_battle_ai_fragment_prefix_ptr(tokenIndex);
+            if (ptr == NULL)
+                ptr = gFireredPortableBattleAiPtrs[tokenIndex];
+            return firered_portable_fix_battle_ai_ptr(ptr);
+        }
         return NULL;
     }
 
@@ -249,7 +281,16 @@ const void *firered_portable_resolve_script_ptr(uint32_t value)
     {
         uint32_t tokenIndex = value - FIRERED_PORTABLE_PTR_TOKEN_BASE_FIELD_EFFECT;
         if (tokenIndex < gFireredPortableFieldEffectScriptPtrCount)
-            return gFireredPortableFieldEffectScriptPtrs[tokenIndex];
+        {
+            const void *ptr;
+
+            ptr = NULL;
+            if (tokenIndex >= FIRERED_PORTABLE_FIELD_EFFECT_ROM_OVERLAY_FIRST_INDEX)
+                ptr = (const void *)firered_portable_rom_field_effect_pointer_overlay_ptr(tokenIndex);
+            if (ptr == NULL)
+                ptr = gFireredPortableFieldEffectScriptPtrs[tokenIndex];
+            return ptr;
+        }
         return NULL;
     }
 
@@ -257,7 +298,16 @@ const void *firered_portable_resolve_script_ptr(uint32_t value)
     {
         uint32_t tokenIndex = value - FIRERED_PORTABLE_PTR_TOKEN_BASE_EVENT;
         if (tokenIndex < gFireredPortableEventScriptPtrCount)
-            return gFireredPortableEventScriptPtrs[tokenIndex];
+        {
+            const void *ptr;
+
+            ptr = NULL;
+            if (tokenIndex >= FIRERED_PORTABLE_EVENT_SCRIPT_ROM_OVERLAY_FIRST_INDEX)
+                ptr = (const void *)firered_portable_rom_event_script_pointer_overlay_ptr(tokenIndex);
+            if (ptr == NULL)
+                ptr = gFireredPortableEventScriptPtrs[tokenIndex];
+            return ptr;
+        }
         return NULL;
     }
 
@@ -265,7 +315,16 @@ const void *firered_portable_resolve_script_ptr(uint32_t value)
     {
         uint32_t tokenIndex = value - FIRERED_PORTABLE_PTR_TOKEN_BASE_BATTLE;
         if (tokenIndex < gFireredPortableBattleScriptPtrCount)
-            return gFireredPortableBattleScriptPtrs[tokenIndex];
+        {
+            const void *ptr;
+
+            ptr = NULL;
+            if (tokenIndex >= FIRERED_PORTABLE_BATTLE_SCRIPT_ROM_OVERLAY_FIRST_INDEX)
+                ptr = (const void *)firered_portable_rom_battle_script_pointer_overlay_ptr(tokenIndex);
+            if (ptr == NULL)
+                ptr = gFireredPortableBattleScriptPtrs[tokenIndex];
+            return ptr;
+        }
         return NULL;
     }
 

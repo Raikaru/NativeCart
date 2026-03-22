@@ -48,6 +48,7 @@
 #include "trainer_pokemon_sprites.h"
 #include "vs_seeker.h"
 #include "wild_encounter.h"
+#include "map_header_scalars_access.h"
 #include "constants/cable_club.h"
 #include "constants/event_objects.h"
 #include "constants/maps.h"
@@ -593,6 +594,8 @@ static void LoadCurrentMapData(void)
     gMapHeader = *Overworld_GetMapHeaderByGroupAndId(gSaveBlock1Ptr->location.mapGroup, gSaveBlock1Ptr->location.mapNum);
 #ifdef PORTABLE
     gMapHeader.events = ResolveRomPointer(gMapHeader.events);
+    firered_portable_rom_map_header_scalars_merge(&gMapHeader, (u16)(u8)gSaveBlock1Ptr->location.mapGroup,
+        (u16)(u8)gSaveBlock1Ptr->location.mapNum);
 #endif
     gSaveBlock1Ptr->mapLayoutId = gMapHeader.mapLayoutId;
     gMapHeader.mapLayout = GetMapLayout();
@@ -603,6 +606,8 @@ static void LoadSaveblockMapHeader(void)
     gMapHeader = *Overworld_GetMapHeaderByGroupAndId(gSaveBlock1Ptr->location.mapGroup, gSaveBlock1Ptr->location.mapNum);
 #ifdef PORTABLE
     gMapHeader.events = ResolveRomPointer(gMapHeader.events);
+    firered_portable_rom_map_header_scalars_merge(&gMapHeader, (u16)(u8)gSaveBlock1Ptr->location.mapGroup,
+        (u16)(u8)gSaveBlock1Ptr->location.mapNum);
 #endif
     gMapHeader.mapLayout = GetMapLayout();
 }
@@ -1042,7 +1047,9 @@ void Overworld_SetWarpDestinationFromWarp(struct WarpData * warp)
 
 static u16 GetLocationMusic(struct WarpData * warp)
 {
-    return Overworld_GetMapHeaderByGroupAndId(warp->mapGroup, warp->mapNum)->music;
+    const struct MapHeader *h = Overworld_GetMapHeaderByGroupAndId(warp->mapGroup, warp->mapNum);
+
+    return FireredRomMapHeaderScalarsMusic((u16)(u8)warp->mapGroup, (u16)(u8)warp->mapNum, h->music);
 }
 
 static u16 GetCurrLocationDefaultMusic(void)
@@ -1254,7 +1261,9 @@ bool32 Overworld_MusicCanOverrideMapMusic(u16 music)
 
 u8 GetMapTypeByGroupAndId(s8 mapGroup, s8 mapNum)
 {
-    return Overworld_GetMapHeaderByGroupAndId(mapGroup, mapNum)->mapType;
+    const struct MapHeader *h = Overworld_GetMapHeaderByGroupAndId(mapGroup, mapNum);
+
+    return FireredRomMapHeaderScalarsMapType((u16)(u8)mapGroup, (u16)(u8)mapNum, h->mapType);
 }
 
 static u8 GetMapTypeByWarpData(struct WarpData *warp)
@@ -1274,7 +1283,10 @@ u8 GetLastUsedWarpMapType(void)
 
 u8 GetLastUsedWarpMapSectionId(void)
 {
-    return Overworld_GetMapHeaderByGroupAndId(gLastUsedWarp.mapGroup, gLastUsedWarp.mapNum)->regionMapSectionId;
+    const struct MapHeader *h = Overworld_GetMapHeaderByGroupAndId(gLastUsedWarp.mapGroup, gLastUsedWarp.mapNum);
+
+    return FireredRomMapHeaderScalarsRegionMapSec((u16)(u8)gLastUsedWarp.mapGroup, (u16)(u8)gLastUsedWarp.mapNum,
+        h->regionMapSectionId);
 }
 
 bool8 IsMapTypeOutdoors(u8 mapType)
@@ -1311,17 +1323,29 @@ bool8 IsMapTypeIndoors(u8 mapType)
 
 static u8 GetSavedWarpRegionMapSectionId(void)
 {
-    return Overworld_GetMapHeaderByGroupAndId(gSaveBlock1Ptr->dynamicWarp.mapGroup, gSaveBlock1Ptr->dynamicWarp.mapNum)->regionMapSectionId;
+    const struct MapHeader *h = Overworld_GetMapHeaderByGroupAndId(gSaveBlock1Ptr->dynamicWarp.mapGroup,
+        gSaveBlock1Ptr->dynamicWarp.mapNum);
+
+    return FireredRomMapHeaderScalarsRegionMapSec((u16)(u8)gSaveBlock1Ptr->dynamicWarp.mapGroup,
+        (u16)(u8)gSaveBlock1Ptr->dynamicWarp.mapNum, h->regionMapSectionId);
 }
 
 u8 GetCurrentRegionMapSectionId(void)
 {
-    return Overworld_GetMapHeaderByGroupAndId(gSaveBlock1Ptr->location.mapGroup, gSaveBlock1Ptr->location.mapNum)->regionMapSectionId;
+    const struct MapHeader *h = Overworld_GetMapHeaderByGroupAndId(gSaveBlock1Ptr->location.mapGroup,
+        gSaveBlock1Ptr->location.mapNum);
+
+    return FireredRomMapHeaderScalarsRegionMapSec((u16)(u8)gSaveBlock1Ptr->location.mapGroup,
+        (u16)(u8)gSaveBlock1Ptr->location.mapNum, h->regionMapSectionId);
 }
 
 u8 GetCurrentMapBattleScene(void)
 {
-    return Overworld_GetMapHeaderByGroupAndId(gSaveBlock1Ptr->location.mapGroup, gSaveBlock1Ptr->location.mapNum)->battleType;
+    const struct MapHeader *h = Overworld_GetMapHeaderByGroupAndId(gSaveBlock1Ptr->location.mapGroup,
+        gSaveBlock1Ptr->location.mapNum);
+
+    return FireredRomMapHeaderScalarsBattleType((u16)(u8)gSaveBlock1Ptr->location.mapGroup,
+        (u16)(u8)gSaveBlock1Ptr->location.mapNum, h->battleType);
 }
 
 static const int sUnusedData[] = {

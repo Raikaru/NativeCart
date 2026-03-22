@@ -7,6 +7,7 @@
 #include "constants/moves.h"
 #include "constants/battle_ai.h"
 #include "constants/trainers.h"
+#include "constants/species.h"
 
 #define BATTLER_OFFSET(i) (gHeap + 0x8000 + MON_PIC_SIZE * (i))
 
@@ -297,6 +298,13 @@ const union AnimCmd *const gAnims_MonPic[] =
 #include "data/trainer_graphics/back_pic_tables.h"
 
 #include "data/pokemon_graphics/enemy_mon_elevation.h"
+
+_Static_assert(sizeof(gMonFrontPicCoords_Compiled) / sizeof(struct MonCoords) == SPECIES_UNOWN_QMARK + 1,
+    "gMonFrontPicCoords_Compiled length vs SPECIES_UNOWN_QMARK");
+_Static_assert(sizeof(gMonBackPicCoords_Compiled) / sizeof(struct MonCoords) == SPECIES_UNOWN_QMARK + 1,
+    "gMonBackPicCoords_Compiled length vs SPECIES_UNOWN_QMARK");
+_Static_assert(sizeof(gEnemyMonElevation_Compiled) / sizeof(u8) == NUM_SPECIES,
+    "gEnemyMonElevation_Compiled length vs NUM_SPECIES");
 
 #include "data/trainer_parties.h"
 #include "data/text/trainer_class_names.h"

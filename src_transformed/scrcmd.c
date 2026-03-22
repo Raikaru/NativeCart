@@ -40,6 +40,24 @@
 
 #ifdef PORTABLE
 #include <stdint.h>
+#include "portable/firered_portable_rom_std_scripts_table.h"
+
+extern const u8 *const gStdScripts[];
+extern const u8 *const gStdScriptsEnd[];
+
+static const u8 *ResolveStdScript(u8 std_idx)
+{
+    const u8 *rom_ptr;
+
+    if (&gStdScripts[std_idx] >= gStdScriptsEnd)
+        return NULL;
+
+    rom_ptr = firered_portable_rom_std_script_ptr(std_idx);
+    if (rom_ptr != NULL)
+        return rom_ptr;
+
+    return gStdScripts[std_idx];
+}
 
 static const void *ResolveScriptOperandPointer(const void *ptr)
 {
@@ -66,8 +84,10 @@ static const void *ResolveScriptOperandPointer(const void *ptr)
 
 extern u16 (*const gSpecials[])(void);
 extern u16 (*const gSpecialsEnd[])(void);
+#ifndef PORTABLE
 extern const u8 *const gStdScripts[];
 extern const u8 *const gStdScriptsEnd[];
+#endif
 
 static bool8 ScriptContext_NextCommandEndsScript(struct ScriptContext * ctx);
 static u8 ScriptContext_GetQuestLogInput(struct ScriptContext * ctx);
@@ -281,18 +301,36 @@ bool8 ScrCmd_vcall_if(struct ScriptContext * ctx)
 bool8 ScrCmd_gotostd(struct ScriptContext * ctx)
 {
     u8 stdIdx = ScriptReadByte(ctx);
+#ifdef PORTABLE
+    {
+        const u8 *scr = ResolveStdScript(stdIdx);
+
+        if (scr != NULL)
+            ScriptJump(ctx, scr);
+    }
+#else
     const u8 *const * script = &gStdScripts[stdIdx];
     if (script < gStdScriptsEnd)
         ScriptJump(ctx, *script);
+#endif
     return FALSE;
 }
 
 bool8 ScrCmd_callstd(struct ScriptContext * ctx)
 {
     u8 stdIdx = ScriptReadByte(ctx);
+#ifdef PORTABLE
+    {
+        const u8 *scr = ResolveStdScript(stdIdx);
+
+        if (scr != NULL)
+            ScriptCall(ctx, scr);
+    }
+#else
     const u8 *const * script = &gStdScripts[stdIdx];
     if (script < gStdScriptsEnd)
         ScriptCall(ctx, *script);
+#endif
     return FALSE;
 }
 
@@ -302,9 +340,16 @@ bool8 ScrCmd_gotostd_if(struct ScriptContext * ctx)
     u8 stdIdx = ScriptReadByte(ctx);
     if (sScriptConditionTable[condition][ctx->comparisonResult] == 1)
     {
+#ifdef PORTABLE
+        const u8 *scr = ResolveStdScript(stdIdx);
+
+        if (scr != NULL)
+            ScriptJump(ctx, scr);
+#else
         const u8 *const * script = gStdScripts + stdIdx;
         if (script < gStdScriptsEnd)
             ScriptJump(ctx, *script);
+#endif
     }
     return FALSE;
 }
@@ -315,9 +360,16 @@ bool8 ScrCmd_callstd_if(struct ScriptContext * ctx)
     u8 stdIdx = ScriptReadByte(ctx);
     if (sScriptConditionTable[condition][ctx->comparisonResult] == 1)
     {
+#ifdef PORTABLE
+        const u8 *scr = ResolveStdScript(stdIdx);
+
+        if (scr != NULL)
+            ScriptCall(ctx, scr);
+#else
         const u8 *const * script = gStdScripts + stdIdx;
         if (script < gStdScriptsEnd)
             ScriptCall(ctx, *script);
+#endif
     }
     return FALSE;
 }

@@ -1,4 +1,4 @@
-const struct MonCoords gMonBackPicCoords[] =
+const struct MonCoords gMonBackPicCoords_Compiled[] =
 {
     [SPECIES_NONE] =
     {

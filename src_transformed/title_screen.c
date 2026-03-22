@@ -19,9 +19,61 @@
 
 #ifdef PORTABLE
 #include "title_screen_portable_assets.h"
+#include "portable/firered_portable_title_screen_rom.h"
 extern void firered_runtime_trace_external(const char *message);
 #include <stdio.h>
 #include "portable_generated/title_screen_portable_nullfix.h"
+
+static const u8 *sTitleRom_GameTitleLogoPals;
+static const u8 *sTitleRom_GameTitleLogoTiles;
+static const u8 *sTitleRom_GameTitleLogoMap;
+static u8 sTitleRom_GameTitleLogoResolved;
+
+static const u8 *sTitleRom_CopyrightPressTiles;
+static const u8 *sTitleRom_CopyrightPressMap;
+static u8 sTitleRom_CopyrightPressResolved;
+
+static void TitleScreen_ResetRomGameTitleLogoBind(void)
+{
+    sTitleRom_GameTitleLogoResolved = FALSE;
+    sTitleRom_GameTitleLogoPals = NULL;
+    sTitleRom_GameTitleLogoTiles = NULL;
+    sTitleRom_GameTitleLogoMap = NULL;
+}
+
+static void TitleScreen_ResetRomCopyrightPressBind(void)
+{
+    sTitleRom_CopyrightPressResolved = FALSE;
+    sTitleRom_CopyrightPressTiles = NULL;
+    sTitleRom_CopyrightPressMap = NULL;
+}
+
+static void TitleScreen_EnsureRomGameTitleLogoBound(void)
+{
+    if (sTitleRom_GameTitleLogoResolved)
+        return;
+    sTitleRom_GameTitleLogoResolved = TRUE;
+    firered_portable_title_screen_try_bind_game_title_logo(
+        &sTitleRom_GameTitleLogoPals,
+        &sTitleRom_GameTitleLogoTiles,
+        &sTitleRom_GameTitleLogoMap);
+}
+
+static void TitleScreen_EnsureRomCopyrightPressBound(void)
+{
+    if (sTitleRom_CopyrightPressResolved)
+        return;
+    sTitleRom_CopyrightPressResolved = TRUE;
+    firered_portable_title_screen_try_bind_copyright_press_start(
+        &sTitleRom_CopyrightPressTiles,
+        &sTitleRom_CopyrightPressMap);
+}
+
+#define TITLE_GT_GAME_LOGO_PALS  (sTitleRom_GameTitleLogoPals ? sTitleRom_GameTitleLogoPals : (const u8 *)gGraphics_TitleScreen_GameTitleLogoPals_Portable)
+#define TITLE_GT_GAME_LOGO_TILES (sTitleRom_GameTitleLogoTiles ? sTitleRom_GameTitleLogoTiles : (const u8 *)gGraphics_TitleScreen_GameTitleLogoTiles_Portable)
+#define TITLE_GT_GAME_LOGO_MAP   (sTitleRom_GameTitleLogoMap ? sTitleRom_GameTitleLogoMap : (const u8 *)gGraphics_TitleScreen_GameTitleLogoMap_Portable)
+#define TITLE_CR_PRESS_TILES (sTitleRom_CopyrightPressTiles ? sTitleRom_CopyrightPressTiles : (const u8 *)gGraphics_TitleScreen_CopyrightPressStartTiles_Portable)
+#define TITLE_CR_PRESS_MAP   (sTitleRom_CopyrightPressMap ? sTitleRom_CopyrightPressMap : (const u8 *)gGraphics_TitleScreen_CopyrightPressStartMap_Portable)
 
 static void TraceTitleScreenState(const char *tag, s16 *data)
 {
@@ -89,9 +141,6 @@ static void DeactivateSlashSprite(u8 spriteId);
 static bool32 IsSlashSpriteDeactivated(u8 spriteId);
 static void SpriteCallback_Slash(struct Sprite *sprite);
 #ifdef PORTABLE
-#define gGraphics_TitleScreen_GameTitleLogoPals gGraphics_TitleScreen_GameTitleLogoPals_Portable
-#define gGraphics_TitleScreen_GameTitleLogoTiles gGraphics_TitleScreen_GameTitleLogoTiles_Portable
-#define gGraphics_TitleScreen_GameTitleLogoMap gGraphics_TitleScreen_GameTitleLogoMap_Portable
 #define gGraphics_TitleScreen_BoxArtMonPals gGraphics_TitleScreen_BoxArtMonPals_Portable
 #define gGraphics_TitleScreen_BoxArtMonTiles gGraphics_TitleScreen_BoxArtMonTiles_Portable
 #define gGraphics_TitleScreen_BoxArtMonMap gGraphics_TitleScreen_BoxArtMonMap_Portable
@@ -376,6 +425,9 @@ void CB2_InitTitleScreen(void)
         gMain.state = 0;
         // fallthrough
     case 0:
+#ifdef PORTABLE
+        TitleScreen_ResetRomGameTitleLogoBind();
+#endif
         SetVBlankCallback(NULL);
         StartTimer1();
         InitHeap(gHeap, HEAP_SIZE);
@@ -393,15 +445,19 @@ void CB2_InitTitleScreen(void)
         sTitleScreenTimerTaskId = TASK_NONE;
         break;
     case 1:
-        LoadPalette(gGraphics_TitleScreen_GameTitleLogoPals, BG_PLTT_ID(0), 13 * PLTT_SIZE_4BPP);
-        DecompressAndCopyTileDataToVram(0, gGraphics_TitleScreen_GameTitleLogoTiles, 0, 0, 0);
-        DecompressAndCopyTileDataToVram(0, gGraphics_TitleScreen_GameTitleLogoMap, 0, 0, 1);
+#ifdef PORTABLE
+        TitleScreen_EnsureRomGameTitleLogoBound();
+        TitleScreen_EnsureRomCopyrightPressBound();
+#endif
+        LoadPalette(TITLE_GT_GAME_LOGO_PALS, BG_PLTT_ID(0), 13 * PLTT_SIZE_4BPP);
+        DecompressAndCopyTileDataToVram(0, TITLE_GT_GAME_LOGO_TILES, 0, 0, 0);
+        DecompressAndCopyTileDataToVram(0, TITLE_GT_GAME_LOGO_MAP, 0, 0, 1);
         LoadPalette(gGraphics_TitleScreen_BoxArtMonPals, BG_PLTT_ID(13), PLTT_SIZE_4BPP);
         DecompressAndCopyTileDataToVram(1, gGraphics_TitleScreen_BoxArtMonTiles, 0, 0, 0);
         DecompressAndCopyTileDataToVram(1, gGraphics_TitleScreen_BoxArtMonMap, 0, 0, 1);
         LoadPalette(gGraphics_TitleScreen_BackgroundPals, BG_PLTT_ID(15), PLTT_SIZE_4BPP);
-        DecompressAndCopyTileDataToVram(2, gGraphics_TitleScreen_CopyrightPressStartTiles, 0, 0, 0);
-        DecompressAndCopyTileDataToVram(2, gGraphics_TitleScreen_CopyrightPressStartMap, 0, 0, 1);
+        DecompressAndCopyTileDataToVram(2, TITLE_CR_PRESS_TILES, 0, 0, 0);
+        DecompressAndCopyTileDataToVram(2, TITLE_CR_PRESS_MAP, 0, 0, 1);
         LoadPalette(gGraphics_TitleScreen_BackgroundPals, BG_PLTT_ID(14), PLTT_SIZE_4BPP);
         DecompressAndCopyTileDataToVram(3, sBorderBgTiles, 0, 0, 0);
         DecompressAndCopyTileDataToVram(3, sBorderBgMap, 0, 0, 1);
@@ -975,13 +1031,16 @@ static void LoadMainTitleScreenPalsAndResetBgs(void)
 {
     u8 taskId;
 
+#ifdef PORTABLE
+    TitleScreen_EnsureRomGameTitleLogoBound();
+#endif
     taskId = FindTaskIdByFunc(Task_TitleScreen_SlideWin0);
     if (taskId != TASK_NONE)
         DestroyTask(taskId);
 
     DestroyBlendPalettesGraduallyTask();
     ResetPaletteFadeControl();
-    LoadPalette(gGraphics_TitleScreen_GameTitleLogoPals, BG_PLTT_ID(0), 13 * PLTT_SIZE_4BPP);
+    LoadPalette(TITLE_GT_GAME_LOGO_PALS, BG_PLTT_ID(0), 13 * PLTT_SIZE_4BPP);
     LoadPalette(gGraphics_TitleScreen_BoxArtMonPals, BG_PLTT_ID(13), PLTT_SIZE_4BPP);
     LoadPalette(gGraphics_TitleScreen_BackgroundPals, BG_PLTT_ID(15), PLTT_SIZE_4BPP);
     LoadPalette(gGraphics_TitleScreen_BackgroundPals, BG_PLTT_ID(14), PLTT_SIZE_4BPP);

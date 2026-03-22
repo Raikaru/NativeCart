@@ -5,6 +5,12 @@
 #include "task.h"
 #include "constants/party_menu.h"
 
+#ifdef PORTABLE
+/* NULL => use compiled tutor tables from tutor_learnsets.h (party_menu.c macros). */
+extern const u16 *gTutorMovesActive;
+extern const u16 *gTutorLearnsetsActive;
+#endif
+
 struct PartyMenu
 {
     MainCallback exitCallback;

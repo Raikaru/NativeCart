@@ -8,6 +8,37 @@
 #include "../../include/pokemon_storage_system.h"
 #include "../../include/gpu_regs.h"
 #include "../../include/script.h"
+#ifdef PORTABLE
+#include "portable/firered_portable_rom_header.h"
+#include "portable/firered_portable_rom_queries.h"
+#include "portable/firered_portable_rom_compat.h"
+#include "portable/firered_portable_rom_species_national_dex.h"
+#include "portable/firered_portable_rom_species_hoenn_dex_tables.h"
+#include "portable/firered_portable_rom_species_cry_id_table.h"
+#include "portable/firered_portable_rom_hm_moves_table.h"
+#include "portable/firered_portable_rom_deoxys_base_stats_table.h"
+#include "portable/firered_portable_rom_experience_tables.h"
+#include "portable/firered_portable_rom_type_effectiveness_table.h"
+#include "portable/firered_portable_rom_species_info_table.h"
+#include "portable/firered_portable_rom_mon_pic_layout.h"
+#include "portable/firered_portable_rom_tmhm_learnsets_table.h"
+#include "portable/firered_portable_rom_evolution_table.h"
+#include "portable/firered_portable_rom_battle_moves_table.h"
+#include "portable/firered_portable_rom_move_names_table.h"
+#include "portable/firered_portable_rom_battle_tower_mon_templates.h"
+#include "portable/firered_portable_rom_battle_terrain_tables.h"
+#include "portable/firered_portable_rom_tutor_tables.h"
+#include "portable/firered_portable_rom_heal_locations_table.h"
+#include "portable/firered_portable_rom_region_map_section_grids.h"
+#include "portable/firered_portable_rom_region_map_section_layout.h"
+#include "portable/firered_portable_rom_region_map_fly_destinations.h"
+#include "portable/firered_portable_rom_region_map_mapsec_names.h"
+#include "../../include/map_layout_metatiles_access.h"
+#include "../../include/map_header_scalars_access.h"
+#include "portable/firered_portable_rom_wild_encounter_family.h"
+#include "portable/firered_portable_rom_egg_moves_table.h"
+#include "portable/firered_portable_rom_level_up_learnsets_family.h"
+#endif
 
 #include <stddef.h>
 #include <stdint.h>
@@ -747,6 +778,35 @@ int engine_backend_init(const uint8_t *rom, size_t rom_size) {
     }
 
 #ifdef PORTABLE
+    firered_portable_sync_rom_header_from_cartridge();
+    firered_portable_rom_queries_invalidate_cache();
+    firered_portable_rom_compat_refresh_after_rom_load();
+    firered_portable_rom_species_national_dex_refresh_after_rom_load();
+    firered_portable_rom_species_hoenn_dex_tables_refresh_after_rom_load();
+    firered_portable_rom_species_cry_id_table_refresh_after_rom_load();
+    firered_portable_rom_hm_moves_table_refresh_after_rom_load();
+    firered_portable_rom_deoxys_base_stats_table_refresh_after_rom_load();
+    firered_portable_rom_experience_tables_refresh_after_rom_load();
+    firered_portable_rom_type_effectiveness_table_refresh_after_rom_load();
+    firered_portable_rom_species_info_table_refresh_after_rom_load();
+    firered_portable_rom_mon_pic_layout_refresh_after_rom_load();
+    firered_portable_rom_tmhm_learnsets_table_refresh_after_rom_load();
+    firered_portable_rom_level_up_learnsets_family_refresh_after_rom_load();
+    firered_portable_rom_egg_moves_table_refresh_after_rom_load();
+    firered_portable_rom_evolution_table_refresh_after_rom_load();
+    firered_portable_rom_battle_moves_table_refresh_after_rom_load();
+    firered_portable_rom_move_names_table_refresh_after_rom_load();
+    firered_portable_rom_battle_tower_mon_templates_refresh_after_rom_load();
+    firered_portable_rom_battle_terrain_tables_refresh_after_rom_load();
+    firered_portable_rom_tutor_tables_refresh_after_rom_load();
+    firered_portable_rom_heal_locations_table_refresh_after_rom_load();
+    firered_portable_rom_region_map_section_grids_refresh_after_rom_load();
+    firered_portable_rom_region_map_section_layout_refresh_after_rom_load();
+    firered_portable_rom_region_map_fly_destinations_refresh_after_rom_load();
+    firered_portable_rom_region_map_mapsec_names_refresh_after_rom_load();
+    firered_portable_rom_map_layout_metatiles_refresh_after_rom_load();
+    firered_portable_rom_map_header_scalars_refresh_after_rom_load();
+    firered_portable_rom_wild_encounter_family_refresh_after_rom_load();
     firered_portable_init_map_object_event_script_words();
 #endif
 

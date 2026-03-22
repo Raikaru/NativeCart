@@ -69,8 +69,8 @@ void SeedRngAndSetTrainerId(void);
 u16 GetGeneratedTrainerIdLower(void);
 
 #define GAME_CODE_LENGTH 4
-extern const char RomHeaderGameCode[GAME_CODE_LENGTH];
-extern const char RomHeaderSoftwareVersion;
+extern char RomHeaderGameCode[GAME_CODE_LENGTH];
+extern char RomHeaderSoftwareVersion;
 
 extern u8 gLinkTransferringData;
 extern u16 gKeyRepeatStartDelay;

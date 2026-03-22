@@ -13,9 +13,9 @@ Windows SDL debug build:
 ```powershell
 cd engine\shells\sdl
 scons -Q platform=windows target=debug -j4 `
-  sdl_include_dir="D:\Godot\SDL3-3.4.2\x86_64-w64-mingw32\include" `
-  sdl_lib_dir="D:\Godot\SDL3-3.4.2\x86_64-w64-mingw32\lib" `
-  sdl_bin_dir="D:\Godot\SDL3-3.4.2\x86_64-w64-mingw32\bin"
+  sdl_include_dir="C:\path\to\SDL3\x86_64-w64-mingw32\include" `
+  sdl_lib_dir="C:\path\to\SDL3\x86_64-w64-mingw32\lib" `
+  sdl_bin_dir="C:\path\to\SDL3\x86_64-w64-mingw32\bin"
 ```
 
 Run:
@@ -25,8 +25,34 @@ build\decomp_engine_sdl.exe pokefirered.gba
 ```
 
 SDL debug should be the first stop for correctness, graphics corruption, and
-native crash reproduction. The Godot shell is still useful as an integration
-target, but SDL is currently the fastest shell for diagnosis.
+native crash reproduction.
+
+### In-game save path (`agb_flash.c`)
+
+Battery-backed flash is stored as `firered_save.sav`. Defaults use a neutral
+per-user folder `FireRedPortable` (see `src_transformed/agb_flash.c`). There is
+no automatic read from legacy editor userdata layouts; point
+`FIRERED_PORTABLE_FLASH_PATH` at an existing file if you need it.
+
+Optional environment variables: `FIRERED_PORTABLE_FLASH_PATH` (full path to the
+`.sav` file), `FIRERED_SAVE_DIR` (directory for `firered_save.sav`).
+
+### Main menu seam (compiled portable path)
+
+The **main menu is not read from the loaded ROM**: it is implemented in
+`src_transformed/main_menu.c` with vanilla FireRed’s three modes only (NEW GAME /
+CONTINUE / MYSTERY GIFT). Patched ROM bytes do not replace this C path.
+
+Optional narrow trace (SDL / debug builds):
+
+```powershell
+$env:FIRERED_TRACE_MAIN_MENU = "1"
+.\build\decomp_engine_sdl.exe pokefirered.gba
+```
+
+Logs menu mode, save status, and a **ROM identity** line (CRC-32 of the full loaded image + game code / version) from `firered_portable_rom_queries`; see `docs/portable_rom_queries.md`.
+
+**ROM hack compatibility profile** (kind / flags / small known-profile table) is built after each load in `firered_portable_rom_compat`; see `docs/portable_rom_compat.md`. Optional trace: `FIRERED_TRACE_ROM_COMPAT=1`.
 
 ## Portable Graphics Failure Modes
 
@@ -106,7 +132,7 @@ Known example:
 - item descriptions generated from `src/data/items.json.txt`
 - emitted portable data in
   `pokefirered_core/generated/src/data/items_portable_data.c`
-- generator logic in `gdextension/tools/generate_portable_item_data.py`
+- generator logic in `tools/portable_generators/generate_portable_item_data.py`
 
 Escapes like `\n` must remain escaped in generated C strings. If the generator
 turns them into literal source newlines too early, the output data is already

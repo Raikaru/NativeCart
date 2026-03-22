@@ -6,6 +6,7 @@
 #include "script.h"
 #include "field_player_avatar.h"
 #include "overworld.h"
+#include "map_header_scalars_access.h"
 #include "field_message_box.h"
 #include "event_data.h"
 #include "strings.h"
@@ -1914,7 +1915,13 @@ void QuestLog_TryRecordDepartedLocation(void)
                 (gSaveBlock1Ptr->location.mapNum == MAP_NUM(MAP_ROUTE22)
               || gSaveBlock1Ptr->location.mapNum == MAP_NUM(MAP_ROUTE23)))
             {
-                data.mapSec = Overworld_GetMapHeaderByGroupAndId(sInsideOutsidePairs[locationId].inside_grp, sInsideOutsidePairs[locationId].inside_num)->regionMapSectionId;
+                {
+                    const struct MapHeader *h = Overworld_GetMapHeaderByGroupAndId(sInsideOutsidePairs[locationId].inside_grp,
+                        sInsideOutsidePairs[locationId].inside_num);
+
+                    data.mapSec = FireredRomMapHeaderScalarsRegionMapSec(sInsideOutsidePairs[locationId].inside_grp,
+                        sInsideOutsidePairs[locationId].inside_num, h->regionMapSectionId);
+                }
                 if (gSaveBlock1Ptr->location.mapNum == MAP_NUM(MAP_ROUTE22))
                     data.locationId = locationId;
                 else
@@ -1927,7 +1934,13 @@ void QuestLog_TryRecordDepartedLocation(void)
         if (gSaveBlock1Ptr->location.mapGroup == sInsideOutsidePairs[locationId].outside_grp
            && gSaveBlock1Ptr->location.mapNum == sInsideOutsidePairs[locationId].outside_num)
         {
-            data.mapSec = Overworld_GetMapHeaderByGroupAndId(sInsideOutsidePairs[locationId].inside_grp, sInsideOutsidePairs[locationId].inside_num)->regionMapSectionId;
+            {
+                const struct MapHeader *h = Overworld_GetMapHeaderByGroupAndId(sInsideOutsidePairs[locationId].inside_grp,
+                    sInsideOutsidePairs[locationId].inside_num);
+
+                data.mapSec = FireredRomMapHeaderScalarsRegionMapSec(sInsideOutsidePairs[locationId].inside_grp,
+                    sInsideOutsidePairs[locationId].inside_num, h->regionMapSectionId);
+            }
             data.locationId = locationId;
             if (locationId == QL_LOCATION_ROCK_TUNNEL_1)
             {

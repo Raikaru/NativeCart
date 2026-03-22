@@ -25,6 +25,20 @@ struct BattleTowerPokemonTemplate
     u8 nature;
 };
 
+extern const struct BattleTowerPokemonTemplate gBattleTowerLevel50Mons_Compiled[];
+extern const struct BattleTowerPokemonTemplate gBattleTowerLevel100Mons_Compiled[];
+
+#ifdef PORTABLE
+/* NULL => use compiled tables (see macros below). Set by ROM refresh. */
+extern const struct BattleTowerPokemonTemplate *gBattleTowerLevel50MonsActive;
+extern const struct BattleTowerPokemonTemplate *gBattleTowerLevel100MonsActive;
+#define gBattleTowerLevel50Mons  ((gBattleTowerLevel50MonsActive) != NULL ? (gBattleTowerLevel50MonsActive) : (gBattleTowerLevel50Mons_Compiled))
+#define gBattleTowerLevel100Mons ((gBattleTowerLevel100MonsActive) != NULL ? (gBattleTowerLevel100MonsActive) : (gBattleTowerLevel100Mons_Compiled))
+#else
+#define gBattleTowerLevel50Mons  gBattleTowerLevel50Mons_Compiled
+#define gBattleTowerLevel100Mons gBattleTowerLevel100Mons_Compiled
+#endif
+
 extern const u16 gBattleTowerBannedSpecies[];
 
 void ClearEReaderTrainer(struct BattleTowerEReaderTrainer *);

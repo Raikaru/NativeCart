@@ -32,7 +32,11 @@
         .noFlip = FALSE,                                               \
     }
 
+#ifdef PORTABLE
+const struct SpeciesInfo gSpeciesInfo_Compiled[] =
+#else
 const struct SpeciesInfo gSpeciesInfo[] =
+#endif
 {
     [SPECIES_NONE] = {0},
     [SPECIES_BULBASAUR] =

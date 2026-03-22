@@ -6,6 +6,11 @@
 #include "constants/songs.h"
 #include "constants/metatile_labels.h"
 
+#ifdef PORTABLE
+static const struct DoorAnimFrame *sPortableDoorTaskFrames;
+static const struct DoorGraphics *sPortableDoorTaskGfx;
+#endif
+
 enum {
     DOOR_SOUND_NORMAL,
     DOOR_SOUND_SLIDING,
@@ -368,10 +373,22 @@ static void BuildDoorTiles(u16 *tiles, u16 tileNum, const u8 *paletteNums)
 static void Task_AnimateDoor(u8 taskId)
 {
     s16 *data = gTasks[taskId].data;
+#ifdef PORTABLE
+    const struct DoorAnimFrame *frames = sPortableDoorTaskFrames;
+    const struct DoorGraphics *gfx = sPortableDoorTaskGfx;
+#else
     const struct DoorAnimFrame *frames = (struct DoorAnimFrame *)((u16)tFramesHi << 16 | (u16)tFramesLo);
     const struct DoorGraphics *gfx = (struct DoorGraphics *)((u16)tGfxHi << 16 | (u16)tGfxLo);
+#endif
+
     if (!AnimateDoorFrame(gfx, frames, data))
+    {
+#ifdef PORTABLE
+        sPortableDoorTaskFrames = NULL;
+        sPortableDoorTaskGfx = NULL;
+#endif
         DestroyTask(taskId);
+    }
 }
 
 static bool32 AnimateDoorFrame(const struct DoorGraphics *gfx, const struct DoorAnimFrame *frames, s16 *data)
@@ -411,15 +428,26 @@ static s8 StartDoorAnimationTask(const struct DoorGraphics *gfx, const struct Do
     if (FuncIsActiveTask(Task_AnimateDoor) == TRUE)
         return -1;
 
+#ifdef PORTABLE
+    sPortableDoorTaskFrames = frames;
+    sPortableDoorTaskGfx = gfx;
+#endif
     taskId = CreateTask(Task_AnimateDoor, 80);
     data = gTasks[taskId].data;
 
     tX = x;
     tY = y;
+#ifndef PORTABLE
     tFramesLo = (uintptr_t)frames;
     tFramesHi = (uintptr_t)frames >> 16;
     tGfxLo = (uintptr_t)gfx;
     tGfxHi = (uintptr_t)gfx >> 16;
+#else
+    tFramesLo = 0;
+    tFramesHi = 0;
+    tGfxLo = 0;
+    tGfxHi = 0;
+#endif
     return taskId;
 }
 

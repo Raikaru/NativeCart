@@ -1,4 +1,8 @@
+#ifdef PORTABLE
+static const u16 sTutorMoves_Compiled[TUTOR_MOVE_COUNT] =
+#else
 static const u16 sTutorMoves[TUTOR_MOVE_COUNT] =
+#endif
 {
     [TUTOR_MOVE_MEGA_PUNCH] = MOVE_MEGA_PUNCH,
     [TUTOR_MOVE_SWORDS_DANCE] = MOVE_SWORDS_DANCE,
@@ -19,7 +23,11 @@ static const u16 sTutorMoves[TUTOR_MOVE_COUNT] =
 
 #define TUTOR(move) (1 << (TUTOR_##move))
 
+#ifdef PORTABLE
+static const u16 sTutorLearnsets_Compiled[NUM_SPECIES] =
+#else
 static const u16 sTutorLearnsets[] =
+#endif
 {
     [SPECIES_NONE] = 0,
 

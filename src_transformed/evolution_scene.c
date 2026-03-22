@@ -31,8 +31,6 @@
 #include "portable_generated/evolution_scene_portable_nullfix.h"
 #endif
 
-extern struct Evolution gEvolutionTable[][EVOS_PER_MON];
-
 struct EvoInfo
 {
     u8 preEvoSpriteId;

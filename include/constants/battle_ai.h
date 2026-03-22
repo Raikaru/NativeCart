@@ -49,4 +49,7 @@
 #define AI_SCRIPT_SAFARI (1 << 30)
 #define AI_SCRIPT_FIRST_BATTLE (1 << 31)
 
+/* Entries in gBattleAI_ScriptsTable[] (pokefirered_core/.../battle_ai_scripts_portable_data.c). */
+#define BATTLE_AI_SCRIPTS_TABLE_COUNT 30
+
 #endif // GUARD_CONSTANTS_BATTLE_AI_H

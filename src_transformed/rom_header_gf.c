@@ -104,7 +104,7 @@ static const struct GFRomHeader sGFRomHeader = {
     .monIconPaletteIds = gMonIconPaletteIndices,
     .monIconPalettes = gMonIconPaletteTable,
     .monSpeciesNames = gSpeciesNames,
-    .moveNames = gMoveNames,
+    .moveNames = gMoveNames_Compiled,
     .decorations = gDecorations,
     .flagsOffset = offsetof(struct SaveBlock1, flags),
     .varsOffset = offsetof(struct SaveBlock1, vars),
@@ -146,11 +146,19 @@ static const struct GFRomHeader sGFRomHeader = {
     .externalEventFlagsOffset = offsetof(struct SaveBlock1, externalEventFlags),
     .externalEventDataOffset = offsetof(struct SaveBlock1, externalEventData),
     .unk18 = 0x00000000,
+#ifdef PORTABLE
+    .speciesInfo = gSpeciesInfo_Compiled,
+#else
     .speciesInfo = gSpeciesInfo,
+#endif
     .abilityNames = gAbilityNames,
     .abilityDescriptions = gAbilityDescriptionPointers,
     .items = gItems,
+#ifdef PORTABLE
+    .moves = gBattleMoves_Compiled,
+#else
     .moves = gBattleMoves,
+#endif
     .ballGfx = gBallSpriteSheets,
     .ballPalettes = gBallSpritePalettes,
     .gcnLinkFlagsOffset = offsetof(struct SaveBlock2, gcnLinkFlags),

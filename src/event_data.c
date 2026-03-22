@@ -3,6 +3,10 @@
 #include "item_menu.h"
 #include "quest_log.h"
 
+#ifdef PORTABLE
+#include "portable/firered_portable_rom_special_vars_table.h"
+#endif
+
 static bool8 IsFlagOrVarStoredInQuestLog(u16 idx, u8 a1);
 
 #define NUM_SPECIAL_FLAGS  (SPECIAL_FLAGS_END - SPECIAL_FLAGS_START + 1)
@@ -210,6 +214,19 @@ u16 *GetVarPointer(u16 idx)
         }
         return &gSaveBlock1Ptr->vars[idx - VARS_START];
     }
+#ifdef PORTABLE
+    {
+        size_t slot = (size_t)idx - SPECIAL_VARS_START;
+
+        if (slot < (size_t)(SPECIAL_VARS_END - SPECIAL_VARS_START + 1u))
+        {
+            u16 *rom_ptr = firered_portable_rom_special_var_ptr((u8)slot);
+
+            if (rom_ptr != NULL)
+                return rom_ptr;
+        }
+    }
+#endif
     return gSpecialVars[idx - SPECIAL_VARS_START];
 }
 

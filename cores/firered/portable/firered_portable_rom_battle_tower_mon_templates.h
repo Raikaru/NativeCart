@@ -1,0 +1,6 @@
+#ifndef GUARD_FIRERED_PORTABLE_ROM_BATTLE_TOWER_MON_TEMPLATES_H
+#define GUARD_FIRERED_PORTABLE_ROM_BATTLE_TOWER_MON_TEMPLATES_H
+
+void firered_portable_rom_battle_tower_mon_templates_refresh_after_rom_load(void);
+
+#endif /* GUARD_FIRERED_PORTABLE_ROM_BATTLE_TOWER_MON_TEMPLATES_H */

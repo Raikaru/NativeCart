@@ -5,6 +5,7 @@
 #include "new_menu_helpers.h"
 #include "quest_log.h"
 #include "fieldmap.h"
+#include "map_layout_metatiles_access.h"
 
 #ifdef PORTABLE
 extern void firered_runtime_trace_external(const char *message);
@@ -55,7 +56,7 @@ static u32 GetAttributeByMetatileIdAndMapLayout(const struct MapLayout *, u16, u
     yprime += 8 * mapLayout->borderHeight;                                                        \
     yprime %= mapLayout->borderHeight;                                                            \
                                                                                                   \
-    block = mapLayout->border[xprime + yprime * mapLayout->borderWidth] | MAPGRID_COLLISION_MASK; \
+    block = MAP_LAYOUT_METATILE_BORDER_PTR(mapLayout)[xprime + yprime * mapLayout->borderWidth] | MAPGRID_COLLISION_MASK; \
 })
 
 #define AreCoordsWithinMapGridBounds(x, y) (x >= 0 && x < VMap.Xsize && y >= 0 && y < VMap.Ysize)
@@ -112,7 +113,7 @@ static void InitMapLayoutData(struct MapHeader * mapHeader)
     VMap.Xsize = mapLayout->width + MAP_OFFSET_W;
     VMap.Ysize = mapLayout->height + MAP_OFFSET_H;
     AGB_ASSERT_EX(VMap.Xsize * VMap.Ysize <= VIRTUAL_MAP_SIZE, ABSPATH("fieldmap.c"), 158);
-    InitBackupMapLayoutData(mapLayout->map, mapLayout->width, mapLayout->height);
+    InitBackupMapLayoutData(MAP_LAYOUT_METATILE_MAP_PTR(mapLayout), mapLayout->width, mapLayout->height);
     InitBackupMapLayoutConnections(mapHeader);
 }
 
@@ -182,7 +183,7 @@ static void FillConnection(s32 x, s32 y, const struct MapHeader *connectedMapHea
     s32 mapWidth;
 
     mapWidth = connectedMapHeader->mapLayout->width;
-    src = &connectedMapHeader->mapLayout->map[mapWidth * y2 + x2];
+    src = &MAP_LAYOUT_METATILE_MAP_PTR(connectedMapHeader->mapLayout)[mapWidth * y2 + x2];
     dest = &VMap.map[VMap.Xsize * y + x];
 
     for (i = 0; i < height; i++)

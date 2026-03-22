@@ -19,6 +19,56 @@
 #include "constants/songs.h"
 
 #ifdef PORTABLE
+#include "portable/firered_portable_rom_queries.h"
+#include "portable/firered_portable_main_menu_pal_rom.h"
+#include "main.h"
+#endif
+
+#ifdef PORTABLE
+#include <stdio.h>
+extern void firered_runtime_trace_external(const char *message);
+#ifndef NDEBUG
+extern char *getenv(const char *name);
+
+static int TraceMainMenuSeamEnabled(void)
+{
+    static int s_init;
+    static int s_on;
+    const char *e;
+
+    if (s_init)
+        return s_on;
+    s_init = 1;
+    e = getenv("FIRERED_TRACE_MAIN_MENU");
+    s_on = (e != NULL && e[0] != '\0' && e[0] != '0');
+    return s_on;
+}
+#else
+static int TraceMainMenuSeamEnabled(void)
+{
+    return 0;
+}
+#endif
+#endif
+
+#ifdef PORTABLE
+static const u16 *sMainMenuRom_BgPal;
+static const u16 *sMainMenuRom_TextboxPal;
+static u8 sMainMenuRom_PalsResolved;
+
+static void MainMenu_EnsureRomPalettesBound(void)
+{
+    if (sMainMenuRom_PalsResolved)
+        return;
+    sMainMenuRom_PalsResolved = TRUE;
+    firered_portable_main_menu_try_bind_palettes(&sMainMenuRom_BgPal, &sMainMenuRom_TextboxPal);
+}
+
+#define MAIN_MENU_BG_PAL_LOAD sMainMenuRom_BgPal ? sMainMenuRom_BgPal : sBg_Pal
+#define MAIN_MENU_TEXTBOX_PAL_LOAD sMainMenuRom_TextboxPal ? sMainMenuRom_TextboxPal : sTextbox_Pal
+#endif
+
+#ifdef PORTABLE
 #include "main_menu_portable_assets.h"
 #define sBg_Pal sBg_Pal_Portable
 #define sTextbox_Pal sTextbox_Pal_Portable
@@ -201,8 +251,14 @@ static bool32 MainMenuGpuInit(u8 a0)
     ChangeBgY(2, 0, 0);
     InitWindows(sWindowTemplate);
     DeactivateAllTextPrinters();
+#ifdef PORTABLE
+    MainMenu_EnsureRomPalettesBound();
+    LoadPalette(MAIN_MENU_BG_PAL_LOAD, BG_PLTT_ID(0), sizeof(sBg_Pal));
+    LoadPalette(MAIN_MENU_TEXTBOX_PAL_LOAD, BG_PLTT_ID(15), sizeof(sTextbox_Pal));
+#else
     LoadPalette(sBg_Pal, BG_PLTT_ID(0), sizeof(sBg_Pal));
     LoadPalette(sTextbox_Pal, BG_PLTT_ID(15), sizeof(sTextbox_Pal));
+#endif
     SetGpuReg(REG_OFFSET_WIN0H, 0);
     SetGpuReg(REG_OFFSET_WIN0V, 0);
     SetGpuReg(REG_OFFSET_WININ, 0);
@@ -215,6 +271,18 @@ static bool32 MainMenuGpuInit(u8 a0)
     taskId = CreateTask(Task_SetWin0BldRegsAndCheckSaveFile, 0);
     gTasks[taskId].tCursorPos = 0;
     gTasks[taskId].tUnused8 = a0;
+#ifdef PORTABLE
+    if (TraceMainMenuSeamEnabled())
+    {
+        char buf[128];
+        snprintf(buf, sizeof(buf),
+                 "MainMenu: seam=compiled_portable crc=0x%08X code=%.4s ver=%u",
+                 (unsigned)firered_portable_rom_crc32_ieee_full(),
+                 RomHeaderGameCode,
+                 (unsigned)(u8)RomHeaderSoftwareVersion);
+        firered_runtime_trace_external(buf);
+    }
+#endif
     return FALSE;
 }
 
@@ -344,6 +412,16 @@ static void Task_WaitFadeAndPrintMainMenuText(u8 taskId)
 static void Task_PrintMainMenuText(u8 taskId)
 {
     u16 pal;
+#ifdef PORTABLE
+    if (TraceMainMenuSeamEnabled())
+    {
+        char buf[96];
+        snprintf(buf, sizeof(buf),
+                 "MainMenu: tMenuType=%d gSaveFileStatus=%d",
+                 (int)gTasks[taskId].tMenuType, (int)gSaveFileStatus);
+        firered_runtime_trace_external(buf);
+    }
+#endif
     SetGpuReg(REG_OFFSET_WIN0H, 0);
     SetGpuReg(REG_OFFSET_WIN0V, 0);
     SetGpuReg(REG_OFFSET_WININ, 0x0001);

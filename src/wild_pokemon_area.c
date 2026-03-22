@@ -2,8 +2,10 @@
 #include "field_specials.h"
 #include "event_data.h"
 #include "wild_encounter.h"
+#include "portable/firered_portable_rom_wild_encounter_family.h"
 #include "roamer.h"
 #include "overworld.h"
+#include "map_header_scalars_access.h"
 #include "pokedex.h"
 #include "pokedex_area_markers.h"
 #include "constants/region_map_sections.h"
@@ -181,16 +183,16 @@ s32 GetSpeciesPokedexAreaMarkers(u16 species, struct Subsprite * subsprites)
     alteringCaveNum = VarGet(VAR_ALTERING_CAVE_WILD_SET);
     if (alteringCaveNum >= NUM_ALTERING_CAVE_TABLES)
         alteringCaveNum = 0;
-    for (i = 0, areaCount = 0; gWildMonHeaders[i].mapGroup != MAP_GROUP(MAP_UNDEFINED); i++)
+    for (i = 0, areaCount = 0; FireredWildMonHeadersTable()[i].mapGroup != MAP_GROUP(MAP_UNDEFINED); i++)
     {
-        mapSecId = GetMapSecIdFromWildMonHeader(&gWildMonHeaders[i]);
+        mapSecId = GetMapSecIdFromWildMonHeader(&FireredWildMonHeadersTable()[i]);
         if (mapSecId == MAPSEC_ALTERING_CAVE)
         {
             alteringCaveCount++;
             if (alteringCaveNum != alteringCaveCount - 1)
                 continue;
         }
-        if (IsSpeciesOnMap(&gWildMonHeaders[i], species))
+        if (IsSpeciesOnMap(&FireredWildMonHeadersTable()[i], species))
         {
             // Search for all dex areas associated with this MAPSEC.
             // In the vanilla game each MAPSEC only has at most one DEX_AREA.
@@ -295,7 +297,9 @@ static bool32 IsSpeciesInEncounterTable(const struct WildPokemonInfo * info, s32
 
 static u16 GetMapSecIdFromWildMonHeader(const struct WildPokemonHeader * header)
 {
-    return Overworld_GetMapHeaderByGroupAndId(header->mapGroup, header->mapNum)->regionMapSectionId;
+    const struct MapHeader *h = Overworld_GetMapHeaderByGroupAndId(header->mapGroup, header->mapNum);
+
+    return FireredRomMapHeaderScalarsRegionMapSec(header->mapGroup, header->mapNum, h->regionMapSectionId);
 }
 
 // Search a MAPSEC -> DEX_AREA table for the given mapsec.

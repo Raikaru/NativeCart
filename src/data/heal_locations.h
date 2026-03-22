@@ -32,9 +32,16 @@
 #define HEAL_LOCATION_SEVEN_ISLAND 19
 #define HEAL_LOCATION_SIX_ISLAND 20
 
+#ifndef HEAL_LOCATION_COUNT
 #define HEAL_LOCATION_COUNT 20
+#endif
 
-static const struct HealLocation sHealLocations[] = {
+#ifdef PORTABLE
+static const struct HealLocation sHealLocations_Compiled[HEAL_LOCATION_COUNT] =
+#else
+static const struct HealLocation sHealLocations[HEAL_LOCATION_COUNT] =
+#endif
+{
     {MAP_PALLET_TOWN, 6, 8},
     {MAP_VIRIDIAN_CITY, 26, 27},
     {MAP_PEWTER_CITY, 17, 26},
@@ -57,7 +64,12 @@ static const struct HealLocation sHealLocations[] = {
     {MAP_SIX_ISLAND, 11, 12},
 };
 
-static const u16 sWhiteoutRespawnHealCenterMapIdxs[HEAL_LOCATION_COUNT][2] = {
+#ifdef PORTABLE
+static const u16 sWhiteoutRespawnHealCenterMapIdxs_Compiled[HEAL_LOCATION_COUNT][2] =
+#else
+static const u16 sWhiteoutRespawnHealCenterMapIdxs[HEAL_LOCATION_COUNT][2] =
+#endif
+{
     {MAP_GROUP(MAP_PALLET_TOWN_PLAYERS_HOUSE_1F), MAP_NUM(MAP_PALLET_TOWN_PLAYERS_HOUSE_1F)},
     {MAP_GROUP(MAP_VIRIDIAN_CITY_POKEMON_CENTER_1F), MAP_NUM(MAP_VIRIDIAN_CITY_POKEMON_CENTER_1F)},
     {MAP_GROUP(MAP_PEWTER_CITY_POKEMON_CENTER_1F), MAP_NUM(MAP_PEWTER_CITY_POKEMON_CENTER_1F)},
@@ -80,7 +92,12 @@ static const u16 sWhiteoutRespawnHealCenterMapIdxs[HEAL_LOCATION_COUNT][2] = {
     {MAP_GROUP(MAP_SIX_ISLAND_POKEMON_CENTER_1F), MAP_NUM(MAP_SIX_ISLAND_POKEMON_CENTER_1F)},
 };
 
-static const u8 sWhiteoutRespawnHealerNpcIds[HEAL_LOCATION_COUNT] = {
+#ifdef PORTABLE
+static const u8 sWhiteoutRespawnHealerNpcIds_Compiled[HEAL_LOCATION_COUNT] =
+#else
+static const u8 sWhiteoutRespawnHealerNpcIds[HEAL_LOCATION_COUNT] =
+#endif
+{
     LOCALID_MOM,
     LOCALID_VIRIDIAN_NURSE,
     LOCALID_PEWTER_NURSE,
