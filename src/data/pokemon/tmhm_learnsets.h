@@ -4,7 +4,11 @@
 // This table determines which TMs and HMs a species is capable of learning.
 // Each entry is a 64-bit bit array spread across two 32-bit values, with
 // each bit corresponding to a machine.
+#ifdef PORTABLE
+const u32 sTMHMLearnsets_Compiled[NUM_SPECIES][2] =
+#else
 static const u32 sTMHMLearnsets[][2] =
+#endif
 {
     [SPECIES_NONE]        = TMHM_LEARNSET(0),
 

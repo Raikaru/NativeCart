@@ -36,8 +36,6 @@
 
 // Combination of RSE's Day-Care (re-used on Four Island), FRLG's Day-Care, and egg_hatch.c
 
-extern const struct Evolution gEvolutionTable[][EVOS_PER_MON];
-
 struct EggHatchData
 {
     u8 eggSpriteID;
@@ -86,6 +84,7 @@ EWRAM_DATA static u16 sHatchedEggEggMoves[EGG_MOVES_ARRAY_COUNT] = {0};
 EWRAM_DATA static u16 sHatchedEggMotherMoves[4] = {0};
 
 #include "data/pokemon/egg_moves.h"
+#include "portable/firered_portable_rom_egg_moves_table.h"
 
 static const struct WindowTemplate sDaycareLevelMenuWindowTemplate =
 {
@@ -861,9 +860,9 @@ static u8 GetEggMoves(struct Pokemon *pokemon, u16 *eggMoves)
     numEggMoves = 0;
     eggMoveIdx = 0;
     species = GetMonData(pokemon, MON_DATA_SPECIES);
-    for (i = 0; i < NELEMS(gEggMoves) - 1; i++)
+    for (i = 0; i < FireredEggMovesTableWordCount() - 1; i++)
     {
-        if (gEggMoves[i] == species + EGG_MOVES_SPECIES_OFFSET)
+        if (FireredEggMovesTable()[i] == species + EGG_MOVES_SPECIES_OFFSET)
         {
             eggMoveIdx = i + 1;
             break;
@@ -878,7 +877,7 @@ static u8 GetEggMoves(struct Pokemon *pokemon, u16 *eggMoves)
             break;
         }
 
-        eggMoves[i] = gEggMoves[eggMoveIdx + i];
+        eggMoves[i] = FireredEggMovesTable()[eggMoveIdx + i];
         numEggMoves++;
     }
 

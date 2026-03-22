@@ -1,4 +1,8 @@
+#ifdef PORTABLE
+const struct BattleMove gBattleMoves_Compiled[MOVES_COUNT] =
+#else
 const struct BattleMove gBattleMoves[MOVES_COUNT] =
+#endif
 {
     [MOVE_NONE] =
     {

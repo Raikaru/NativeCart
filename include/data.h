@@ -19,13 +19,19 @@ struct MonCoords
 #define GET_MON_COORDS_HEIGHT(size)((size & 0xF) * 8)
 
 extern const u8 gSpeciesNames[][POKEMON_NAME_LENGTH + 1];
-extern const u8 gMoveNames[][MOVE_NAME_LENGTH + 1];
+extern const u8 gMoveNames_Compiled[][MOVE_NAME_LENGTH + 1];
+#ifdef PORTABLE
+const u8 *FireredMoveNamesBytes(void);
+#define gMoveNames ((const u8 (*)[MOVE_NAME_LENGTH + 1])FireredMoveNamesBytes())
+#else
+#define gMoveNames gMoveNames_Compiled
+#endif
 
 extern const u8 gTrainerClassNames[][13];
 
-extern const struct MonCoords gMonFrontPicCoords[];
+extern const struct MonCoords gMonFrontPicCoords_Compiled[];
 extern const struct CompressedSpriteSheet gMonFrontPicTable[];
-extern const struct MonCoords gMonBackPicCoords[];
+extern const struct MonCoords gMonBackPicCoords_Compiled[];
 extern const struct CompressedSpriteSheet gMonBackPicTable[];
 extern const struct CompressedSpritePalette gMonPaletteTable[];
 extern const struct CompressedSpritePalette gMonShinyPaletteTable[];
@@ -41,7 +47,20 @@ extern const struct CompressedSpritePalette gTrainerBackPicPaletteTable[];
 extern const struct CompressedSpriteSheet gSpriteSheet_EnemyShadow;
 extern const struct SpriteTemplate gSpriteTemplate_EnemyShadow;
 
-extern const u8 gEnemyMonElevation[NUM_SPECIES];
+extern const u8 gEnemyMonElevation_Compiled[NUM_SPECIES];
+#ifdef PORTABLE
+/* NULL => use compiled tables (see macros below). */
+extern const struct MonCoords *gMonFrontPicCoordsActive;
+extern const struct MonCoords *gMonBackPicCoordsActive;
+extern const u8 *gEnemyMonElevationActive;
+#define gMonFrontPicCoords  ((gMonFrontPicCoordsActive) != NULL ? (gMonFrontPicCoordsActive) : (gMonFrontPicCoords_Compiled))
+#define gMonBackPicCoords   ((gMonBackPicCoordsActive) != NULL ? (gMonBackPicCoordsActive) : (gMonBackPicCoords_Compiled))
+#define gEnemyMonElevation  ((gEnemyMonElevationActive) != NULL ? (gEnemyMonElevationActive) : (gEnemyMonElevation_Compiled))
+#else
+#define gMonFrontPicCoords  gMonFrontPicCoords_Compiled
+#define gMonBackPicCoords   gMonBackPicCoords_Compiled
+#define gEnemyMonElevation  gEnemyMonElevation_Compiled
+#endif
 
 extern const u8 *const gBattleAnims_General[];
 extern const u8 *const gBattleAnims_Special[];

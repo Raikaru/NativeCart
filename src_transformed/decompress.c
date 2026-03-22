@@ -15,18 +15,38 @@ extern const u32 *GetPortableMonPaletteData(u16 species, bool8 shiny);
 static const u32 *ResolveCompressedSpriteSheetData(const struct CompressedSpriteSheet *src)
 {
     if (src >= gMonFrontPicTable && src <= &gMonFrontPicTable[SPECIES_UNOWN_QMARK])
-        return GetPortableMonPicData(src - gMonFrontPicTable, TRUE);
+    {
+        const u32 *p = GetPortableMonPicData(src - gMonFrontPicTable, TRUE);
+
+        if (p != NULL)
+            return p;
+    }
     if (src >= gMonBackPicTable && src <= &gMonBackPicTable[SPECIES_UNOWN_QMARK])
-        return GetPortableMonPicData(src - gMonBackPicTable, FALSE);
+    {
+        const u32 *p = GetPortableMonPicData(src - gMonBackPicTable, FALSE);
+
+        if (p != NULL)
+            return p;
+    }
     return src->data;
 }
 
 static const u32 *ResolveCompressedSpritePaletteData(const struct CompressedSpritePalette *src)
 {
     if (src >= gMonPaletteTable && src <= &gMonPaletteTable[SPECIES_UNOWN_QMARK])
-        return GetPortableMonPaletteData(src - gMonPaletteTable, FALSE);
+    {
+        const u32 *p = GetPortableMonPaletteData(src - gMonPaletteTable, FALSE);
+
+        if (p != NULL)
+            return p;
+    }
     if (src >= gMonShinyPaletteTable && src <= &gMonShinyPaletteTable[SPECIES_UNOWN_QMARK])
-        return GetPortableMonPaletteData(src - gMonShinyPaletteTable, TRUE);
+    {
+        const u32 *p = GetPortableMonPaletteData(src - gMonShinyPaletteTable, TRUE);
+
+        if (p != NULL)
+            return p;
+    }
     return src->data;
 }
 #else
@@ -59,6 +79,8 @@ u16 LoadCompressedSpriteSheet(const struct CompressedSpriteSheet *src)
     const u32 *data;
 
     data = ResolveCompressedSpriteSheetData(src);
+    if (data == NULL)
+        return 0;
     LZ77UnCompWram(data, gDecompressionBuffer);
     dest.data = gDecompressionBuffer;
     dest.size = src->size;
@@ -72,6 +94,8 @@ void LoadCompressedSpriteSheetOverrideBuffer(const struct CompressedSpriteSheet 
     const u32 *data;
 
     data = ResolveCompressedSpriteSheetData(src);
+    if (data == NULL)
+        return;
     LZ77UnCompWram(data, buffer);
     dest.data = buffer;
     dest.size = src->size;
@@ -85,6 +109,8 @@ void LoadCompressedSpritePalette(const struct CompressedSpritePalette *src)
     const u32 *data;
 
     data = ResolveCompressedSpritePaletteData(src);
+    if (data == NULL)
+        return;
     LZ77UnCompWram(data, gDecompressionBuffer);
     dest.data = (void *) gDecompressionBuffer;
     dest.tag = src->tag;
@@ -97,6 +123,8 @@ void LoadCompressedSpritePaletteOverrideBuffer(const struct CompressedSpritePale
     const u32 *data;
 
     data = ResolveCompressedSpritePaletteData(a);
+    if (data == NULL)
+        return;
     LZ77UnCompWram(data, buffer);
     dest.data = buffer;
     dest.tag = a->tag;
@@ -105,10 +133,14 @@ void LoadCompressedSpritePaletteOverrideBuffer(const struct CompressedSpritePale
 
 void DecompressPicFromTable(const struct CompressedSpriteSheet *src, void *buffer, s32 species)
 {
+    const u32 *sheetData;
+
     if (species > NUM_SPECIES)
-        LZ77UnCompWram(ResolveCompressedSpriteSheetData(&gMonFrontPicTable[0]), buffer);
+        sheetData = ResolveCompressedSpriteSheetData(&gMonFrontPicTable[0]);
     else
-        LZ77UnCompWram(ResolveCompressedSpriteSheetData(src), buffer);
+        sheetData = ResolveCompressedSpriteSheetData(src);
+    if (sheetData != NULL)
+        LZ77UnCompWram(sheetData, buffer);
     DuplicateDeoxysTiles(buffer, species);
 }
 
@@ -125,6 +157,8 @@ void HandleLoadSpecialPokePic(const struct CompressedSpriteSheet *src, void *des
 
 void LoadSpecialPokePic(const struct CompressedSpriteSheet *src, void *dest, s32 species, u32 personality, bool8 isFrontPic)
 {
+    const u32 *sheetData = NULL;
+
     if (species == SPECIES_UNOWN)
     {
         u16 i = (((personality & 0x3000000) >> 18) | ((personality & 0x30000) >> 12) | ((personality & 0x300) >> 6) | (personality & 3)) % 0x1C;
@@ -135,14 +169,17 @@ void LoadSpecialPokePic(const struct CompressedSpriteSheet *src, void *dest, s32
         else
             i += SPECIES_UNOWN_B - 1;
         if (!isFrontPic)
-            LZ77UnCompWram(ResolveCompressedSpriteSheetData(&gMonBackPicTable[i]), dest);
+            sheetData = ResolveCompressedSpriteSheetData(&gMonBackPicTable[i]);
         else
-            LZ77UnCompWram(ResolveCompressedSpriteSheetData(&gMonFrontPicTable[i]), dest);
+            sheetData = ResolveCompressedSpriteSheetData(&gMonFrontPicTable[i]);
     }
     else if (species > NUM_SPECIES) // is species unknown? draw the ? icon
-        LZ77UnCompWram(ResolveCompressedSpriteSheetData(&gMonFrontPicTable[0]), dest);
+        sheetData = ResolveCompressedSpriteSheetData(&gMonFrontPicTable[0]);
     else
-        LZ77UnCompWram(ResolveCompressedSpriteSheetData(src), dest);
+        sheetData = ResolveCompressedSpriteSheetData(src);
+
+    if (sheetData != NULL)
+        LZ77UnCompWram(sheetData, dest);
 
     DuplicateDeoxysTiles(dest, species);
     DrawSpindaSpots(species, personality, dest, isFrontPic);
@@ -308,9 +345,15 @@ bool8 LoadCompressedSpriteSheetUsingHeap(const struct CompressedSpriteSheet* src
     struct SpriteSheet dest;
     const u32 *data;
     void *buffer;
+    u32 decSize;
 
     data = ResolveCompressedSpriteSheetData(src);
-    buffer = AllocZeroed(*data >> 8);
+    if (data == NULL)
+        return TRUE;
+    decSize = *data >> 8;
+    if (((const u8 *)data)[0] != 0x10 || decSize == 0)
+        return TRUE;
+    buffer = AllocZeroed(decSize);
     if (!buffer)
         return TRUE;
     LZ77UnCompWram(data, buffer);
@@ -327,9 +370,15 @@ bool8 LoadCompressedSpritePaletteUsingHeap(const struct CompressedSpritePalette 
     struct SpritePalette dest;
     const u32 *data;
     void *buffer;
+    u32 decSize;
 
     data = ResolveCompressedSpritePaletteData(src);
-    buffer = AllocZeroed(*data >> 8);
+    if (data == NULL)
+        return TRUE;
+    decSize = *data >> 8;
+    if (((const u8 *)data)[0] != 0x10 || decSize == 0)
+        return TRUE;
+    buffer = AllocZeroed(decSize);
     if (!buffer)
         return TRUE;
     LZ77UnCompWram(data, buffer);

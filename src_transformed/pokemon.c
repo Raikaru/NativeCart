@@ -40,7 +40,13 @@
 #ifdef PORTABLE
 #include <stdio.h>
 #include <stddef.h>
+extern char *getenv(const char *name);
 #include "pokemon_graphics_portable_paths.h"
+#include "portable/firered_portable_rom_species_national_dex.h"
+#include "portable/firered_portable_rom_species_hoenn_dex_tables.h"
+#include "portable/firered_portable_rom_species_cry_id_table.h"
+#include "portable/firered_portable_rom_hm_moves_table.h"
+#include "portable/firered_portable_rom_deoxys_base_stats_table.h"
 #undef malloc
 #undef calloc
 #undef free
@@ -80,6 +86,25 @@ static void *LoadPortableMonAssetFile(const char *relativePath)
     long size;
     u32 allocSize;
     u32 i;
+    const char *assetRoot;
+
+    assetRoot = getenv("FIRERED_ASSET_ROOT");
+    if (assetRoot != NULL && assetRoot[0] != '\0')
+    {
+        size_t rl = strlen(assetRoot);
+
+        if (rl + strlen(relativePath) + 2 < sizeof(fullPath))
+        {
+            memcpy(fullPath, assetRoot, rl);
+            if (rl > 0 && (assetRoot[rl - 1] == '/' || assetRoot[rl - 1] == '\\'))
+                snprintf(fullPath + rl, sizeof(fullPath) - rl, "%s", relativePath);
+            else
+                snprintf(fullPath + rl, sizeof(fullPath) - rl, "/%s", relativePath);
+            file = fopen(fullPath, "rb");
+            if (file != NULL)
+                goto read_file;
+        }
+    }
 
     for (i = 0; i < ARRAY_COUNT(sPortableMonAssetPrefixes); i++)
     {
@@ -92,6 +117,7 @@ static void *LoadPortableMonAssetFile(const char *relativePath)
     if (i == ARRAY_COUNT(sPortableMonAssetPrefixes))
         return NULL;
 
+read_file:
     if (fseek(file, 0, SEEK_END) != 0)
     {
         fclose(file);
@@ -134,7 +160,12 @@ static const u32 *GetPortableMonCompressedData(const char *const *pathTable, con
 {
     species = NormalizePortableMonSpecies(species, pathTable);
     if (cache[species] == NULL)
-        cache[species] = LoadPortableMonAssetFile(pathTable[species]);
+    {
+        void *loaded = LoadPortableMonAssetFile(pathTable[species]);
+
+        if (loaded != NULL)
+            cache[species] = loaded;
+    }
     return cache[species];
 }
 
@@ -1525,6 +1556,9 @@ static const s8 sNatureStatTable[NUM_NATURES][NUM_NATURE_STATS] =
 };
 
 #include "data/pokemon/tmhm_learnsets.h"
+#ifdef PORTABLE
+#define sTMHMLearnsets ((gTMHMLearnsetsActive) != NULL ? (gTMHMLearnsetsActive) : (sTMHMLearnsets_Compiled))
+#endif
 #include "data/pokemon/trainer_class_lookups.h"
 #include "data/pokemon/cry_ids.h"
 #include "data/pokemon/experience_tables.h"
@@ -1949,7 +1983,10 @@ void CreateBoxMon(struct BoxPokemon *boxMon, u16 species, u8 level, u8 fixedIV, 
     SetBoxMonData(boxMon, MON_DATA_LANGUAGE, &gGameLanguage);
     SetBoxMonData(boxMon, MON_DATA_OT_NAME, gSaveBlock2Ptr->playerName);
     SetBoxMonData(boxMon, MON_DATA_SPECIES, &species);
-    SetBoxMonData(boxMon, MON_DATA_EXP, &gExperienceTables[gSpeciesInfo[species].growthRate][level]);
+    {
+        u32 expVal = ExperienceTableGet(gSpeciesInfo[species].growthRate, level);
+        SetBoxMonData(boxMon, MON_DATA_EXP, &expVal);
+    }
     SetBoxMonData(boxMon, MON_DATA_FRIENDSHIP, &gSpeciesInfo[species].friendship);
     value = GetCurrentRegionMapSectionId();
     SetBoxMonData(boxMon, MON_DATA_MET_LOCATION, &value);
@@ -2325,7 +2362,7 @@ static u8 GetLevelFromMonExp(struct Pokemon *mon)
     u32 exp = GetMonData(mon, MON_DATA_EXP, NULL);
     s32 level = 1;
 
-    while (level <= MAX_LEVEL && gExperienceTables[gSpeciesInfo[species].growthRate][level] <= exp)
+    while (level <= MAX_LEVEL && ExperienceTableGet(gSpeciesInfo[species].growthRate, level) <= exp)
         level++;
 
     return level - 1;
@@ -2337,7 +2374,7 @@ u8 GetLevelFromBoxMonExp(struct BoxPokemon *boxMon)
     u32 exp = GetBoxMonData(boxMon, MON_DATA_EXP, NULL);
     s32 level = 1;
 
-    while (level <= MAX_LEVEL && gExperienceTables[gSpeciesInfo[species].growthRate][level] <= exp)
+    while (level <= MAX_LEVEL && ExperienceTableGet(gSpeciesInfo[species].growthRate, level) <= exp)
         level++;
 
     return level - 1;
@@ -4305,7 +4342,8 @@ bool8 PokemonUseItemEffects(struct Pokemon *mon, u16 item, u8 partyIndex, u8 mov
             if ((itemEffect[cmdIndex] & ITEM3_LEVEL_UP)
              && GetMonData(mon, MON_DATA_LEVEL, NULL) != MAX_LEVEL)
             {
-                data = gExperienceTables[gSpeciesInfo[GetMonData(mon, MON_DATA_SPECIES, NULL)].growthRate][GetMonData(mon, MON_DATA_LEVEL, NULL) + 1];
+                data = ExperienceTableGet(gSpeciesInfo[GetMonData(mon, MON_DATA_SPECIES, NULL)].growthRate,
+                    GetMonData(mon, MON_DATA_LEVEL, NULL) + 1);
                 SetMonData(mon, MON_DATA_EXP, &data);
                 CalculateMonStats(mon);
                 retVal = FALSE;
@@ -5284,14 +5322,28 @@ u16 GetEvolutionTargetSpecies(struct Pokemon *mon, u8 type, u16 evolutionItem)
 static u16 HoennPokedexNumToSpecies(u16 hoennNum)
 {
     u16 species;
+#ifdef PORTABLE
+    const u16 *rom_tab;
+#endif
 
     if (!hoennNum)
         return 0;
 
     species = 0;
 
-    while (species < NUM_SPECIES - 1 && sSpeciesToHoennPokedexNum[species] != hoennNum)
-        species++;
+#ifdef PORTABLE
+    rom_tab = firered_portable_rom_species_to_hoenn_dex_table();
+    if (rom_tab != NULL)
+    {
+        while (species < NUM_SPECIES - 1 && rom_tab[species] != hoennNum)
+            species++;
+    }
+    else
+#endif
+    {
+        while (species < NUM_SPECIES - 1 && sSpeciesToHoennPokedexNum[species] != hoennNum)
+            species++;
+    }
 
     if (species == NUM_SPECIES - 1)
         return 0;
@@ -5302,14 +5354,28 @@ static u16 HoennPokedexNumToSpecies(u16 hoennNum)
 u16 NationalPokedexNumToSpecies(u16 nationalNum)
 {
     u16 species;
+#ifdef PORTABLE
+    const u16 *rom_tab;
+#endif
 
     if (!nationalNum)
         return 0;
 
     species = 0;
 
-    while (species < NUM_SPECIES - 1 && sSpeciesToNationalPokedexNum[species] != nationalNum)
-        species++;
+#ifdef PORTABLE
+    rom_tab = firered_portable_rom_species_national_dex_table();
+    if (rom_tab != NULL)
+    {
+        while (species < NUM_SPECIES - 1 && rom_tab[species] != nationalNum)
+            species++;
+    }
+    else
+#endif
+    {
+        while (species < NUM_SPECIES - 1 && sSpeciesToNationalPokedexNum[species] != nationalNum)
+            species++;
+    }
 
     if (species == NUM_SPECIES - 1)
         return 0;
@@ -5320,14 +5386,28 @@ u16 NationalPokedexNumToSpecies(u16 nationalNum)
 static u16 NationalToHoennOrder(u16 nationalNum)
 {
     u16 hoennNum;
+#ifdef PORTABLE
+    const u16 *rom_tab;
+#endif
 
     if (!nationalNum)
         return 0;
 
     hoennNum = 0;
 
-    while (hoennNum < NUM_SPECIES - 1 && sHoennToNationalOrder[hoennNum] != nationalNum)
-        hoennNum++;
+#ifdef PORTABLE
+    rom_tab = firered_portable_rom_hoenn_to_national_order_table();
+    if (rom_tab != NULL)
+    {
+        while (hoennNum < NUM_SPECIES - 1 && rom_tab[hoennNum] != nationalNum)
+            hoennNum++;
+    }
+    else
+#endif
+    {
+        while (hoennNum < NUM_SPECIES - 1 && sHoennToNationalOrder[hoennNum] != nationalNum)
+            hoennNum++;
+    }
 
     if (hoennNum == NUM_SPECIES - 1)
         return 0;
@@ -5337,24 +5417,54 @@ static u16 NationalToHoennOrder(u16 nationalNum)
 
 u16 SpeciesToNationalPokedexNum(u16 species)
 {
+#ifdef PORTABLE
+    const u16 *rom_tab;
+#endif
+
     if (!species)
         return 0;
+
+#ifdef PORTABLE
+    rom_tab = firered_portable_rom_species_national_dex_table();
+    if (rom_tab != NULL && species < NUM_SPECIES)
+        return rom_tab[species - 1];
+#endif
 
     return sSpeciesToNationalPokedexNum[species - 1];
 }
 
 static u16 SpeciesToHoennPokedexNum(u16 species)
 {
+#ifdef PORTABLE
+    const u16 *rom_tab;
+#endif
+
     if (!species)
         return 0;
+
+#ifdef PORTABLE
+    rom_tab = firered_portable_rom_species_to_hoenn_dex_table();
+    if (rom_tab != NULL && species < NUM_SPECIES)
+        return rom_tab[species - 1];
+#endif
 
     return sSpeciesToHoennPokedexNum[species - 1];
 }
 
 u16 HoennToNationalOrder(u16 hoennNum)
 {
+#ifdef PORTABLE
+    const u16 *rom_tab;
+#endif
+
     if (!hoennNum)
         return 0;
+
+#ifdef PORTABLE
+    rom_tab = firered_portable_rom_hoenn_to_national_order_table();
+    if (rom_tab != NULL && hoennNum < NUM_SPECIES)
+        return rom_tab[hoennNum - 1];
+#endif
 
     return sHoennToNationalOrder[hoennNum - 1];
 }
@@ -5366,6 +5476,18 @@ u16 SpeciesToCryId(u16 species)
 
     if (species <= SPECIES_OLD_UNOWN_Z - 1)
         return SPECIES_UNOWN - 1;
+
+#ifdef PORTABLE
+    {
+        const u16 *rom_tab;
+        u16 idx;
+
+        rom_tab = firered_portable_rom_species_cry_id_table();
+        idx = (u16)(species - SPECIES_OLD_UNOWN_Z);
+        if (rom_tab != NULL && (size_t)idx < FIRERED_ROM_SPECIES_CRY_ID_TABLE_ENTRY_COUNT)
+            return rom_tab[idx];
+    }
+#endif
 
     return sHoennSpeciesIdToCryId[species - ((SPECIES_OLD_UNOWN_Z + 1) - 1)];
 }
@@ -5811,9 +5933,9 @@ void PartySpreadPokerus(struct Pokemon *party)
 
 static void SetMonExpWithMaxLevelCheck(struct Pokemon *mon, int species, u8 unused, u32 data)
 {
-    if (data > gExperienceTables[gSpeciesInfo[species].growthRate][MAX_LEVEL])
+    if (data > ExperienceTableGet(gSpeciesInfo[species].growthRate, MAX_LEVEL))
     {
-        data = gExperienceTables[gSpeciesInfo[species].growthRate][MAX_LEVEL];
+        data = ExperienceTableGet(gSpeciesInfo[species].growthRate, MAX_LEVEL);
         SetMonData(mon, MON_DATA_EXP, &data);
     }
 }
@@ -5827,7 +5949,7 @@ bool8 TryIncrementMonLevel(struct Pokemon *mon)
 
     if (level < MAX_LEVEL)
     {
-        if (exp > gExperienceTables[gSpeciesInfo[species].growthRate][newLevel])
+        if (exp > ExperienceTableGet(gSpeciesInfo[species].growthRate, newLevel))
         {
             SetMonData(mon, MON_DATA_LEVEL, &newLevel);
             SetMonExpWithMaxLevelCheck(mon, species, newLevel, exp);
@@ -6081,11 +6203,31 @@ const struct CompressedSpritePalette *GetMonSpritePalStructFromOtIdPersonality(u
 
 bool32 IsHMMove2(u16 move)
 {
-    int i = 0;
-    while (sHMMoves[i] != HM_MOVES_END)
+#ifdef PORTABLE
     {
-        if (sHMMoves[i++] == move)
-            return TRUE;
+        const u16 *rom_tab;
+        int i;
+
+        rom_tab = firered_portable_rom_hm_moves_table();
+        if (rom_tab != NULL)
+        {
+            for (i = 0; i < (int)FIRERED_ROM_HM_MOVES_TABLE_U16_COUNT && rom_tab[i] != HM_MOVES_END; i++)
+            {
+                if (rom_tab[i] == move)
+                    return TRUE;
+            }
+            return FALSE;
+        }
+    }
+#endif
+    {
+        int i = 0;
+
+        while (sHMMoves[i] != HM_MOVES_END)
+        {
+            if (sHMMoves[i++] == move)
+                return TRUE;
+        }
     }
     return FALSE;
 }
@@ -6310,7 +6452,21 @@ static u16 GetDeoxysStat(struct Pokemon *mon, s32 statId)
 
     ivVal = GetMonData(mon, MON_DATA_HP_IV + statId, NULL);
     evVal = GetMonData(mon, MON_DATA_HP_EV + statId, NULL);
-    statValue = ((sDeoxysBaseStats[statId] * 2 + ivVal + evVal / 4) * mon->level) / 100 + 5;
+    {
+        u16 baseStat;
+#ifdef PORTABLE
+        const u16 *rom_tab;
+
+        rom_tab = firered_portable_rom_deoxys_base_stats_table();
+        if (rom_tab != NULL && statId >= 0 && (size_t)statId < FIRERED_ROM_DEOXYS_BASE_STATS_TABLE_U16_COUNT)
+            baseStat = rom_tab[statId];
+        else
+            baseStat = sDeoxysBaseStats[statId];
+#else
+        baseStat = sDeoxysBaseStats[statId];
+#endif
+        statValue = ((baseStat * 2 + ivVal + evVal / 4) * mon->level) / 100 + 5;
+    }
     nature = GetNature(mon);
     statValue = ModifyStatByNature(nature, statValue, (u8)statId);
     return statValue;

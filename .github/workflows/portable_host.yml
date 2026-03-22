@@ -1,0 +1,30 @@
+# SDL/native portable host — PR/push merge gate.
+name: Portable host
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+jobs:
+  sdl-linux:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential pkg-config libsdl3-dev
+          python3 -m pip install --user "scons>=4.0"
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      - name: SDL3 paths for SCons
+        run: |
+          echo "SDL3_INCLUDE_DIR=$(pkg-config --variable=includedir sdl3)" >> $GITHUB_ENV
+          echo "SDL3_LIB_DIR=$(pkg-config --variable=libdir sdl3)" >> $GITHUB_ENV
+
+      - name: SDL shell + runtime_progress_runner (debug, Linux)
+        working-directory: engine/shells/sdl
+        run: scons -Q platform=linux target=debug -j$(nproc)

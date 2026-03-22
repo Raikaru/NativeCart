@@ -123,6 +123,7 @@ typedef struct EngineOAMEntry {
 
 int engine_memory_init(const uint8_t *rom, size_t rom_size);
 void engine_memory_shutdown(void);
+size_t engine_memory_get_loaded_rom_size(void);
 
 void engine_backend_input_reset(void);
 void engine_backend_input_set_buttons(uint16_t buttons);

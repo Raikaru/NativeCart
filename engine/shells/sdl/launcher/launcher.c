@@ -326,6 +326,11 @@ static bool str_ends_with(const char *str, const char *suffix)
     return strcmp(str + slen - xlen, suffix) == 0;
 }
 
+static bool launcher_patch_path_is_ups(const char *path)
+{
+    return str_ends_with(path, ".ups") || str_ends_with(path, ".UPS");
+}
+
 static void scan_mods(LauncherState *s)
 {
     int old_count = s->mod_count;
@@ -344,23 +349,28 @@ static void scan_mods(LauncherState *s)
         WIN32_FIND_DATAA fdata;
         HANDLE hFind;
         char pattern[LAUNCHER_MAX_PATH];
+        static const char *wild[] = { "*.bps", "*.ups" };
+        int w;
 
-        snprintf(pattern, sizeof(pattern), "%s\\*.bps", s->mods_dir);
-        hFind = FindFirstFileA(pattern, &fdata);
-        if (hFind == INVALID_HANDLE_VALUE)
-            return;
-
-        do
+        for (w = 0; w < 2; w++)
         {
-            if (s->mod_count >= LAUNCHER_MAX_MODS)
-                break;
-            snprintf(s->mods[s->mod_count].filename, LAUNCHER_MAX_NAME, "%s", fdata.cFileName);
-            snprintf(s->mods[s->mod_count].path, LAUNCHER_MAX_PATH, "%s\\%s", s->mods_dir, fdata.cFileName);
-            s->mods[s->mod_count].enabled = false;
-            s->mod_count++;
-        } while (FindNextFileA(hFind, &fdata));
+            snprintf(pattern, sizeof(pattern), "%s\\%s", s->mods_dir, wild[w]);
+            hFind = FindFirstFileA(pattern, &fdata);
+            if (hFind == INVALID_HANDLE_VALUE)
+                continue;
 
-        FindClose(hFind);
+            do
+            {
+                if (s->mod_count >= LAUNCHER_MAX_MODS)
+                    break;
+                snprintf(s->mods[s->mod_count].filename, LAUNCHER_MAX_NAME, "%s", fdata.cFileName);
+                snprintf(s->mods[s->mod_count].path, LAUNCHER_MAX_PATH, "%s\\%s", s->mods_dir, fdata.cFileName);
+                s->mods[s->mod_count].enabled = false;
+                s->mod_count++;
+            } while (FindNextFileA(hFind, &fdata));
+
+            FindClose(hFind);
+        }
     }
 #else
     {
@@ -376,7 +386,7 @@ static void scan_mods(LauncherState *s)
                 break;
             if (ent->d_name[0] == '.')
                 continue;
-            if (!str_ends_with(ent->d_name, ".bps"))
+            if (!str_ends_with(ent->d_name, ".bps") && !str_ends_with(ent->d_name, ".ups"))
                 continue;
 
             snprintf(s->mods[s->mod_count].filename, LAUNCHER_MAX_NAME, "%s", ent->d_name);
@@ -577,7 +587,7 @@ static void launch_game(LauncherState *s)
 {
     char cmd[4096];
     int enabled_count = 0;
-    const char *bps_path = NULL;
+    const char *patch_path = NULL;
     int i;
     int sys_ret;
 
@@ -586,13 +596,13 @@ static void launch_game(LauncherState *s)
 
     launcher_trace_open_log(s->exe_path);
 
-    /* Find first enabled mod (SDL shell supports one BPS at a time) */
+    /* Find first enabled mod (SDL shell supports one patch at a time) */
     for (i = 0; i < s->mod_count; i++)
     {
         if (s->mods[i].enabled)
         {
-            if (bps_path == NULL)
-                bps_path = s->mods[i].path;
+            if (patch_path == NULL)
+                patch_path = s->mods[i].path;
             enabled_count++;
         }
     }
@@ -610,18 +620,23 @@ static void launch_game(LauncherState *s)
             if (s->mods[i].enabled)
                 launcher_tracef("  enabled_mod: %s", s->mods[i].path);
         }
-        launcher_tracef("selected_bps_for_shell=%s", bps_path != NULL ? bps_path : "(none)");
+        launcher_tracef("selected_patch_for_shell=%s", patch_path != NULL ? patch_path : "(none)");
     }
 
-    if (bps_path != NULL)
+    if (patch_path != NULL)
     {
+        const char *flag = launcher_patch_path_is_ups(patch_path) ? "--ups" : "--bps";
+
+        if (launcher_trace_mod_launch())
+            launcher_tracef("launch patch_flag=%s (UPS if .ups/.UPS else BPS) path=%s", flag, patch_path);
+
         snprintf(cmd, sizeof(cmd),
 #ifdef _WIN32
-                 "start \"\" \"%s\" \"%s\" --bps \"%s\"",
+                 "start \"\" \"%s\" \"%s\" %s \"%s\"",
 #else
-                 "\"%s\" \"%s\" --bps \"%s\" &",
+                 "\"%s\" \"%s\" %s \"%s\" &",
 #endif
-                 s->exe_path, s->rom_path, bps_path);
+                 s->exe_path, s->rom_path, flag, patch_path);
     }
     else
     {
@@ -635,8 +650,8 @@ static void launch_game(LauncherState *s)
     }
 
     if (enabled_count > 1)
-        fprintf(stderr, "Launcher: Warning: %d mods enabled but only 1 BPS supported at a time. Using: %s\n",
-                enabled_count, path_basename(bps_path));
+        fprintf(stderr, "Launcher: Warning: %d mods enabled but only 1 patch supported at a time. Using: %s\n",
+                enabled_count, path_basename(patch_path));
 
     fprintf(stderr, "Launcher: %s\n", cmd);
     if (launcher_trace_mod_launch())
@@ -746,7 +761,7 @@ static void draw_ui(LauncherState *s)
     if (s->mod_count == 0)
     {
         const char *msg = s->mods_dir[0] != '\0'
-            ? "No .bps mods found"
+            ? "No .bps / .ups mods found"
             : "Select a ROM to scan for mods";
         int msg_x = MARGIN + (content_w - text_width(msg)) / 2;
         int msg_y = panel_y + (panel_h - CHAR_H) / 2;
@@ -826,7 +841,7 @@ static void draw_ui(LauncherState *s)
     }
 
     if (enabled_count > 1)
-        snprintf(status, sizeof(status), "%d mods enabled (only first .bps will be applied)", enabled_count);
+        snprintf(status, sizeof(status), "%d mods enabled (only first patch will be applied)", enabled_count);
     else if (enabled_count == 1)
         snprintf(status, sizeof(status), "1 mod enabled");
     else

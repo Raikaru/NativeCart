@@ -275,6 +275,17 @@ struct Evolution
     u16 targetSpecies;
 };
 
+#ifdef PORTABLE
+#define FIRERED_EVOLUTION_WIRE_BYTES 6u
+_Static_assert(sizeof(struct Evolution) == FIRERED_EVOLUTION_WIRE_BYTES, "portable Evolution wire size");
+extern const struct Evolution gEvolutionTable_Compiled[NUM_SPECIES][EVOS_PER_MON];
+/* NULL => use compiled gEvolutionTable_Compiled. */
+extern const struct Evolution (*gEvolutionTableActive)[EVOS_PER_MON];
+#define gEvolutionTable ((gEvolutionTableActive) != NULL ? (gEvolutionTableActive) : (gEvolutionTable_Compiled))
+#else
+extern const struct Evolution gEvolutionTable[NUM_SPECIES][EVOS_PER_MON];
+#endif
+
 #define NUM_UNOWN_FORMS 28
 
 #define GET_UNOWN_LETTER(personality) ((   \
@@ -286,18 +297,44 @@ struct Evolution
 
 #define GET_SHINY_VALUE(otId, personality) (HIHALF(otId) ^ LOHALF(otId) ^ HIHALF(personality) ^ LOHALF(personality))
 
+#ifdef PORTABLE
+#define FIRERED_BATTLE_MOVE_STRUCT_BYTES 9u
+_Static_assert(sizeof(struct BattleMove) == FIRERED_BATTLE_MOVE_STRUCT_BYTES, "portable BattleMove size");
+extern const struct BattleMove gBattleMoves_Compiled[];
+extern const struct BattleMove *gBattleMovesActive;
+#define gBattleMoves ((gBattleMovesActive) != NULL ? (gBattleMovesActive) : (gBattleMoves_Compiled))
+#else
 extern const struct BattleMove gBattleMoves[];
+#endif
 extern u8 gPlayerPartyCount;
 extern struct Pokemon gPlayerParty[PARTY_SIZE];
 extern u8 gEnemyPartyCount;
 extern struct Pokemon gEnemyParty[PARTY_SIZE];
+#ifdef PORTABLE
+extern const struct SpeciesInfo gSpeciesInfo_Compiled[];
+extern const struct SpeciesInfo *gSpeciesInfoActive;
+#define gSpeciesInfo ((gSpeciesInfoActive) != NULL ? (gSpeciesInfoActive) : (gSpeciesInfo_Compiled))
+extern const u32 (*gTMHMLearnsetsActive)[2];
+#else
 extern const struct SpeciesInfo gSpeciesInfo[];
+#endif
 extern const u8 *const gItemEffectTable[];
 extern const u8 gStatStageRatios[][2];
 extern struct SpriteTemplate gMultiuseSpriteTemplate;
 extern struct PokemonStorage* gPokemonStoragePtr;
 extern const u32 gExperienceTables[][MAX_LEVEL + 1];
-extern const u16 *const gLevelUpLearnsets[];
+#ifdef PORTABLE
+u32 ExperienceTableGet(u8 growthRate, u8 level);
+#else
+#define ExperienceTableGet(gr, lv) (gExperienceTables[(gr)][(lv)])
+#endif
+extern const u16 *const gLevelUpLearnsets_Compiled[];
+#ifdef PORTABLE
+const u16 *const *FireredLevelUpLearnsetsTable(void);
+#define gLevelUpLearnsets (FireredLevelUpLearnsetsTable())
+#else
+#define gLevelUpLearnsets gLevelUpLearnsets_Compiled
+#endif
 extern const u8 gFacilityClassToPicIndex[];
 extern const u8 gFacilityClassToTrainerClass[];
 extern const struct SpriteTemplate gSpriteTemplates_Battlers[];

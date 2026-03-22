@@ -1,0 +1,6 @@
+#ifndef GUARD_FIRERED_PORTABLE_ROM_HEAL_LOCATIONS_TABLE_H
+#define GUARD_FIRERED_PORTABLE_ROM_HEAL_LOCATIONS_TABLE_H
+
+void firered_portable_rom_heal_locations_table_refresh_after_rom_load(void);
+
+#endif /* GUARD_FIRERED_PORTABLE_ROM_HEAL_LOCATIONS_TABLE_H */

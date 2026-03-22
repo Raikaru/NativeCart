@@ -2223,7 +2223,7 @@ static void BufferMonSkills(void)
     if (level < 100)
     {
         species = GetMonData(&sMonSummaryScreen->currentMon, MON_DATA_SPECIES);
-        expToNextLevel = gExperienceTables[gSpeciesInfo[species].growthRate][level + 1] - exp;
+        expToNextLevel = ExperienceTableGet(gSpeciesInfo[species].growthRate, level + 1) - exp;
     }
 
     ConvertIntToDecimalStringN(sMonSummaryScreen->summary.expToNextLevelStrBuf, expToNextLevel, STR_CONV_MODE_LEFT_ALIGN, 7);
@@ -4621,8 +4621,9 @@ static void UpdateExpBarObjs(void)
 
     if (level < 100)
     {
-        totalExpToNextLevel = gExperienceTables[gSpeciesInfo[species].growthRate][level + 1] - gExperienceTables[gSpeciesInfo[species].growthRate][level];
-        curExpToNextLevel = exp - gExperienceTables[gSpeciesInfo[species].growthRate][level];
+        totalExpToNextLevel = ExperienceTableGet(gSpeciesInfo[species].growthRate, level + 1)
+            - ExperienceTableGet(gSpeciesInfo[species].growthRate, level);
+        curExpToNextLevel = exp - ExperienceTableGet(gSpeciesInfo[species].growthRate, level);
         pointsPerTile = ((totalExpToNextLevel << 2) / 8);
         totalPoints = (curExpToNextLevel << 2);
 

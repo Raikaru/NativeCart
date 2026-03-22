@@ -26,12 +26,19 @@ static void SetWhiteoutRespawnHealerNpcAsLastTalked(u32 healLocationIdx);
 // with whom your character interacts in this cutscene.
 
 #include "data/heal_locations.h"
+#ifdef PORTABLE
+#define sHealLocations ((gHealLocationsActive) != NULL ? (gHealLocationsActive) : (sHealLocations_Compiled))
+#define sWhiteoutRespawnHealCenterMapIdxs \
+    ((gWhiteoutRespawnHealCenterMapIdxsActive) != NULL ? (gWhiteoutRespawnHealCenterMapIdxsActive) : (sWhiteoutRespawnHealCenterMapIdxs_Compiled))
+#define sWhiteoutRespawnHealerNpcIds \
+    ((gWhiteoutRespawnHealerNpcIdsActive) != NULL ? (gWhiteoutRespawnHealerNpcIdsActive) : (sWhiteoutRespawnHealerNpcIds_Compiled))
+#endif
 
 static u32 GetHealLocationIndexFromMapGroupAndNum(u16 mapGroup, u16 mapNum)
 {
     u32 i;
 
-    for (i = 0; i < ARRAY_COUNT(sHealLocations); i++) {
+    for (i = 0; i < HEAL_LOCATION_COUNT; i++) {
         if (sHealLocations[i].mapGroup == mapGroup && sHealLocations[i].mapNum == mapNum)
         {
             return i + 1;
@@ -54,7 +61,7 @@ const struct HealLocation * GetHealLocation(u32 idx)
 {
     if (idx == HEAL_LOCATION_NONE)
         return NULL;
-    if (idx > ARRAY_COUNT(sHealLocations))
+    if (idx > HEAL_LOCATION_COUNT)
         return NULL;
     return &sHealLocations[idx - 1];
 }

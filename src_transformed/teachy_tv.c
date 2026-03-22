@@ -24,6 +24,7 @@
 #include "overworld.h"
 #include "graphics.h"
 #include "fieldmap.h"
+#include "map_layout_metatiles_access.h"
 #include "strings.h"
 #include "constants/field_effects.h"
 #include "constants/event_objects.h"
@@ -1237,7 +1238,7 @@ static void TeachyTvLoadBg3Map(u16 *buffer)
     {
         for (j = 0; j < 16; j++)
         {
-            currentBlockIdx = layout->map[8 + (i + 6) * layout->width + j] & 0x3FF;
+            currentBlockIdx = MAP_LAYOUT_METATILE_MAP_PTR(layout)[8 + (i + 6) * layout->width + j] & 0x3FF;
             for (k = 0; k < (i << 4) + j; k++)
             {
                 if (blockIndicesBuffer[k] == 0)

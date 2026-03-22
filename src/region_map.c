@@ -4,6 +4,7 @@
 #include "task.h"
 #include "m4a.h"
 #include "overworld.h"
+#include "map_header_scalars_access.h"
 #include "event_data.h"
 #include "region_map.h"
 #include "party_menu.h"
@@ -14,15 +15,13 @@
 #include "map_preview_screen.h"
 #include "constants/songs.h"
 #include "constants/region_map_sections.h"
+#include "constants/region_map_fly_destinations.h"
+#include "constants/region_map_layout_dims.h"
 #include "constants/heal_locations.h"
 #include "constants/maps.h"
 
-#ifdef PORTABLE
-#include <stdio.h>
-#endif
-
-#define MAP_WIDTH 22
-#define MAP_HEIGHT 15
+#define MAP_WIDTH REGION_MAP_SECTION_GRID_WIDTH
+#define MAP_HEIGHT REGION_MAP_SECTION_GRID_HEIGHT
 
 #define CANCEL_BUTTON_X 21
 #define CANCEL_BUTTON_Y 13
@@ -824,12 +823,43 @@ static const u8 sTextColors[] = {TEXT_DYNAMIC_COLOR_6, TEXT_COLOR_WHITE, TEXT_CO
 
 #include "data/region_map/region_map_entries.h"
 
+#ifdef PORTABLE
+#include "region_map_section_layout_rom.h"
+#define REGION_MAP_SECTION_LAYOUT_ROM_ACTIVE ((gMapSectionTopLeftCornersActive) != NULL)
+#define sMapSectionTopLeftCorners \
+    (REGION_MAP_SECTION_LAYOUT_ROM_ACTIVE ? (gMapSectionTopLeftCornersActive) : (sMapSectionTopLeftCorners_Compiled))
+#define sMapSectionDimensions \
+    (REGION_MAP_SECTION_LAYOUT_ROM_ACTIVE ? (gMapSectionDimensionsActive) : (sMapSectionDimensions_Compiled))
+#include "region_map_mapsec_names_rom.h"
+#define sMapNames gRegionMapMapsecNamesResolved
+_Static_assert(sizeof(gRegionMapMapsecNames_Compiled) / sizeof(gRegionMapMapsecNames_Compiled[0]) == REGION_MAP_MAPSEC_NAME_ENTRY_COUNT,
+    "mapsec name table row count");
+#endif
+
 #include "data/region_map/region_map_layout_kanto.h"
 #include "data/region_map/region_map_layout_sevii_123.h"
 #include "data/region_map/region_map_layout_sevii_45.h"
 #include "data/region_map/region_map_layout_sevii_67.h"
 
-static const u8 sMapFlyDestinations[][3] = {
+#ifdef PORTABLE
+#include "region_map_section_grids_rom.h"
+#define REGION_MAP_SECTION_GRIDS_ROM_ACTIVE ((gRegionMapSectionGridKantoActive) != NULL)
+#define sRegionMapSections_Kanto \
+    (REGION_MAP_SECTION_GRIDS_ROM_ACTIVE ? (gRegionMapSectionGridKantoActive) : (sRegionMapSections_Kanto_Compiled))
+#define sRegionMapSections_Sevii123 \
+    (REGION_MAP_SECTION_GRIDS_ROM_ACTIVE ? (gRegionMapSectionGridSevii123Active) : (sRegionMapSections_Sevii123_Compiled))
+#define sRegionMapSections_Sevii45 \
+    (REGION_MAP_SECTION_GRIDS_ROM_ACTIVE ? (gRegionMapSectionGridSevii45Active) : (sRegionMapSections_Sevii45_Compiled))
+#define sRegionMapSections_Sevii67 \
+    (REGION_MAP_SECTION_GRIDS_ROM_ACTIVE ? (gRegionMapSectionGridSevii67Active) : (sRegionMapSections_Sevii67_Compiled))
+#endif
+
+#ifdef PORTABLE
+static const u8 sMapFlyDestinations_Compiled[][3] =
+#else
+static const u8 sMapFlyDestinations[][3] =
+#endif
+{
     [MAPSEC_PALLET_TOWN         - KANTO_MAPSEC_START] = {MAP(MAP_PALLET_TOWN),                           HEAL_LOCATION_PALLET_TOWN},
     [MAPSEC_VIRIDIAN_CITY       - KANTO_MAPSEC_START] = {MAP(MAP_VIRIDIAN_CITY),                         HEAL_LOCATION_VIRIDIAN_CITY},
     [MAPSEC_PEWTER_CITY         - KANTO_MAPSEC_START] = {MAP(MAP_PEWTER_CITY),                           HEAL_LOCATION_PEWTER_CITY},
@@ -939,6 +969,15 @@ static const u8 sMapFlyDestinations[][3] = {
     [MAPSEC_VIAPOIS_CHAMBER     - KANTO_MAPSEC_START] = {MAP(MAP_PALLET_TOWN),                           HEAL_LOCATION_NONE},
     [MAPSEC_EMBER_SPA           - KANTO_MAPSEC_START] = {MAP(MAP_PALLET_TOWN),                           HEAL_LOCATION_NONE},
 };
+
+#ifdef PORTABLE
+_Static_assert(sizeof(sMapFlyDestinations_Compiled) == REGION_MAP_FLY_DESTINATION_ROW_COUNT * 3u,
+    "region map fly destinations row count");
+#include "region_map_fly_destinations_rom.h"
+#define REGION_MAP_FLY_DESTINATIONS_ROM_ACTIVE ((gMapFlyDestinationsActive) != NULL)
+#define sMapFlyDestinations \
+    (REGION_MAP_FLY_DESTINATIONS_ROM_ACTIVE ? (gMapFlyDestinationsActive) : (sMapFlyDestinations_Compiled))
+#endif
 
 static void RegionMap_DarkenPalette(u16 *pal, u16 size, u16 tint)
 {
@@ -3094,7 +3133,11 @@ static u8 GetSelectedMapsecType(u8 layer)
 
 static u16 GetPlayerCurrentMapSectionId(void)
 {
-    return Overworld_GetMapHeaderByGroupAndId(gSaveBlock1Ptr->location.mapGroup, gSaveBlock1Ptr->location.mapNum)->regionMapSectionId;
+    const struct MapHeader *h = Overworld_GetMapHeaderByGroupAndId(gSaveBlock1Ptr->location.mapGroup,
+        gSaveBlock1Ptr->location.mapNum);
+
+    return FireredRomMapHeaderScalarsRegionMapSec((u16)(u8)gSaveBlock1Ptr->location.mapGroup,
+        (u16)(u8)gSaveBlock1Ptr->location.mapNum, h->regionMapSectionId);
 }
 
 static void GetPlayerPositionOnRegionMap(void)
@@ -3807,29 +3850,22 @@ u8 *GetMapName(u8 *dst0, u16 mapsec, u16 fill)
     u8 *dst;
     u16 i;
     u16 idx;
-#ifdef PORTABLE
-    printf("GetMapName: mapsec=%u fill=%u kanto_start=%u\n", mapsec, fill, KANTO_MAPSEC_START);
-    fflush(stdout);
-#endif
+
     if ((idx = mapsec - KANTO_MAPSEC_START) < MAPSEC_NONE - KANTO_MAPSEC_START)
     {
-#ifdef PORTABLE
-        printf("GetMapName: idx=%u ptr=%p celadon=%d\n", idx, (void *)sMapNames[idx], IsCeladonDeptStoreMapsec(mapsec));
-        printf("GetMapName: bytes=%02X %02X %02X %02X\n",
-               sMapNames[idx][0],
-               sMapNames[idx][1],
-               sMapNames[idx][2],
-               sMapNames[idx][3]);
-        fflush(stdout);
-#endif
         if (IsCeladonDeptStoreMapsec(mapsec) == TRUE)
-            dst = StringCopy(dst0, sMapsecName_CELADON_DEPT_);
-        else
-            dst = StringCopy(dst0, sMapNames[idx]);
+        {
 #ifdef PORTABLE
-        printf("GetMapName: copy-done firstdst=%02X\n", dst0[0]);
-        fflush(stdout);
+            /* Same bytes as `sMapsecName_CELADON_DEPT_`; table row is MAPSEC_SPECIAL_AREA. */
+            dst = StringCopy(dst0, gRegionMapMapsecNamesResolved[MAPSEC_SPECIAL_AREA - KANTO_MAPSEC_START]);
+#else
+            dst = StringCopy(dst0, sMapsecName_CELADON_DEPT_);
 #endif
+        }
+        else
+        {
+            dst = StringCopy(dst0, sMapNames[idx]);
+        }
     }
     else
     {

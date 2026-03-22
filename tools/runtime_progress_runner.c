@@ -69,9 +69,9 @@ static void build_log_path(char *buffer, size_t buffer_size)
 #ifdef _WIN32
     const char *temp_dir = getenv("TEMP");
 
-    snprintf(buffer, buffer_size, "%s%s%s", temp_dir != NULL ? temp_dir : ".", PATH_SEP, "pokefirered_gdextension.log");
+    snprintf(buffer, buffer_size, "%s%s%s", temp_dir != NULL ? temp_dir : ".", PATH_SEP, "pokefirered_runtime_progress.log");
 #else
-    snprintf(buffer, buffer_size, "%s", "/tmp/pokefirered_gdextension.log");
+    snprintf(buffer, buffer_size, "%s", "/tmp/pokefirered_runtime_progress.log");
 #endif
 }
 

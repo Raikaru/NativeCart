@@ -7,6 +7,7 @@
 #include "battle_ai_script_commands.h"
 #ifdef PORTABLE
 #include <stdio.h>
+#include "portable/firered_portable_rom_battle_ai_scripts_table.h"
 #endif
 #include "constants/abilities.h"
 #include "constants/battle_ai.h"
@@ -430,7 +431,18 @@ static void BattleAI_DoAIProcessing(void)
         case AIState_DoNotProcess: // Needed to match.
             break;
         case AIState_SettingUp:
+#ifdef PORTABLE
+        {
+            const u8 *romScript = firered_portable_rom_battle_ai_script_ptr(AI_THINKING_STRUCT->aiLogicId);
+
+            if (romScript != NULL)
+                sAIScriptPtr = romScript;
+            else
+                sAIScriptPtr = gBattleAI_ScriptsTable[AI_THINKING_STRUCT->aiLogicId];
+        }
+#else
             sAIScriptPtr = gBattleAI_ScriptsTable[AI_THINKING_STRUCT->aiLogicId];
+#endif
 #ifdef PORTABLE
             printf("BattleAI_DoAIProcessing: SettingUp logicId=%u moveIdx=%u ptr=%p tableEntry=%p\n",
                    AI_THINKING_STRUCT->aiLogicId, AI_THINKING_STRUCT->movesetIndex,

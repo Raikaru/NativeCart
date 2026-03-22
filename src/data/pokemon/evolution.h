@@ -1,4 +1,8 @@
+#ifdef PORTABLE
+const struct Evolution gEvolutionTable_Compiled[NUM_SPECIES][EVOS_PER_MON] =
+#else
 const struct Evolution gEvolutionTable[NUM_SPECIES][EVOS_PER_MON] =
+#endif
 {
     [SPECIES_BULBASAUR]  = {{EVO_LEVEL, 16, SPECIES_IVYSAUR}},
     [SPECIES_IVYSAUR]    = {{EVO_LEVEL, 32, SPECIES_VENUSAUR}},

@@ -1,6 +1,7 @@
 #include "global.h"
 #include "random.h"
 #include "overworld.h"
+#include "map_header_scalars_access.h"
 #include "field_specials.h"
 #include "constants/maps.h"
 #include "constants/region_map_sections.h"
@@ -258,7 +259,10 @@ void GetRoamerLocation(u8 *mapGroup, u8 *mapNum)
 
 u16 GetRoamerLocationMapSectionId(void)
 {
+    const struct MapHeader *h;
+
     if (!ROAMER->active)
         return MAPSEC_NONE;
-    return Overworld_GetMapHeaderByGroupAndId(sRoamerLocation[MAP_GRP], sRoamerLocation[MAP_NUM])->regionMapSectionId;
+    h = Overworld_GetMapHeaderByGroupAndId(sRoamerLocation[MAP_GRP], sRoamerLocation[MAP_NUM]);
+    return FireredRomMapHeaderScalarsRegionMapSec(sRoamerLocation[MAP_GRP], sRoamerLocation[MAP_NUM], h->regionMapSectionId);
 }

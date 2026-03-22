@@ -31,6 +31,7 @@
 
 #ifdef PORTABLE
 #include "field_effect_portable_assets.h"
+#include "portable/firered_portable_rom_field_effect_script_pointers.h"
 #endif
 
 extern struct CompressedSpritePalette gMonPaletteTable[]; // Intentionally declared (incorrectly) without const in order to match
@@ -379,7 +380,11 @@ u32 FieldEffectStart(u8 fldeff)
     const u8 *script;
     u32 result;
     FieldEffectActiveListAdd(fldeff);
-    script = gFieldEffectScriptPointers[fldeff];
+#ifdef PORTABLE
+    script = firered_portable_rom_field_effect_script_ptr(fldeff);
+    if (script == NULL)
+#endif
+        script = gFieldEffectScriptPointers[fldeff];
     while (sFldEffScrcmdTable[*script](&script, &result))
         ;
     return result;

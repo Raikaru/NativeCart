@@ -22,6 +22,7 @@
 #include <stdio.h>
 #include "main.h"
 #include "oak_speech_portable_assets.h"
+#include "portable/firered_portable_oak_speech_bg_rom.h"
 extern void firered_runtime_trace_external(const char *message);
 
 #ifndef NDEBUG
@@ -49,9 +50,24 @@ static int TraceOakSpeechEnvEnabled(void)
 
 #define TRACE_OAK_SPEECH(msg) do { if (TraceOakSpeechEnvEnabled()) firered_runtime_trace_external(msg); } while (0)
 
-#define sOakSpeech_Background_Pals sOakSpeech_Background_Pals_Portable
-#define sOakSpeech_Background_Tiles sOakSpeech_Background_Tiles_Portable
-#define sOakSpeech_Background_Tilemap sOakSpeech_Background_Tilemap_Portable
+static const u8 *sOakRom_MainBgPals;
+static const u8 *sOakRom_MainBgTiles;
+static const u8 *sOakRom_MainBgTilemap;
+static u8 sOakRom_MainBgResolved;
+
+static void OakSpeech_EnsureRomMainBgBound(void)
+{
+    if (sOakRom_MainBgResolved)
+        return;
+    sOakRom_MainBgResolved = TRUE;
+    firered_portable_oak_speech_try_bind_main_bg(&sOakRom_MainBgPals, &sOakRom_MainBgTiles, &sOakRom_MainBgTilemap);
+}
+
+#define OAK_MAIN_BG_PALS_PTR ((const u16 *)(sOakRom_MainBgPals ? sOakRom_MainBgPals : (const u8 *)sOakSpeech_Background_Pals_Portable))
+#define OAK_MAIN_BG_TILES_PTR (sOakRom_MainBgTiles ? sOakRom_MainBgTiles : (const u8 *)sOakSpeech_Background_Tiles_Portable)
+#define OAK_MAIN_BG_MAP_PTR (sOakRom_MainBgTilemap ? sOakRom_MainBgTilemap : (const u8 *)sOakSpeech_Background_Tilemap_Portable)
+#define OAK_MAIN_BG_PALS_SIZE sizeof(sOakSpeech_Background_Pals_Portable)
+
 #define sOakSpeech_Leaf_Pal sOakSpeech_Leaf_Pal_Portable
 #define sOakSpeech_Leaf_Tiles sOakSpeech_Leaf_Tiles_Portable
 #define sOakSpeech_Red_Pal sOakSpeech_Red_Pal_Portable
@@ -70,6 +86,22 @@ static int TraceOakSpeechEnvEnabled(void)
 #define sPikachuIntro_PikachuBody_Gfx sPikachuIntro_PikachuBody_Gfx_Portable
 #define sPikachuIntro_PikachuEars_Gfx sPikachuIntro_PikachuEars_Gfx_Portable
 #define sPikachuIntro_PikachuEyes_Gfx sPikachuIntro_PikachuEyes_Gfx_Portable
+
+#include "portable/firered_portable_oak_speech_text_rom.h"
+/* ROM-backed Oak intro strings (see firered_portable_oak_speech_text_rom.c). */
+#define gOakSpeech_Text_AskPlayerGender (firered_portable_oak_speech_get_text(FIRERED_OAK_TX_AskPlayerGender))
+#define gOakSpeech_Text_WelcomeToTheWorld (firered_portable_oak_speech_get_text(FIRERED_OAK_TX_WelcomeToTheWorld))
+#define gOakSpeech_Text_ThisWorld (firered_portable_oak_speech_get_text(FIRERED_OAK_TX_ThisWorld))
+#define gOakSpeech_Text_IsInhabitedFarAndWide (firered_portable_oak_speech_get_text(FIRERED_OAK_TX_IsInhabitedFarAndWide))
+#define gOakSpeech_Text_IStudyPokemon (firered_portable_oak_speech_get_text(FIRERED_OAK_TX_IStudyPokemon))
+#define gOakSpeech_Text_TellMeALittleAboutYourself (firered_portable_oak_speech_get_text(FIRERED_OAK_TX_TellMeALittleAboutYourself))
+#define gOakSpeech_Text_YourNameWhatIsIt (firered_portable_oak_speech_get_text(FIRERED_OAK_TX_YourNameWhatIsIt))
+#define gOakSpeech_Text_SoYourNameIsPlayer (firered_portable_oak_speech_get_text(FIRERED_OAK_TX_SoYourNameIsPlayer))
+#define gOakSpeech_Text_WhatWasHisName (firered_portable_oak_speech_get_text(FIRERED_OAK_TX_WhatWasHisName))
+#define gOakSpeech_Text_YourRivalsNameWhatWasIt (firered_portable_oak_speech_get_text(FIRERED_OAK_TX_YourRivalsNameWhatWasIt))
+#define gOakSpeech_Text_ConfirmRivalName (firered_portable_oak_speech_get_text(FIRERED_OAK_TX_ConfirmRivalName))
+#define gOakSpeech_Text_RememberRivalsName (firered_portable_oak_speech_get_text(FIRERED_OAK_TX_RememberRivalsName))
+#define gOakSpeech_Text_LetsGo (firered_portable_oak_speech_get_text(FIRERED_OAK_TX_LetsGo))
 #endif
 
 #define INTRO_SPECIES SPECIES_NIDORAN_F
@@ -160,9 +192,6 @@ static void CreateFadeInTask(u8, u8);
 static void CreateFadeOutTask(u8, u8);
 static void PrintNameChoiceOptions(u8, u8);
 static void GetDefaultName(u8, u8);
-#ifdef PORTABLE
-static void PortableStartDirectNewGame(u8 taskId);
-#endif
 
 extern const u8 gText_Controls[];
 extern const u8 gText_ABUTTONNext[];
@@ -838,11 +867,12 @@ static void Task_NewGameScene(u8 taskId)
         gSpriteCoordOffsetY = 0;
         break;
     case 4:
+        OakSpeech_EnsureRomMainBgBound();
         gPaletteFade.bufferTransferDisabled = TRUE;
         InitStandardTextBoxWindows();
         InitTextBoxGfxAndPrinters();
         Menu_LoadStdPalAt(BG_PLTT_ID(13));
-        LoadPalette(sOakSpeech_Background_Pals, BG_PLTT_ID(0), sizeof(sOakSpeech_Background_Pals));
+        LoadPalette(OAK_MAIN_BG_PALS_PTR, BG_PLTT_ID(0), OAK_MAIN_BG_PALS_SIZE);
         LoadPalette(GetTextWindowPalette(2) + 15, BG_PLTT_ID(0), PLTT_SIZEOF(1));
         break;
     case 5:
@@ -859,8 +889,6 @@ static void Task_NewGameScene(u8 taskId)
         break;
     case 7:
 #ifdef PORTABLE
-        PortableStartDirectNewGame(taskId);
-        return;
         TRACE_OAK_SPEECH("Task_NewGameScene state7: pre-CreateTopBarWindowLoadPalette");
 #endif
         CreateTopBarWindowLoadPalette(0, 30, 0, 13, 0x1C4);
@@ -957,29 +985,6 @@ static void ControlsGuide_LoadPage1(void)
     TRACE_OAK_SPEECH("ControlsGuide_LoadPage1: exit");
 #endif
 }
-
-#ifdef PORTABLE
-static void PortableStartDirectNewGame(u8 taskId)
-{
-    /*
-     * Do not call SetSaveBlocksPointers() here: title screen already set the offset and
-     * loaded SAVE_NORMAL into that slice. Re-randomizing without copying save data
-     * desyncs pointers from RAM (wrong rivalName snapshot, stale save2 window).
-     */
-    SeedRngAndSetTrainerId();
-    gSaveBlock2Ptr->playerGender = MALE;
-    sOakSpeechResources->hasPlayerBeenNamed = FALSE;
-    GetDefaultName(FALSE, 0);
-    GetDefaultName(TRUE, 0);
-    FreeAllWindowBuffers();
-    DestroyMonSpritesGfxManager();
-    Free(sOakSpeechResources);
-    sOakSpeechResources = NULL;
-    gTextFlags.canABSpeedUpPrint = FALSE;
-    SetMainCallback2(CB2_NewGame);
-    DestroyTask(taskId);
-}
-#endif
 
 static void Task_ControlsGuide_LoadPage(u8 taskId)
 {
@@ -1281,9 +1286,10 @@ static void Task_OakSpeech_Init(u8 taskId)
     }
     else
     {
-        sOakSpeechResources->oakSpeechBackgroundTiles = MallocAndDecompress(sOakSpeech_Background_Tiles, &size);
+        OakSpeech_EnsureRomMainBgBound();
+        sOakSpeechResources->oakSpeechBackgroundTiles = MallocAndDecompress(OAK_MAIN_BG_TILES_PTR, &size);
         LoadBgTiles(1, sOakSpeechResources->oakSpeechBackgroundTiles, size, 0);
-        CopyToBgTilemapBuffer(1, sOakSpeech_Background_Tilemap, 0, 0);
+        CopyToBgTilemapBuffer(1, OAK_MAIN_BG_MAP_PTR, 0, 0);
         CopyBgTilemapBufferToVram(1);
         CreateNidoranFSprite(taskId);
         LoadTrainerPic(OAK_PIC, 0);
@@ -2033,15 +2039,16 @@ static void CB2_ReturnFromNamingScreen(void)
 #ifdef PORTABLE
         TRACE_OAK_SPEECH("OakSpeech: Return state3 pre-windows");
 #endif
+        OakSpeech_EnsureRomMainBgBound();
         FreeAllWindowBuffers();
         InitStandardTextBoxWindows();
         InitTextBoxGfxAndPrinters();
         // Below is reading 48 colors beyond the background palette (into the tiles that follow it).
         // This color range is used by the player and rival pic, which will overwrite them with the correct colors.
 #ifdef BUGFIX
-        LoadPalette(sOakSpeech_Background_Pals, BG_PLTT_ID(0), sizeof(sOakSpeech_Background_Pals));
+        LoadPalette(OAK_MAIN_BG_PALS_PTR, BG_PLTT_ID(0), OAK_MAIN_BG_PALS_SIZE);
 #else
-        LoadPalette(sOakSpeech_Background_Pals, BG_PLTT_ID(0), sizeof(sOakSpeech_Background_Pals) + PLTT_SIZEOF(48));
+        LoadPalette(OAK_MAIN_BG_PALS_PTR, BG_PLTT_ID(0), OAK_MAIN_BG_PALS_SIZE + PLTT_SIZEOF(48));
 #endif
 #ifdef PORTABLE
         TRACE_OAK_SPEECH("OakSpeech: Return state3 post-windows");
@@ -2051,7 +2058,7 @@ static void CB2_ReturnFromNamingScreen(void)
 #ifdef PORTABLE
         TRACE_OAK_SPEECH("OakSpeech: Return state4 pre-bgtiles");
 #endif
-        DecompressAndCopyTileDataToVram(1, sOakSpeech_Background_Tiles, 0, 0, 0);
+        DecompressAndCopyTileDataToVram(1, OAK_MAIN_BG_TILES_PTR, 0, 0, 0);
 #ifdef PORTABLE
         TRACE_OAK_SPEECH("OakSpeech: Return state4 post-bgtiles");
 #endif
@@ -2063,7 +2070,7 @@ static void CB2_ReturnFromNamingScreen(void)
         if (FreeTempTileDataBuffersIfPossible())
             return;
         FillBgTilemapBufferRect_Palette0(1, 0, 0, 0, 30, 20);
-        CopyToBgTilemapBuffer(1, sOakSpeech_Background_Tilemap, 0, 0);
+        CopyToBgTilemapBuffer(1, OAK_MAIN_BG_MAP_PTR, 0, 0);
         FillBgTilemapBufferRect_Palette0(2, 0, 0, 0, 30, 20);
         CopyBgTilemapBufferToVram(1);
         CopyBgTilemapBufferToVram(2);

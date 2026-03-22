@@ -8,6 +8,14 @@
 
 #ifdef PORTABLE
 #include "portable_generated/field_door_portable_nullfix.h"
+/*
+ * On GBA, door animation stores each pointer as two s16 task slots (32-bit total).
+ * On x64 host builds, pointers use the upper 32 bits too — reconstruction truncates and
+ * DrawDoor crashes (CpuFastCopy from a bogus address). Only one door task may run
+ * (see StartDoorAnimationTask); stash full pointers here for PORTABLE.
+ */
+static const struct DoorAnimFrame *sPortableDoorTaskFrames;
+static const struct DoorGraphics *sPortableDoorTaskGfx;
 #endif
 
 enum {
@@ -335,10 +343,22 @@ static void BuildDoorTiles(u16 *tiles, u16 tileNum, const u8 *paletteNums)
 static void Task_AnimateDoor(u8 taskId)
 {
     s16 *data = gTasks[taskId].data;
+#ifdef PORTABLE
+    const struct DoorAnimFrame *frames = sPortableDoorTaskFrames;
+    const struct DoorGraphics *gfx = sPortableDoorTaskGfx;
+#else
     const struct DoorAnimFrame *frames = (struct DoorAnimFrame *)((u16)tFramesHi << 16 | (u16)tFramesLo);
     const struct DoorGraphics *gfx = (struct DoorGraphics *)((u16)tGfxHi << 16 | (u16)tGfxLo);
+#endif
+
     if (!AnimateDoorFrame(gfx, frames, data))
+    {
+#ifdef PORTABLE
+        sPortableDoorTaskFrames = NULL;
+        sPortableDoorTaskGfx = NULL;
+#endif
         DestroyTask(taskId);
+    }
 }
 
 static bool32 AnimateDoorFrame(const struct DoorGraphics *gfx, const struct DoorAnimFrame *frames, s16 *data)
@@ -378,15 +398,26 @@ static s8 StartDoorAnimationTask(const struct DoorGraphics *gfx, const struct Do
     if (FuncIsActiveTask(Task_AnimateDoor) == TRUE)
         return -1;
 
+#ifdef PORTABLE
+    sPortableDoorTaskFrames = frames;
+    sPortableDoorTaskGfx = gfx;
+#endif
     taskId = CreateTask(Task_AnimateDoor, 80);
     data = gTasks[taskId].data;
 
     tX = x;
     tY = y;
+#ifndef PORTABLE
     tFramesLo = (uintptr_t)frames;
     tFramesHi = (uintptr_t)frames >> 16;
     tGfxLo = (uintptr_t)gfx;
     tGfxHi = (uintptr_t)gfx >> 16;
+#else
+    tFramesLo = 0;
+    tFramesHi = 0;
+    tGfxLo = 0;
+    tGfxHi = 0;
+#endif
     return taskId;
 }
 
