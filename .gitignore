@@ -48,5 +48,8 @@ prompts/
 # Editor / OS noise
 .idea/
 .vscode/
+.godot/
+*.import
+godot-cpp/
 .DS_Store
 Thumbs.db
