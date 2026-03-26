@@ -258,6 +258,51 @@ static void path_directory(char *out, size_t cap, const char *path)
     }
 }
 
+static bool file_exists(const char *path)
+{
+    FILE *fp = fopen(path, "rb");
+
+    if (fp == NULL)
+        return false;
+    fclose(fp);
+    return true;
+}
+
+static void maybe_seed_asset_root_from_exe(char *out_repo_root, size_t cap, const char *exe_path)
+{
+    char exe_dir[LAUNCHER_MAX_PATH];
+    char repo_root[LAUNCHER_MAX_PATH];
+    char bundle_path[LAUNCHER_MAX_PATH];
+    const char *existing;
+
+    if (out_repo_root != NULL && cap != 0u)
+        out_repo_root[0] = '\0';
+
+    existing = getenv("FIRERED_ASSET_ROOT");
+    if (existing != NULL && existing[0] != '\0')
+    {
+        if (out_repo_root != NULL && cap != 0u)
+            snprintf(out_repo_root, cap, "%s", existing);
+        return;
+    }
+
+    path_directory(exe_dir, sizeof(exe_dir), exe_path);
+    path_directory(repo_root, sizeof(repo_root), exe_dir);
+    snprintf(bundle_path, sizeof(bundle_path), "%s" PATH_SEP_STR "cores" PATH_SEP_STR "firered" PATH_SEP_STR
+        "portable" PATH_SEP_STR "data" PATH_SEP_STR "omega_map_layout_rom_companion_bundle.bin", repo_root);
+    if (!file_exists(bundle_path))
+        return;
+
+#ifdef _WIN32
+    SetEnvironmentVariableA("FIRERED_ASSET_ROOT", repo_root);
+#else
+    setenv("FIRERED_ASSET_ROOT", repo_root, 1);
+#endif
+
+    if (out_repo_root != NULL && cap != 0u)
+        snprintf(out_repo_root, cap, "%s", repo_root);
+}
+
 /* FIRERED_TRACE_MOD_LAUNCH=1: log launch command + paths (stderr + sdl_mod_launch.log beside game exe). */
 static int launcher_trace_mod_launch(void)
 {
@@ -586,6 +631,8 @@ static void detect_exe(LauncherState *s)
 static void launch_game(LauncherState *s)
 {
     char cmd[4096];
+    char exe_dir[LAUNCHER_MAX_PATH];
+    char seeded_asset_root[LAUNCHER_MAX_PATH];
     int enabled_count = 0;
     const char *patch_path = NULL;
     int i;
@@ -595,6 +642,8 @@ static void launch_game(LauncherState *s)
         return;
 
     launcher_trace_open_log(s->exe_path);
+    path_directory(exe_dir, sizeof(exe_dir), s->exe_path);
+    maybe_seed_asset_root_from_exe(seeded_asset_root, sizeof(seeded_asset_root), s->exe_path);
 
     /* Find first enabled mod (SDL shell supports one patch at a time) */
     for (i = 0; i < s->mod_count; i++)
@@ -615,6 +664,8 @@ static void launch_game(LauncherState *s)
         launcher_tracef("rom_path=%s", s->rom_path);
         launcher_tracef("mods_dir=%s", s->mods_dir[0] != '\0' ? s->mods_dir : "(unset)");
         launcher_tracef("enabled_mod_count=%d", enabled_count);
+        launcher_tracef("launch_workdir=%s", exe_dir);
+        launcher_tracef("FIRERED_ASSET_ROOT=%s", seeded_asset_root[0] != '\0' ? seeded_asset_root : "(unchanged)");
         for (i = 0; i < s->mod_count; i++)
         {
             if (s->mods[i].enabled)
@@ -632,21 +683,21 @@ static void launch_game(LauncherState *s)
 
         snprintf(cmd, sizeof(cmd),
 #ifdef _WIN32
-                 "start \"\" \"%s\" \"%s\" %s \"%s\"",
+                 "start \"\" /D \"%s\" \"%s\" \"%s\" %s \"%s\"",
 #else
                  "\"%s\" \"%s\" %s \"%s\" &",
 #endif
-                 s->exe_path, s->rom_path, flag, patch_path);
+                 exe_dir, s->exe_path, s->rom_path, flag, patch_path);
     }
     else
     {
         snprintf(cmd, sizeof(cmd),
 #ifdef _WIN32
-                 "start \"\" \"%s\" \"%s\"",
+                 "start \"\" /D \"%s\" \"%s\" \"%s\"",
 #else
                  "\"%s\" \"%s\" &",
 #endif
-                 s->exe_path, s->rom_path);
+                 exe_dir, s->exe_path, s->rom_path);
     }
 
     if (enabled_count > 1)

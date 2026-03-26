@@ -59,6 +59,33 @@ else:
 
 Help(opts.GenerateHelpText(env))
 
+# Prefer the first tree that actually contains SDL3/SDL.h (default PathVariable path may be missing on disk).
+def _resolve_sdl_include_dir():
+    candidates = [
+        env.get("sdl_include_dir", ""),
+        os.environ.get("SDL3_INCLUDE_DIR", ""),
+        "C:/SDL3/x86_64-w64-mingw32/include",
+        "C:/SDL3/include",
+    ]
+    seen = set()
+    for c in candidates:
+        if not c or c in seen:
+            continue
+        seen.add(c)
+        header = os.path.join(str(c), "SDL3", "SDL.h")
+        if os.path.isfile(header):
+            return str(c)
+    return ""
+
+
+env["sdl_include_dir"] = _resolve_sdl_include_dir()
+if not env["sdl_include_dir"]:
+    print(
+        "ERROR: SDL3 headers not found (need SDL3/SDL.h). "
+        "Install SDL3 or set SDL3_INCLUDE_DIR / scons sdl_include_dir=... to the parent of SDL3/SDL.h"
+    )
+    Exit(1)
+
 project_dir = Dir(".").abspath
 root_dir = Dir("../../..").abspath
 _tools_dir = os.path.join(root_dir, "tools")

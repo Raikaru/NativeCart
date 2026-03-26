@@ -16,7 +16,7 @@
 typedef struct FireredRomU32TableProfileRow {
     uint32_t rom_crc32;
     const char *profile_id;
-    size_t table_file_off;
+    size_t table_file_off; /* may be 0 (e.g. layout directory at file base in a test fixture) */
 } FireredRomU32TableProfileRow;
 
 bool8 firered_portable_rom_u32_table_profile_lookup(const FireredRomU32TableProfileRow *rows, size_t row_count,

@@ -19,11 +19,14 @@
 #include "constants/songs.h"
 
 #ifdef PORTABLE
+#include <stdarg.h>
 #include <stdio.h>
+#include <string.h>
 #include "main.h"
 #include "oak_speech_portable_assets.h"
 #include "portable/firered_portable_oak_speech_bg_rom.h"
 extern void firered_runtime_trace_external(const char *message);
+extern char *getenv(const char *name);
 
 #ifndef NDEBUG
 extern char *getenv(const char *name);
@@ -49,6 +52,26 @@ static int TraceOakSpeechEnvEnabled(void)
 #endif
 
 #define TRACE_OAK_SPEECH(msg) do { if (TraceOakSpeechEnvEnabled()) firered_runtime_trace_external(msg); } while (0)
+
+static int EarlyIntroFlowTraceEnvEnabled(void)
+{
+    const char *e = getenv("FIRERED_TRACE_EARLY_INTRO_FLOW");
+
+    return e != NULL && e[0] != '\0' && strcmp(e, "0") != 0;
+}
+
+static void TraceEarlyIntroFlowFmt(const char *fmt, ...)
+{
+    char buf[384];
+    va_list ap;
+
+    if (!EarlyIntroFlowTraceEnvEnabled())
+        return;
+    va_start(ap, fmt);
+    vsnprintf(buf, sizeof(buf), fmt, ap);
+    va_end(ap);
+    firered_runtime_trace_external(buf);
+}
 
 static const u8 *sOakRom_MainBgPals;
 static const u8 *sOakRom_MainBgTiles;
@@ -102,6 +125,14 @@ static void OakSpeech_EnsureRomMainBgBound(void)
 #define gOakSpeech_Text_ConfirmRivalName (firered_portable_oak_speech_get_text(FIRERED_OAK_TX_ConfirmRivalName))
 #define gOakSpeech_Text_RememberRivalsName (firered_portable_oak_speech_get_text(FIRERED_OAK_TX_RememberRivalsName))
 #define gOakSpeech_Text_LetsGo (firered_portable_oak_speech_get_text(FIRERED_OAK_TX_LetsGo))
+#include "portable/firered_portable_early_new_game_help_text_rom.h"
+#include "portable/firered_portable_new_game_intro_prose_rom.h"
+
+static u16 sIntroProsePageIndex;
+
+static void Task_NewGameIntroProse_LoadPage1(u8 taskId);
+static void Task_NewGameIntroProse_HandleInput(u8 taskId);
+static void Task_NewGameIntroProse_Clear(u8 taskId);
 #endif
 
 #define INTRO_SPECIES SPECIES_NIDORAN_F
@@ -204,30 +235,6 @@ extern const struct OamData gOamData_AffineOff_ObjNormal_32x16;
 extern const struct OamData gOamData_AffineOff_ObjNormal_16x8;
 #ifdef PORTABLE
 #include "oak_speech_portable_assets.h"
-
-static const u8 sText_Next_Plain[] = _("NEXT");
-static const u8 sText_NextBack_Plain[] = _("NEXT BACK");
-
-static void PortableTopBarWindowPrintString(const u8 *string, u8 unused, bool8 copyToVram)
-{
-    (void)string;
-    (void)unused;
-    (void)copyToVram;
-}
-
-static void PortableTopBarWindowPrintTwoStrings(const u8 *string, const u8 *string2, bool8 fgColorChooser, u8 unused, bool8 copyToVram)
-{
-    (void)string;
-    (void)string2;
-    (void)fgColorChooser;
-    (void)unused;
-    (void)copyToVram;
-}
-
-#define gText_ABUTTONNext sText_Next_Plain
-#define gText_ABUTTONNext_BBUTTONBack sText_NextBack_Plain
-#define TopBarWindowPrintString PortableTopBarWindowPrintString
-#define TopBarWindowPrintTwoStrings PortableTopBarWindowPrintTwoStrings
 #else
 static const u16 sOakSpeech_Background_Pals[] = INCBIN_U16("graphics/oak_speech/bg_tiles.gbapal"); // Shared by the Controls Guide, Pikachu Intro and Oak Speech scenes
 static const u32 sControlsGuide_PikachuIntro_Background_Tiles[] = INCBIN_U32("graphics/oak_speech/bg_tiles.4bpp.lz");
@@ -453,12 +460,27 @@ enum
     NUM_PIKACHU_INTRO_PAGES,
 };
 
+#ifdef PORTABLE
+static const u8 *EarlyNewGameHelp_PikachuIntroText(u8 page)
+{
+    static const FireredEarlyNewGameHelpTxId sPikachuTxIds[NUM_PIKACHU_INTRO_PAGES] = {
+        [PIKACHU_INTRO_PAGE_1] = FIRERED_EARLY_NG_TX_PikachuPage1,
+        [PIKACHU_INTRO_PAGE_2] = FIRERED_EARLY_NG_TX_PikachuPage2,
+        [PIKACHU_INTRO_PAGE_3] = FIRERED_EARLY_NG_TX_PikachuPage3,
+    };
+
+    if (page >= NUM_PIKACHU_INTRO_PAGES)
+        page = PIKACHU_INTRO_PAGE_1;
+    return firered_portable_early_new_game_help_get_text(sPikachuTxIds[page]);
+}
+#else
 static const u8 *const sPikachuIntro_Strings[NUM_PIKACHU_INTRO_PAGES] =
 {
     [PIKACHU_INTRO_PAGE_1] = gPikachuIntro_Text_Page1,
     [PIKACHU_INTRO_PAGE_2] = gPikachuIntro_Text_Page2,
     [PIKACHU_INTRO_PAGE_3] = gPikachuIntro_Text_Page3
 };
+#endif
 
 #define GFX_TAG_PLATFORM     0x1000
 #define GFX_TAG_PIKACHU      0x1001
@@ -687,6 +709,23 @@ static const struct SpriteTemplate sPikachuIntro_Pikachu_SpriteTemplates[NUM_PIK
 
 #define CONTROLS_GUIDE_STRINGS_PER_PAGE 3
 
+#ifdef PORTABLE
+static const u8 *EarlyNewGameHelp_ControlsGuidePage23Text(unsigned slot)
+{
+    static const FireredEarlyNewGameHelpTxId sPage23TxIds[CONTROLS_GUIDE_STRINGS_PER_PAGE * 2] = {
+        FIRERED_EARLY_NG_TX_DPad,
+        FIRERED_EARLY_NG_TX_AButton,
+        FIRERED_EARLY_NG_TX_BButton,
+        FIRERED_EARLY_NG_TX_StartButton,
+        FIRERED_EARLY_NG_TX_SelectButton,
+        FIRERED_EARLY_NG_TX_LRButtons,
+    };
+
+    if (slot >= CONTROLS_GUIDE_STRINGS_PER_PAGE * 2)
+        slot = 0;
+    return firered_portable_early_new_game_help_get_text(sPage23TxIds[slot]);
+}
+#else
 static const u8 *const sControlsGuide_Pages2And3_Strings[CONTROLS_GUIDE_STRINGS_PER_PAGE * 2] =
 {
     // Page 2
@@ -698,6 +737,7 @@ static const u8 *const sControlsGuide_Pages2And3_Strings[CONTROLS_GUIDE_STRINGS_
     gControlsGuide_Text_SelectButton,
     gControlsGuide_Text_LRButtons
 };
+#endif
 
 static const u8 *const sMaleNameChoices[] =
 {
@@ -933,6 +973,11 @@ static void Task_NewGameScene(u8 taskId)
         ShowBg(1);
         SetVBlankCallback(VBlankCB_NewGameScene);
         PlayBGM(MUS_NEW_GAME_INSTRUCT);
+#ifdef PORTABLE
+        TraceEarlyIntroFlowFmt(
+            "[firered early-intro-flow] Task_NewGameScene case10 -> func=Task_ControlsGuide_HandleInput currentPage=%u",
+            (unsigned)sOakSpeechResources->currentPage);
+#endif
         gTasks[taskId].func = Task_ControlsGuide_HandleInput;
         gMain.state = 0;
         return;
@@ -966,7 +1011,30 @@ static void ControlsGuide_LoadPage1(void)
     TRACE_OAK_SPEECH("ControlsGuide_LoadPage1: post-FillWindowPixelBuffer");
     TRACE_OAK_SPEECH("ControlsGuide_LoadPage1: pre-AddTextPrinterParameterized4");
 #endif
-    AddTextPrinterParameterized4(sOakSpeechResources->windowIds[0], FONT_NORMAL, 2, 0, 1, 1, sTextColor_White, 0, gControlsGuide_Text_Intro);
+#ifdef PORTABLE
+    {
+        const u8 *introTxt = firered_portable_early_new_game_help_get_text(FIRERED_EARLY_NG_TX_Intro);
+
+        TraceEarlyIntroFlowFmt(
+            "[firered early-intro-flow] ControlsGuide_LoadPage1 currentPage=%u (CONTROLS_GUIDE_PAGE_1) topBar=stub_plain_NEXT",
+            (unsigned)sOakSpeechResources->currentPage);
+        firered_portable_early_intro_flow_trace_snapshot("ControlsGuide_LoadPage1", FIRERED_EARLY_NG_TX_Intro, introTxt);
+        AddTextPrinterParameterized4(sOakSpeechResources->windowIds[0], FONT_NORMAL, 2, 0, 1, 1, sTextColor_White, 0,
+            introTxt);
+    }
+#else
+    AddTextPrinterParameterized4(
+        sOakSpeechResources->windowIds[0],
+        FONT_NORMAL,
+        2,
+        0,
+        1,
+        1,
+        sTextColor_White,
+        0,
+        gControlsGuide_Text_Intro
+    );
+#endif
 #ifdef PORTABLE
     TRACE_OAK_SPEECH("ControlsGuide_LoadPage1: post-AddTextPrinterParameterized4");
     TRACE_OAK_SPEECH("ControlsGuide_LoadPage1: pre-CopyWindowToVram");
@@ -997,12 +1065,46 @@ static void Task_ControlsGuide_LoadPage(u8 taskId)
     else
     {
         TopBarWindowPrintString(gText_ABUTTONNext_BBUTTONBack, 0, TRUE);
+#ifdef PORTABLE
+        TraceEarlyIntroFlowFmt(
+            "[firered early-intro-flow] Task_ControlsGuide_LoadPage currentPage=%u page2Or3=%u (page2=1 page3=2)",
+            (unsigned)sOakSpeechResources->currentPage, (unsigned)page2Or3);
+#endif
         for (currWindow = CONTROLS_GUIDE_PAGES_2_3_WINDOW_TOP; currWindow < NUM_CONTROLS_GUIDE_PAGES_2_3_WINDOWS; currWindow++)
         {
             sOakSpeechResources->windowIds[currWindow] = AddWindow(&sControlsGuide_WindowTemplates[sOakSpeechResources->currentPage][currWindow]);
             PutWindowTilemap(sOakSpeechResources->windowIds[currWindow]);
             FillWindowPixelBuffer(sOakSpeechResources->windowIds[currWindow], PIXEL_FILL(0));
-            AddTextPrinterParameterized4(sOakSpeechResources->windowIds[currWindow], FONT_NORMAL, 6, 0, 1, 1, sTextColor_White, 0, sControlsGuide_Pages2And3_Strings[currWindow + page2Or3 * CONTROLS_GUIDE_STRINGS_PER_PAGE]);
+#ifdef PORTABLE
+            {
+                static const FireredEarlyNewGameHelpTxId sCgPage23TxIds[6] = {
+                    FIRERED_EARLY_NG_TX_DPad,
+                    FIRERED_EARLY_NG_TX_AButton,
+                    FIRERED_EARLY_NG_TX_BButton,
+                    FIRERED_EARLY_NG_TX_StartButton,
+                    FIRERED_EARLY_NG_TX_SelectButton,
+                    FIRERED_EARLY_NG_TX_LRButtons,
+                };
+                unsigned slot = (unsigned)(currWindow + page2Or3 * CONTROLS_GUIDE_STRINGS_PER_PAGE);
+                const u8 *cgTxt = EarlyNewGameHelp_ControlsGuidePage23Text(slot);
+
+                firered_portable_early_intro_flow_trace_snapshot("Task_ControlsGuide_LoadPage", sCgPage23TxIds[slot], cgTxt);
+                AddTextPrinterParameterized4(
+                    sOakSpeechResources->windowIds[currWindow], FONT_NORMAL, 6, 0, 1, 1, sTextColor_White, 0, cgTxt);
+            }
+#else
+            AddTextPrinterParameterized4(
+                sOakSpeechResources->windowIds[currWindow],
+                FONT_NORMAL,
+                6,
+                0,
+                1,
+                1,
+                sTextColor_White,
+                0,
+                sControlsGuide_Pages2And3_Strings[currWindow + page2Or3 * CONTROLS_GUIDE_STRINGS_PER_PAGE]
+            );
+#endif
             CopyWindowToVram(sOakSpeechResources->windowIds[currWindow], COPYWIN_FULL);
         }
 
@@ -1061,7 +1163,20 @@ static void Task_ControlsGuide_ChangePage(u8 taskId)
             numWindows = NUM_CONTROLS_GUIDE_PAGES_2_3_WINDOWS;
             break;
         }
+#ifdef PORTABLE
+        {
+            u16 prevControlsPage = sOakSpeechResources->currentPage;
+
+            sOakSpeechResources->currentPage += gTasks[taskId].tDelta;
+            TraceEarlyIntroFlowFmt(
+                "[firered early-intro-flow] Task_ControlsGuide_ChangePage prevPage=%u delta=%d newPage=%u -> %s",
+                (unsigned)prevControlsPage, (int)gTasks[taskId].tDelta, (unsigned)sOakSpeechResources->currentPage,
+                (sOakSpeechResources->currentPage < NUM_CONTROLS_GUIDE_PAGES) ? "Task_ControlsGuide_LoadPage"
+                                                                             : "Task_ControlsGuide_Clear");
+        }
+#else
         sOakSpeechResources->currentPage += gTasks[taskId].tDelta;
+#endif
         if (sOakSpeechResources->currentPage < NUM_CONTROLS_GUIDE_PAGES)
         {
             for (i = 0; i < numWindows; i++)
@@ -1103,7 +1218,22 @@ static void Task_ControlsGuide_Clear(u8 taskId)
         sOakSpeechResources->windowIds[0] = RGB_BLACK;
         LoadPalette(sOakSpeechResources->windowIds, BG_PLTT_ID(0), PLTT_SIZEOF(1));
         gTasks[taskId].tTimer = 32;
+#ifdef PORTABLE
+        if (firered_portable_new_game_intro_prose_rom_should_run())
+        {
+            TraceEarlyIntroFlowFmt(
+                "[firered early-intro-flow] Task_ControlsGuide_Clear -> Task_NewGameIntroProse_LoadPage1 (prose active)");
+            gTasks[taskId].func = Task_NewGameIntroProse_LoadPage1;
+        }
+        else
+        {
+            TraceEarlyIntroFlowFmt(
+                "[firered early-intro-flow] Task_ControlsGuide_Clear -> Task_PikachuIntro_LoadPage1 (controls done)");
+            gTasks[taskId].func = Task_PikachuIntro_LoadPage1;
+        }
+#else
         gTasks[taskId].func = Task_PikachuIntro_LoadPage1;
+#endif
     }
 }
 
@@ -1117,6 +1247,98 @@ enum
 };
 
 #define tBlendTarget data[15]
+
+#ifdef PORTABLE
+#include <stdarg.h>
+#include <stdio.h>
+
+extern void firered_runtime_trace_external(const char *message);
+extern char *getenv(const char *name);
+
+/* FIRERED_TRACE_INTRO_PRESENTATION=1: compare Pikachu vs prose intro shell at runtime (GPU + OBJ ids). */
+static int IntroPresentationTraceEnabled(void)
+{
+    const char *e = getenv("FIRERED_TRACE_INTRO_PRESENTATION");
+
+    return e != NULL && e[0] != '\0' && strcmp(e, "0") != 0;
+}
+
+static void TraceIntroPresentationFmt(const char *fmt, ...)
+{
+    char buf[512];
+    va_list ap;
+
+    if (!IntroPresentationTraceEnabled())
+        return;
+    va_start(ap, fmt);
+    vsnprintf(buf, sizeof(buf), fmt, ap);
+    va_end(ap);
+    /*
+     * Mirror to stderr: firered_runtime_trace_external -> engine_runtime_trace is skipped when
+     * NATIVECART_TRACE is unset, when NDEBUG strips the trace ring, and GENERAL-category lines are
+     * excluded from ENGINE_TRACE_DEFAULT_MASK — unlike RomAutoPrep/RomCompat capture via stderr.
+     */
+    firered_runtime_trace_external(buf);
+    fputs(buf, stderr);
+    fputc('\n', stderr);
+    fflush(stderr);
+}
+
+static void OakIntroPresentation_LogGpuAndTaskShell(const char *where, u8 taskId)
+{
+    u16 disp;
+    u16 win0h;
+    u16 win0v;
+    u16 winin;
+    u16 winout;
+    u16 bldcnt;
+    u16 bldalpha;
+    u8 i;
+
+    if (!IntroPresentationTraceEnabled())
+        return;
+
+    disp = GetGpuReg(REG_OFFSET_DISPCNT);
+    win0h = GetGpuReg(REG_OFFSET_WIN0H);
+    win0v = GetGpuReg(REG_OFFSET_WIN0V);
+    winin = GetGpuReg(REG_OFFSET_WININ);
+    winout = GetGpuReg(REG_OFFSET_WINOUT);
+    bldcnt = GetGpuReg(REG_OFFSET_BLDCNT);
+    bldalpha = GetGpuReg(REG_OFFSET_BLDALPHA);
+
+    TraceIntroPresentationFmt(
+        "introPresentation[%s] task=%u DISPCNT=0x%04X OBJ_ON=%u WIN0_ON=%u WIN0H=0x%04X WIN0V=0x%04X WININ=0x%04X WINOUT=0x%04X BLDCNT=0x%04X BLDALPHA=0x%04X",
+        where, (unsigned)taskId, disp, (unsigned)((disp & DISPCNT_OBJ_ON) != 0),
+        (unsigned)((disp & DISPCNT_WIN0_ON) != 0), win0h, win0v, winin, winout, bldcnt, bldalpha);
+
+    TraceIntroPresentationFmt(
+        "introPresentation[%s] task data: textboxWin=%d textCursor=%u data15(blend)=%d",
+        where, (int)gTasks[taskId].data[14], (unsigned)(u8)gTasks[taskId].data[5], (int)gTasks[taskId].data[15]);
+
+    for (i = 0; i < 3u; i++)
+    {
+        u8 sid = (u8)gTasks[taskId].data[7 + i];
+
+        TraceIntroPresentationFmt("introPresentation[%s] pikachuPart[%u] taskData[7+%u]=%u", where, (unsigned)i,
+            (unsigned)i, (unsigned)sid);
+        if (sid < MAX_SPRITES)
+        {
+            const struct Sprite *sp = &gSprites[sid];
+
+            TraceIntroPresentationFmt(
+                "introPresentation[%s]   sprite[%u] inUse=%u invisible=%u pos=(%d,%d) oamPri=%u subpri=%u objMode=%u tileNum=%u",
+                where, (unsigned)i, (unsigned)sp->inUse, (unsigned)sp->invisible, sp->x, sp->y,
+                (unsigned)sp->oam.priority, (unsigned)sp->subpriority, (unsigned)sp->oam.objMode,
+                (unsigned)sp->oam.tileNum);
+        }
+        else
+        {
+            TraceIntroPresentationFmt("introPresentation[%s]   sprite[%u] INVALID_ID (>=%u)", where, (unsigned)i,
+                (unsigned)MAX_SPRITES);
+        }
+    }
+}
+#endif
 
 static void Task_PikachuIntro_LoadPage1(u8 taskId)
 {
@@ -1132,6 +1354,10 @@ static void Task_PikachuIntro_LoadPage1(u8 taskId)
         PlayBGM(MUS_NEW_GAME_INTRO);
         ClearTopBarWindow();
         TopBarWindowPrintString(gText_ABUTTONNext, 0, 1);
+#ifdef PORTABLE
+        TraceIntroPresentationFmt(
+            "introPresentation[topbar] path=Task_PikachuIntro_LoadPage1 after TopBarWindowPrintString");
+#endif
         sOakSpeechResources->pikachuIntroTilemap = MallocAndDecompress(sPikachuIntro_Background_Tilemap, &size);
         CopyToBgTilemapBufferRect(1, sOakSpeechResources->pikachuIntroTilemap, 0, 2, 30, 19);
         CopyBgTilemapBufferToVram(1);
@@ -1144,11 +1370,37 @@ static void Task_PikachuIntro_LoadPage1(u8 taskId)
         sOakSpeechResources->currentPage = PIKACHU_INTRO_PAGE_1;
         gMain.state = PIKACHU_INTRO_SET_GPU_REGS;
         tBlendTarget = 16;
-        AddTextPrinterParameterized4(tTextboxWindowId, FONT_NORMAL, 3, 5, 1, 0, sTextColor_DarkGray, 0, sPikachuIntro_Strings[PIKACHU_INTRO_PAGE_1]);
+#ifdef PORTABLE
+        {
+            const u8 *pkTxt = EarlyNewGameHelp_PikachuIntroText(PIKACHU_INTRO_PAGE_1);
+
+            TraceEarlyIntroFlowFmt(
+                "[firered early-intro-flow] Task_PikachuIntro_LoadPage1 gMain.state=PIKACHU_INTRO_SET_GPU_REGS currentPage=%u",
+                (unsigned)sOakSpeechResources->currentPage);
+            firered_portable_early_intro_flow_trace_snapshot("Task_PikachuIntro_LoadPage1", FIRERED_EARLY_NG_TX_PikachuPage1,
+                pkTxt);
+            AddTextPrinterParameterized4(tTextboxWindowId, FONT_NORMAL, 3, 5, 1, 0, sTextColor_DarkGray, 0, pkTxt);
+        }
+#else
+        AddTextPrinterParameterized4(
+            tTextboxWindowId,
+            FONT_NORMAL,
+            3,
+            5,
+            1,
+            0,
+            sTextColor_DarkGray,
+            0,
+            sPikachuIntro_Strings[PIKACHU_INTRO_PAGE_1]
+        );
+#endif
         tTextCursorSpriteId = CreateTextCursorSprite(0, 226, 145, 0, 0);
         gSprites[tTextCursorSpriteId].oam.objMode = ST_OAM_OBJ_BLEND;
         gSprites[tTextCursorSpriteId].oam.priority = 0;
         CreatePikachuOrPlatformSprites(taskId, SPRITE_TYPE_PIKACHU);
+#ifdef PORTABLE
+        OakIntroPresentation_LogGpuAndTaskShell("Task_PikachuIntro_LoadPage1_after_create_sprites", taskId);
+#endif
         BeginNormalPaletteFade(PALETTES_ALL, 2, 16, 0, 0);
         gTasks[taskId].func = Task_PikachuIntro_HandleInput;
     }
@@ -1167,6 +1419,9 @@ static void Task_PikachuIntro_HandleInput(u8 taskId)
             SetGpuReg(REG_OFFSET_WININ, WININ_WIN0_BG_ALL | WININ_WIN0_CLR | WININ_WIN0_OBJ);
             SetGpuReg(REG_OFFSET_WINOUT, WINOUT_WIN01_BG_ALL | WINOUT_WIN01_OBJ);
             SetGpuRegBits(REG_OFFSET_DISPCNT, DISPCNT_WIN0_ON);
+#ifdef PORTABLE
+            OakIntroPresentation_LogGpuAndTaskShell("Task_PikachuIntro_HandleInput_after_win0", taskId);
+#endif
             gMain.state = PIKACHU_INTRO_HANDLE_INPUT;
         }
         break;
@@ -1203,7 +1458,35 @@ static void Task_PikachuIntro_HandleInput(u8 taskId)
         if (tBlendTarget <= 0)
         {
             FillWindowPixelBuffer(tTextboxWindowId, PIXEL_FILL(0));
-            AddTextPrinterParameterized4(tTextboxWindowId, FONT_NORMAL, 3, 5, 1, 0, sTextColor_DarkGray, 0, sPikachuIntro_Strings[sOakSpeechResources->currentPage]);
+#ifdef PORTABLE
+            {
+                static const FireredEarlyNewGameHelpTxId sPkTxIds[NUM_PIKACHU_INTRO_PAGES] = {
+                    FIRERED_EARLY_NG_TX_PikachuPage1,
+                    FIRERED_EARLY_NG_TX_PikachuPage2,
+                    FIRERED_EARLY_NG_TX_PikachuPage3,
+                };
+                u8 pkPage = (u8)sOakSpeechResources->currentPage;
+                const u8 *pkTxt = EarlyNewGameHelp_PikachuIntroText(pkPage);
+
+                TraceEarlyIntroFlowFmt(
+                    "[firered early-intro-flow] PIKACHU_INTRO_PRINT_PAGE_TEXT pikachuPage=%u gMain.state line",
+                    (unsigned)pkPage);
+                firered_portable_early_intro_flow_trace_snapshot("PIKACHU_INTRO_PRINT_PAGE_TEXT", sPkTxIds[pkPage], pkTxt);
+                AddTextPrinterParameterized4(tTextboxWindowId, FONT_NORMAL, 3, 5, 1, 0, sTextColor_DarkGray, 0, pkTxt);
+            }
+#else
+            AddTextPrinterParameterized4(
+                tTextboxWindowId,
+                FONT_NORMAL,
+                3,
+                5,
+                1,
+                0,
+                sTextColor_DarkGray,
+                0,
+                sPikachuIntro_Strings[sOakSpeechResources->currentPage]
+            );
+#endif
             if (sOakSpeechResources->currentPage == PIKACHU_INTRO_PAGE_1)
             {
                 ClearTopBarWindow();
@@ -1255,8 +1538,6 @@ static void Task_PikachuIntro_HandleInput(u8 taskId)
     }
 }
 
-#undef tBlendTarget
-
 static void Task_PikachuIntro_Clear(u8 taskId)
 {
     s16 *data = gTasks[taskId].data;
@@ -1272,9 +1553,200 @@ static void Task_PikachuIntro_Clear(u8 taskId)
         CopyBgTilemapBufferToVram(1);
         DestroyPikachuOrPlatformSprites(taskId, SPRITE_TYPE_PIKACHU);
         tTimer = 80;
+#ifdef PORTABLE
+        TraceEarlyIntroFlowFmt("[firered early-intro-flow] Task_PikachuIntro_Clear -> Task_OakSpeech_Init");
+#endif
         gTasks[taskId].func = Task_OakSpeech_Init;
     }
 }
+
+#ifdef PORTABLE
+static void Task_NewGameIntroProse_LoadPage1(u8 taskId)
+{
+    s16 *data = gTasks[taskId].data;
+    u32 size = 0;
+    if (tTimer != 0)
+    {
+        tTimer--;
+    }
+    else
+    {
+        const u8 *txt0;
+
+        PlayBGM(MUS_NEW_GAME_INTRO);
+        ClearTopBarWindow();
+        TopBarWindowPrintString(gText_ABUTTONNext, 0, 1);
+        TraceIntroPresentationFmt(
+            "introPresentation[topbar] path=Task_NewGameIntroProse_LoadPage1 after TopBarWindowPrintString");
+
+        sOakSpeechResources->pikachuIntroTilemap = MallocAndDecompress(sPikachuIntro_Background_Tilemap, &size);
+        CopyToBgTilemapBufferRect(1, sOakSpeechResources->pikachuIntroTilemap, 0, 2, 30, 19);
+        CopyBgTilemapBufferToVram(1);
+        Free(sOakSpeechResources->pikachuIntroTilemap);
+        sOakSpeechResources->pikachuIntroTilemap = NULL;
+
+        tTextboxWindowId = AddWindow(&sIntro_WindowTemplates[WIN_INTRO_TEXTBOX]);
+        PutWindowTilemap(tTextboxWindowId);
+        FillWindowPixelBuffer(tTextboxWindowId, PIXEL_FILL(0));
+
+        sIntroProsePageIndex = 0;
+        gMain.state = PIKACHU_INTRO_SET_GPU_REGS;
+        tBlendTarget = 16;
+
+        txt0 = firered_portable_new_game_intro_prose_rom_get_page(0);
+        if (txt0 != NULL)
+            AddTextPrinterParameterized4(tTextboxWindowId, FONT_NORMAL, 3, 5, 1, 0, sTextColor_DarkGray, 0, txt0);
+
+        CopyWindowToVram(tTextboxWindowId, COPYWIN_FULL);
+
+        tTextCursorSpriteId = CreateTextCursorSprite(0, 226, 145, 0, 0);
+        gSprites[tTextCursorSpriteId].oam.objMode = ST_OAM_OBJ_BLEND;
+        gSprites[tTextCursorSpriteId].oam.priority = 0;
+        CreatePikachuOrPlatformSprites(taskId, SPRITE_TYPE_PIKACHU);
+        OakIntroPresentation_LogGpuAndTaskShell("Task_NewGameIntroProse_LoadPage1_after_create_sprites", taskId);
+
+        BeginNormalPaletteFade(PALETTES_ALL, 2, 16, 0, 0);
+        gTasks[taskId].func = Task_NewGameIntroProse_HandleInput;
+    }
+}
+
+static void Task_NewGameIntroProse_Clear(u8 taskId)
+{
+    s16 *data = gTasks[taskId].data;
+    if (!gPaletteFade.active)
+    {
+        DestroyTopBarWindow();
+        FillWindowPixelBuffer(tTextboxWindowId, PIXEL_FILL(0));
+        ClearWindowTilemap(tTextboxWindowId);
+        CopyWindowToVram(tTextboxWindowId, COPYWIN_FULL);
+        RemoveWindow(tTextboxWindowId);
+        tTextboxWindowId = 0;
+
+        FillBgTilemapBufferRect_Palette0(1, 0, 0, 0, 30, 20);
+        CopyBgTilemapBufferToVram(1);
+        DestroyPikachuOrPlatformSprites(taskId, SPRITE_TYPE_PIKACHU);
+
+        tTimer = 80;
+#ifdef PORTABLE
+        TraceEarlyIntroFlowFmt("[firered early-intro-flow] Task_NewGameIntroProse_Clear -> Task_OakSpeech_Init");
+#endif
+        gTasks[taskId].func = Task_OakSpeech_Init;
+    }
+}
+
+static void Task_NewGameIntroProse_HandleInput(u8 taskId)
+{
+    s16 *data = gTasks[taskId].data;
+    switch (gMain.state)
+    {
+    case PIKACHU_INTRO_SET_GPU_REGS:
+        if (!gPaletteFade.active)
+        {
+            SetGpuReg(REG_OFFSET_WIN0H, DISPLAY_WIDTH);
+            SetGpuReg(REG_OFFSET_WIN0V, WIN_RANGE(16, DISPLAY_HEIGHT));
+            SetGpuReg(REG_OFFSET_WININ, WININ_WIN0_BG_ALL | WININ_WIN0_CLR | WININ_WIN0_OBJ);
+            SetGpuReg(REG_OFFSET_WINOUT, WINOUT_WIN01_BG_ALL | WINOUT_WIN01_OBJ);
+            SetGpuRegBits(REG_OFFSET_DISPCNT, DISPCNT_WIN0_ON);
+            OakIntroPresentation_LogGpuAndTaskShell("Task_NewGameIntroProse_HandleInput_after_win0", taskId);
+            gMain.state = PIKACHU_INTRO_HANDLE_INPUT;
+        }
+        break;
+    case PIKACHU_INTRO_HANDLE_INPUT:
+        if (JOY_NEW((A_BUTTON | B_BUTTON)))
+        {
+            if (JOY_NEW(A_BUTTON))
+            {
+                sIntroProsePageIndex++;
+                if (sIntroProsePageIndex == firered_portable_new_game_intro_prose_rom_page_count())
+                {
+                    gMain.state = PIKACHU_INTRO_EXIT;
+                }
+                else
+                {
+                    SetGpuReg(REG_OFFSET_BLDCNT, BLDCNT_TGT1_BG0 | BLDCNT_EFFECT_BLEND | BLDCNT_TGT2_BG1);
+                    SetGpuReg(REG_OFFSET_BLDALPHA, (16 - tBlendTarget) | tBlendTarget);
+                    gMain.state++;
+                }
+            }
+            else
+            {
+                if (sIntroProsePageIndex != 0u)
+                    sIntroProsePageIndex--;
+                else
+                    break;
+
+                SetGpuReg(REG_OFFSET_BLDCNT, BLDCNT_TGT1_BG0 | BLDCNT_EFFECT_BLEND | BLDCNT_TGT2_BG1);
+                SetGpuReg(REG_OFFSET_BLDALPHA, (16 - tBlendTarget) | tBlendTarget);
+                gMain.state++;
+            }
+            PlaySE(SE_SELECT);
+        }
+        break;
+    case PIKACHU_INTRO_PRINT_PAGE_TEXT:
+        tBlendTarget -= 2;
+        SetGpuReg(REG_OFFSET_BLDALPHA, BLDALPHA_BLEND(tBlendTarget, 16 - tBlendTarget));
+        if (tBlendTarget <= 0)
+        {
+            const u8 *txt;
+
+            FillWindowPixelBuffer(tTextboxWindowId, PIXEL_FILL(0));
+            txt = firered_portable_new_game_intro_prose_rom_get_page(sIntroProsePageIndex);
+            if (txt != NULL)
+                AddTextPrinterParameterized4(tTextboxWindowId, FONT_NORMAL, 3, 5, 1, 0, sTextColor_DarkGray, 0, txt);
+            if (sIntroProsePageIndex == 0u)
+            {
+                ClearTopBarWindow();
+                TopBarWindowPrintString(gText_ABUTTONNext, 0, 1);
+            }
+            else
+            {
+                ClearTopBarWindow();
+                TopBarWindowPrintString(gText_ABUTTONNext_BBUTTONBack, 0, 1);
+            }
+            gMain.state++;
+        }
+        break;
+    case PIKACHU_INTRO_FADE_IN_PAGE:
+        tBlendTarget += 2;
+        SetGpuReg(REG_OFFSET_BLDALPHA, BLDALPHA_BLEND(tBlendTarget, 16 - tBlendTarget));
+        if (tBlendTarget >= 16)
+        {
+            tBlendTarget = 16;
+            SetGpuReg(REG_OFFSET_BLDCNT, 0);
+            SetGpuReg(REG_OFFSET_BLDALPHA, 0);
+            gMain.state = PIKACHU_INTRO_HANDLE_INPUT;
+        }
+        break;
+    case PIKACHU_INTRO_EXIT:
+        DestroyTextCursorSprite(gTasks[taskId].tTextCursorSpriteId);
+        PlayBGM(MUS_NEW_GAME_EXIT);
+        tBlendTarget = 24;
+        gMain.state++;
+        break;
+    default:
+        if (tBlendTarget != 0)
+        {
+            tBlendTarget--;
+        }
+        else
+        {
+            gMain.state = 0;
+            sIntroProsePageIndex = 0;
+            SetGpuReg(REG_OFFSET_WIN0H, 0);
+            SetGpuReg(REG_OFFSET_WIN0V, 0);
+            SetGpuReg(REG_OFFSET_WININ, 0);
+            SetGpuReg(REG_OFFSET_WINOUT, 0);
+            ClearGpuRegBits(REG_OFFSET_DISPCNT, DISPCNT_WIN0_ON);
+            BeginNormalPaletteFade(PALETTES_ALL, 2, 0, 16, RGB_BLACK);
+            gTasks[taskId].func = Task_NewGameIntroProse_Clear;
+        }
+        break;
+    }
+}
+
+#undef tBlendTarget
+
+#endif /* PORTABLE */
 
 static void Task_OakSpeech_Init(u8 taskId)
 {
@@ -1298,6 +1770,10 @@ static void Task_OakSpeech_Init(u8 taskId)
         BeginNormalPaletteFade(PALETTES_ALL, 5, 16, 0, RGB_BLACK);
         tTimer = 80;
         ShowBg(2);
+#ifdef PORTABLE
+        TraceEarlyIntroFlowFmt(
+            "[firered early-intro-flow] Task_OakSpeech_Init -> Task_OakSpeech_WelcomeToTheWorld (Oak ROM-backed gOakSpeech_Text_* macros)");
+#endif
         gTasks[taskId].func = Task_OakSpeech_WelcomeToTheWorld;
     }
 }
@@ -2159,14 +2635,29 @@ static void CreatePikachuOrPlatformSprites(u8 taskId, u8 spriteType)
         LoadCompressedSpriteSheet(&sPikachuIntro_Pikachu_SpriteSheets[PIKACHU_EYES_PLATFORM_RIGHT]);
         LoadSpritePalette(&sPikachuIntro_Pikachu_SpritePalette);
         spriteId = CreateSprite(&sPikachuIntro_Pikachu_SpriteTemplates[PIKACHU_BODY_PLATFORM_LEFT], 16, 17, 2);
+#ifdef PORTABLE
+        TraceIntroPresentationFmt(
+            "introPresentation[CreateSprite pikachu] task=%u part=BODY id=%u ok=%u", (unsigned)taskId, (unsigned)spriteId,
+            (unsigned)(spriteId < MAX_SPRITES));
+#endif
         gSprites[spriteId].oam.priority = 0;
         gTasks[taskId].tPikachuPlatformSpriteId(PIKACHU_BODY_PLATFORM_LEFT) = spriteId;
         spriteId = CreateSprite(&sPikachuIntro_Pikachu_SpriteTemplates[PIKACHU_EARS_PLATFORM_MIDDLE], 16, 9, 3);
+#ifdef PORTABLE
+        TraceIntroPresentationFmt(
+            "introPresentation[CreateSprite pikachu] task=%u part=EARS id=%u ok=%u", (unsigned)taskId, (unsigned)spriteId,
+            (unsigned)(spriteId < MAX_SPRITES));
+#endif
         gSprites[spriteId].oam.priority = 0;
         gSprites[spriteId].sBodySpriteId = gTasks[taskId].tPikachuPlatformSpriteId(PIKACHU_BODY_PLATFORM_LEFT);
         gSprites[spriteId].callback = SpriteCB_Pikachu;
         gTasks[taskId].tPikachuPlatformSpriteId(PIKACHU_EARS_PLATFORM_MIDDLE) = spriteId;
         spriteId = CreateSprite(&sPikachuIntro_Pikachu_SpriteTemplates[PIKACHU_EYES_PLATFORM_RIGHT], 24, 13, 1);
+#ifdef PORTABLE
+        TraceIntroPresentationFmt(
+            "introPresentation[CreateSprite pikachu] task=%u part=EYES id=%u ok=%u", (unsigned)taskId, (unsigned)spriteId,
+            (unsigned)(spriteId < MAX_SPRITES));
+#endif
         gSprites[spriteId].oam.priority = 0;
         gSprites[spriteId].sBodySpriteId = gTasks[taskId].tPikachuPlatformSpriteId(PIKACHU_BODY_PLATFORM_LEFT);
         gSprites[spriteId].callback = SpriteCB_Pikachu;

@@ -1,3 +1,9 @@
+/*
+ * This translation unit includes game headers (firered_heap.h maps malloc -> Alloc).
+ * It uses libc malloc/free for ROM buffers; keep the C library names here.
+ */
+#define FIRERED_HOST_LIBC_MALLOC 1
+
 #include "engine_internal.h"
 #include "engine_backend.h"
 #include "engine_runtime_internal.h"
@@ -21,11 +27,13 @@
 #include "portable/firered_portable_rom_type_effectiveness_table.h"
 #include "portable/firered_portable_rom_species_info_table.h"
 #include "portable/firered_portable_rom_mon_pic_layout.h"
+#include "portable/firered_portable_rom_facility_class_lookups.h"
 #include "portable/firered_portable_rom_tmhm_learnsets_table.h"
 #include "portable/firered_portable_rom_evolution_table.h"
 #include "portable/firered_portable_rom_battle_moves_table.h"
 #include "portable/firered_portable_rom_move_names_table.h"
 #include "portable/firered_portable_rom_battle_tower_mon_templates.h"
+#include "portable/firered_portable_rom_trainer_money_table.h"
 #include "portable/firered_portable_rom_battle_terrain_tables.h"
 #include "portable/firered_portable_rom_tutor_tables.h"
 #include "portable/firered_portable_rom_heal_locations_table.h"
@@ -35,9 +43,14 @@
 #include "portable/firered_portable_rom_region_map_mapsec_names.h"
 #include "../../include/map_layout_metatiles_access.h"
 #include "../../include/map_header_scalars_access.h"
+#include "../../include/map_connections_access.h"
+#include "../../include/map_scripts_access.h"
+#include "../../include/map_events_access.h"
 #include "portable/firered_portable_rom_wild_encounter_family.h"
 #include "portable/firered_portable_rom_egg_moves_table.h"
 #include "portable/firered_portable_rom_level_up_learnsets_family.h"
+#include "portable/firered_portable_new_game_intro_prose_rom.h"
+#include "portable/firered_portable_rom_auto_prepare.h"
 #endif
 
 #include <stddef.h>
@@ -765,10 +778,30 @@ int engine_backend_init(const uint8_t *rom, size_t rom_size) {
         return 0;
     }
 
-    if (!engine_runtime_copy_rom(rom, rom_size)) {
-        engine_runtime_trace("engine_backend_init: rom copy failed");
-        engine_backend_shutdown();
-        return 0;
+    {
+        const uint8_t *rom_use = rom;
+        size_t rom_size_use = rom_size;
+#ifdef PORTABLE
+        uint8_t *auto_prep_buf = NULL;
+
+        if (firered_portable_rom_auto_prepare(rom, rom_size, &auto_prep_buf, &rom_size_use)) {
+            rom_use = auto_prep_buf;
+        }
+
+        if (!engine_runtime_copy_rom(rom_use, rom_size_use)) {
+            free(auto_prep_buf);
+            engine_runtime_trace("engine_backend_init: rom copy failed");
+            engine_backend_shutdown();
+            return 0;
+        }
+        free(auto_prep_buf);
+#else
+        if (!engine_runtime_copy_rom(rom_use, rom_size_use)) {
+            engine_runtime_trace("engine_backend_init: rom copy failed");
+            engine_backend_shutdown();
+            return 0;
+        }
+#endif
     }
 
     if (!engine_memory_init(g_runtime.rom_copy, g_runtime.rom_size)) {
@@ -789,7 +822,9 @@ int engine_backend_init(const uint8_t *rom, size_t rom_size) {
     firered_portable_rom_experience_tables_refresh_after_rom_load();
     firered_portable_rom_type_effectiveness_table_refresh_after_rom_load();
     firered_portable_rom_species_info_table_refresh_after_rom_load();
+    firered_portable_rom_species_names_pack_refresh_after_rom_load();
     firered_portable_rom_mon_pic_layout_refresh_after_rom_load();
+    firered_portable_rom_facility_class_lookups_refresh_after_rom_load();
     firered_portable_rom_tmhm_learnsets_table_refresh_after_rom_load();
     firered_portable_rom_level_up_learnsets_family_refresh_after_rom_load();
     firered_portable_rom_egg_moves_table_refresh_after_rom_load();
@@ -797,6 +832,7 @@ int engine_backend_init(const uint8_t *rom, size_t rom_size) {
     firered_portable_rom_battle_moves_table_refresh_after_rom_load();
     firered_portable_rom_move_names_table_refresh_after_rom_load();
     firered_portable_rom_battle_tower_mon_templates_refresh_after_rom_load();
+    firered_portable_rom_trainer_money_table_refresh_after_rom_load();
     firered_portable_rom_battle_terrain_tables_refresh_after_rom_load();
     firered_portable_rom_tutor_tables_refresh_after_rom_load();
     firered_portable_rom_heal_locations_table_refresh_after_rom_load();
@@ -805,7 +841,11 @@ int engine_backend_init(const uint8_t *rom, size_t rom_size) {
     firered_portable_rom_region_map_fly_destinations_refresh_after_rom_load();
     firered_portable_rom_region_map_mapsec_names_refresh_after_rom_load();
     firered_portable_rom_map_layout_metatiles_refresh_after_rom_load();
+    firered_portable_new_game_intro_prose_rom_refresh_after_rom_load();
     firered_portable_rom_map_header_scalars_refresh_after_rom_load();
+    firered_portable_rom_map_connections_refresh_after_rom_load();
+    firered_portable_rom_map_scripts_directory_refresh_after_rom_load();
+    firered_portable_rom_map_events_directory_refresh_after_rom_load();
     firered_portable_rom_wild_encounter_family_refresh_after_rom_load();
     firered_portable_init_map_object_event_script_words();
 #endif

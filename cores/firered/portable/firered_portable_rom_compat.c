@@ -69,6 +69,45 @@ typedef struct {
  * Extend this table locally; keep it small.
  */
 static const KnownProfileRow s_known_profiles[] = {
+    /* Repo offline fixtures (CRC32 = IEEE full image; see tools/build_offline_layout_prose_fixture.py). */
+    {
+        0x217A04B1u,
+        NULL,
+        NULL,
+        "offline_layout_prose_fixture",
+        "Offline test: layout companion + intro-prose pointer table (CI fixture)",
+        FIRERED_ROM_COMPAT_KIND_NONSTANDARD,
+        FIRERED_ROM_COMPAT_FLAG_KNOWN_PROFILE | FIRERED_ROM_COMPAT_FLAG_LIKELY_DECOMP_INCOMPATIBLE,
+    },
+    {
+        0x33B8FD06u,
+        NULL,
+        NULL,
+        "offline_layout_companion_fixture",
+        "Offline test: layout companion splice only (CI fixture)",
+        FIRERED_ROM_COMPAT_KIND_NONSTANDARD,
+        FIRERED_ROM_COMPAT_FLAG_KNOWN_PROFILE | FIRERED_ROM_COMPAT_FLAG_LIKELY_DECOMP_INCOMPATIBLE,
+    },
+    {
+        0x8D911746u,
+        NULL,
+        NULL,
+        "omega_layout_test",
+        "Local Fire Red Omega test image (layout companion)",
+        FIRERED_ROM_COMPAT_KIND_KNOWN_FIRE_RED_HACK,
+        FIRERED_ROM_COMPAT_FLAG_KNOWN_PROFILE | FIRERED_ROM_COMPAT_FLAG_REQUIRES_RUNTIME_SHIMS
+            | FIRERED_ROM_COMPAT_FLAG_LIKELY_DECOMP_INCOMPATIBLE,
+    },
+    {
+        0x3479F247u,
+        NULL,
+        NULL,
+        "omega_layout_prose_test",
+        "Local Fire Red Omega test image (layout companion + intro prose)",
+        FIRERED_ROM_COMPAT_KIND_KNOWN_FIRE_RED_HACK,
+        FIRERED_ROM_COMPAT_FLAG_KNOWN_PROFILE | FIRERED_ROM_COMPAT_FLAG_REQUIRES_RUNTIME_SHIMS
+            | FIRERED_ROM_COMPAT_FLAG_LIKELY_DECOMP_INCOMPATIBLE,
+    },
     /* FireRed & LeafGreen+ style: internal name usually contains FRLG */
     {
         0u,

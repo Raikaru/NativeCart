@@ -21,11 +21,16 @@
  *
  * Tracing: set `trace_env_var` non-empty and not "0" → one summary line after bind_all;
  * optional per-hit multi-scan warning when `trace_warn_multi_scan` is TRUE.
+ *
+ * Optional: `trace_bind_detail_env_var` (non-empty, not "0") → per-entry line after bind:
+ * resolution source (env / profile / rom_scan / compiled_fallback), ROM file offset when the
+ * resolved pointer lies in mapped ROM, pointer value, and a short hex prefix up to EOS.
  */
 
 typedef struct FireredRomTextFamilyParams {
     const char *trace_env_var;
     const char *trace_prefix;
+    const char *trace_bind_detail_env_var;
     unsigned entry_count;
     /* entry_count elements; NULL = no env override for that index */
     const char *const *env_key_names;

@@ -62,9 +62,53 @@ static int trace_enabled(const FireredRomTextFamilyParams *p)
     return e != NULL && e[0] != '\0' && strcmp(e, "0") != 0;
 }
 
+static int trace_bind_detail_enabled(const FireredRomTextFamilyParams *p)
+{
+    const char *e;
+
+    if (p == NULL || p->trace_bind_detail_env_var == NULL)
+        return 0;
+    e = getenv(p->trace_bind_detail_env_var);
+    return e != NULL && e[0] != '\0' && strcmp(e, "0") != 0;
+}
+
 static void trace_flush(void)
 {
     fflush(stderr);
+}
+
+static void trace_bind_detail_line(const FireredRomTextFamilyParams *params, unsigned i, const u8 *resolved, int u_env,
+    int u_prof, int u_scan, int u_fb, const u8 *rom, size_t rom_size)
+{
+    const char *src;
+    const char *k;
+    const char *pfx;
+    size_t j;
+
+    if (params == NULL || resolved == NULL)
+        return;
+
+    src = u_env ? "env" : (u_prof ? "profile" : (u_scan ? "rom_scan" : (u_fb ? "compiled_fallback" : "?")));
+    k = (params->env_key_names != NULL && params->env_key_names[i] != NULL) ? params->env_key_names[i] : "(no env key)";
+    pfx = (params->trace_prefix != NULL) ? params->trace_prefix : "[firered rom-tx-family]";
+
+    fprintf(stderr, "%s bind_detail entry=%u key=%s src=%s ptr=%p", pfx, i, k, src, (const void *)resolved);
+    if (rom != NULL && resolved >= rom && (size_t)(resolved - rom) < rom_size)
+        fprintf(stderr, " rom_off=0x%zX", (size_t)(resolved - rom));
+    else
+        fprintf(stderr, " rom_off=(not-in-mapped-ROM)");
+
+    fprintf(stderr, " head=");
+    for (j = 0u; j < 32u; j++)
+    {
+        u8 b = resolved[j];
+
+        fprintf(stderr, "%02X", b);
+        if (b == EOS)
+            break;
+    }
+    fprintf(stderr, "\n");
+    trace_flush();
 }
 
 static int string_terminates_in_rom(const u8 *rom, size_t rom_size, size_t off, size_t cap)
@@ -205,9 +249,19 @@ void firered_portable_rom_text_family_bind_all(const FireredRomTextFamilyParams 
     unsigned i;
     int env_n = 0, prof_n = 0, scan_n = 0, fb_n = 0;
     int u_env, u_prof, u_scan, u_fb;
+    const u8 *rom = NULL;
+    size_t rom_size = 0;
+    int detail_on;
 
     if (params == NULL || out_cache == NULL || params->get_fallback == NULL || params->entry_count == 0u)
         return;
+
+    detail_on = trace_bind_detail_enabled(params);
+    if (detail_on)
+    {
+        rom_size = engine_memory_get_loaded_rom_size();
+        rom = (const u8 *)(uintptr_t)ENGINE_ROM_ADDR;
+    }
 
     for (i = 0u; i < params->entry_count; i++)
     {
@@ -221,6 +275,15 @@ void firered_portable_rom_text_family_bind_all(const FireredRomTextFamilyParams 
             scan_n++;
         else if (u_fb)
             fb_n++;
+        if (detail_on)
+            trace_bind_detail_line(params, i, out_cache[i], u_env, u_prof, u_scan, u_fb, rom, rom_size);
+        if (trace_enabled(params) && u_fb && params->trace_prefix != NULL)
+        {
+            const char *k = (params->env_key_names != NULL && params->env_key_names[i] != NULL) ? params->env_key_names[i]
+                                                                                               : "(no env key)";
+            fprintf(stderr, "%s compiled_fallback entry=%u key=%s\n", params->trace_prefix, i, k);
+            trace_flush();
+        }
     }
 
     if (trace_enabled(params) && params->trace_prefix != NULL)

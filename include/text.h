@@ -192,4 +192,10 @@ s32 GetGlyphWidth_Braille(u16 font_type, bool32 isJapanese);
 u8 CreateTextCursorSprite(u8 sheetId, u16 x, u16 y, u8 priority, u8 subpriority);
 void DestroyTextCursorSprite(u8 spriteId);
 
+#ifdef PORTABLE
+/* Normalize pret-style C string literals (ASCII `{A_BUTTON}` etc.) into GBA text bytes; returns `dst` if
+ * normalized, or `src` if passthrough (NULL, too-small buffer, or not a “CString-like” source). */
+const u8 *FireredPortableNormalizeCStringInto(const u8 *src, u8 *dst, u32 dstCap);
+#endif
+
 #endif // GUARD_TEXT_H

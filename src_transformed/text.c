@@ -1,6 +1,7 @@
 #include "global.h"
 #include "gflib.h"
 #include "m4a.h"
+#include <string.h>
 #include "quest_log.h"
 #include "graphics.h"
 #include "dynamic_placeholder_text_util.h"
@@ -208,60 +209,121 @@ static bool8 PortableTryDecodeUtf8Char(const u8 *ptr, u8 *outChar, u8 *outConsum
     return FALSE;
 }
 
-static const u8 *PortableNormalizeTextForWidth(const u8 *src)
+typedef struct
 {
-    static u8 sWidthBuf[1200];
+    const char *pattern;
+    u8 out0;
+    u8 out1;
+} FireredPortableBraceKeypadTok;
+
+static const FireredPortableBraceKeypadTok sFireredPortableBraceKeypadToks[] =
+{
+    { "{DPAD_LEFTRIGHT}", CHAR_KEYPAD_ICON, CHAR_DPAD_LEFTRIGHT },
+    { "{SELECT_BUTTON}", CHAR_KEYPAD_ICON, CHAR_SELECT_BUTTON },
+    { "{START_BUTTON}", CHAR_KEYPAD_ICON, CHAR_START_BUTTON },
+    { "{DPAD_UPDOWN}", CHAR_KEYPAD_ICON, CHAR_DPAD_UPDOWN },
+    { "{DPAD_RIGHT}", CHAR_KEYPAD_ICON, CHAR_DPAD_RIGHT },
+    { "{DPAD_LEFT}", CHAR_KEYPAD_ICON, CHAR_DPAD_LEFT },
+    { "{DPAD_DOWN}", CHAR_KEYPAD_ICON, CHAR_DPAD_DOWN },
+    { "{DPAD_UP}", CHAR_KEYPAD_ICON, CHAR_DPAD_UP },
+    { "{DPAD_ANY}", CHAR_KEYPAD_ICON, CHAR_DPAD_NONE },
+    { "{A_BUTTON}", CHAR_KEYPAD_ICON, CHAR_A_BUTTON },
+    { "{B_BUTTON}", CHAR_KEYPAD_ICON, CHAR_B_BUTTON },
+    { "{R_BUTTON}", CHAR_KEYPAD_ICON, CHAR_R_BUTTON },
+    { "{L_BUTTON}", CHAR_KEYPAD_ICON, CHAR_L_BUTTON },
+    { "{PLUS}", CHAR_EXTRA_SYMBOL, CHAR_PLUS_2 },
+};
+
+static u32 FireredPortableTryExpandBraceKeypadToken(const u8 *src, u8 *dst, u32 dstRoom, u32 *outConsumed)
+{
+    u32 i;
+
+    if (src == NULL || dst == NULL || outConsumed == NULL || dstRoom < 2u || src[0] != '{')
+        return 0u;
+
+    for (i = 0; i < ARRAY_COUNT(sFireredPortableBraceKeypadToks); i++)
+    {
+        size_t plen = strlen(sFireredPortableBraceKeypadToks[i].pattern);
+
+        if (strncmp((const char *)src, sFireredPortableBraceKeypadToks[i].pattern, plen) != 0)
+            continue;
+        dst[0] = sFireredPortableBraceKeypadToks[i].out0;
+        dst[1] = sFireredPortableBraceKeypadToks[i].out1;
+        *outConsumed = (u32)plen;
+        return 2u;
+    }
+    return 0u;
+}
+
+const u8 *FireredPortableNormalizeCStringInto(const u8 *src, u8 *dst, u32 dstCap)
+{
     u32 srcIdx = 0;
     u32 dstIdx = 0;
 
-    if (src == NULL)
+    if (src == NULL || dst == NULL || dstCap < 2u)
         return src;
-
     if (!PortableStringLooksLikeCString(src))
         return src;
 
-    srcIdx = 0;
-    while (src[srcIdx] != '\0' && dstIdx + 1 < sizeof(sWidthBuf))
+    while (src[srcIdx] != '\0' && dstIdx + 1u < (u32)dstCap)
     {
         u8 decoded;
         u8 consumed;
 
         if (PortableTryDecodeUtf8Char(&src[srcIdx], &decoded, &consumed))
         {
-            sWidthBuf[dstIdx++] = decoded;
+            dst[dstIdx++] = decoded;
             srcIdx += consumed;
             continue;
+        }
+        if (src[srcIdx] == '{')
+        {
+            u32 braceConsumed;
+            u32 nw = FireredPortableTryExpandBraceKeypadToken(&src[srcIdx], &dst[dstIdx], dstCap - dstIdx - 1u, &braceConsumed);
+
+            if (nw == 2u)
+            {
+                dstIdx += 2u;
+                srcIdx += braceConsumed;
+                continue;
+            }
         }
         if (src[srcIdx] == '\\')
         {
             if (src[srcIdx + 1] == 'l')
             {
-                sWidthBuf[dstIdx++] = CHAR_PROMPT_SCROLL;
+                dst[dstIdx++] = CHAR_PROMPT_SCROLL;
                 srcIdx += 2;
                 continue;
             }
             if (src[srcIdx + 1] == 'p')
             {
-                sWidthBuf[dstIdx++] = CHAR_PROMPT_CLEAR;
+                dst[dstIdx++] = CHAR_PROMPT_CLEAR;
                 srcIdx += 2;
                 continue;
             }
             if (src[srcIdx + 1] == 'n')
             {
-                sWidthBuf[dstIdx++] = CHAR_NEWLINE;
+                dst[dstIdx++] = CHAR_NEWLINE;
                 srcIdx += 2;
                 continue;
             }
         }
-
         if (src[srcIdx] < 0x80)
-            sWidthBuf[dstIdx++] = PortableAsciiToGba(src[srcIdx++]);
+            dst[dstIdx++] = PortableAsciiToGba(src[srcIdx++]);
         else
-            sWidthBuf[dstIdx++] = src[srcIdx++];
+            dst[dstIdx++] = src[srcIdx++];
     }
 
-    sWidthBuf[dstIdx] = EOS;
-    return sWidthBuf;
+    dst[dstIdx] = EOS;
+    return dst;
+}
+
+static const u8 *PortableNormalizeTextForWidth(const u8 *src)
+{
+    static u8 sWidthBuf[1200];
+
+    return FireredPortableNormalizeCStringInto(src, sWidthBuf, sizeof(sWidthBuf));
 }
 #endif
 

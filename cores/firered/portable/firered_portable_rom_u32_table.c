@@ -76,9 +76,6 @@ bool8 firered_portable_rom_u32_table_profile_lookup(const FireredRomU32TableProf
             && (c->profile_id == NULL || strcmp(r->profile_id, (const char *)c->profile_id) != 0))
             continue;
 
-        if (r->table_file_off == 0u)
-            continue;
-
         *out_off = r->table_file_off;
         return TRUE;
     }

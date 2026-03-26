@@ -15,6 +15,12 @@ and call `firered_portable_rom_text_family_bind_all` once into a `const u8 *` ca
 
 - **Oak intro** — `firered_portable_oak_speech_text_rom.c` (`FIRERED_TRACE_OAK_SPEECH_ROM`,
   `scan_min_match_len = 12`, no custom scan, no profile callback yet).
+- **Controls guide + Pikachu intro pages** (before Oak dialogue) —
+  `firered_portable_early_new_game_help_text_rom.c` (`FIRERED_TRACE_EARLY_NEW_GAME_HELP_ROM`,
+  env keys `FIRERED_ROM_CTRL_GUIDE_TX_*`, `FIRERED_ROM_PIKACHU_INTRO_TX_Page{1,2,3}`).
+- **Optional extra intro prose pages** (prepend before the controls guide) — **not** a `rom_text_family` slice:
+  `firered_portable_new_game_intro_prose_rom.c` uses a contiguous ROM **`u32`** pointer table + count
+  (`FIRERED_ROM_NEW_GAME_INTRO_PROSE_PTR_TABLE_OFF`, `FIRERED_ROM_NEW_GAME_INTRO_PROSE_PAGE_COUNT`); see **`docs/rom_backed_runtime.md`** §8c.
 - **Region map mapsec display names** — `firered_portable_rom_region_map_mapsec_names.c`
   (`REGION_MAP_MAPSEC_NAME_ENTRY_COUNT` entries, `scan_min_match_len = 6`, **no** `env_key_names`).
   Refresh tries a **`u32[]` pointer-table** bind (**`FIRERED_ROM_REGION_MAP_MAPSEC_NAME_PTR_TABLE_OFF`**

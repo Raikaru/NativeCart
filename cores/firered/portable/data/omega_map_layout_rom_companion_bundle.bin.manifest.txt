@@ -1,0 +1,27 @@
+# Map layout ROM companion bundle (metatile pack + dimensions + tileset indices)
+# Offsets are relative to the first byte of the bundle file.
+METATILES_OFF=0x0
+METATILES_BYTES=493790
+DIMENSIONS_OFF=0x788de
+DIMENSIONS_BYTES=3064
+TILESET_INDICES_OFF=0x794d6
+TILESET_INDICES_BYTES=1532
+TOTAL_BYTES=498386
+METATILE_PACK_BASE_OFFSET=0x1000000
+
+# Example validate (from repo root):
+# python tools/portable_generators/validate_map_layout_rom_packs.py \
+#   build\omega_map_layout_rom_companion_bundle.bin \
+#   --metatiles-off 0x0 \
+#   --dimensions-off 0x788de \
+#   --tileset-indices-off 0x794d6 \
+#   --layouts-json data/layouts/layouts.json --validate-block-words
+
+# FIRERED_ROM_* env + inspect commands (bundle at file offset 0 in test ROM):
+# python tools/portable_generators/layout_rom_companion_emit_embed_env.py \
+#   build\omega_map_layout_rom_companion_bundle.bin.manifest.txt -b 0
+
+# Splice copy (offset must match METATILE_PACK_BASE_OFFSET):
+# python tools/portable_generators/layout_rom_companion_splice_bundle.py \
+#   --input path/to/base.gba --output path/to/test.gba \
+#   --offset 0x1000000 --bundle build\omega_map_layout_rom_companion_bundle.bin --validate
