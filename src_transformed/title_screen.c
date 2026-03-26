@@ -33,6 +33,26 @@ static const u8 *sTitleRom_CopyrightPressTiles;
 static const u8 *sTitleRom_CopyrightPressMap;
 static u8 sTitleRom_CopyrightPressResolved;
 
+static const u8 *sTitleRom_BoxArtMonPals;
+static const u8 *sTitleRom_BoxArtMonTiles;
+static const u8 *sTitleRom_BoxArtMonMap;
+static u8 sTitleRom_BoxArtMonResolved;
+
+static const u8 *sTitleRom_BackgroundPals;
+static u8 sTitleRom_BackgroundPalsResolved;
+
+static const u8 *sTitleRom_BorderBgTiles;
+static const u8 *sTitleRom_BorderBgMap;
+static u8 sTitleRom_BorderBgResolved;
+
+static const u16 *sTitleRom_FlamesPal;
+static const u32 *sTitleRom_FlamesGfx;
+static const u32 *sTitleRom_BlankFlamesGfx;
+static u8 sTitleRom_FlameFxResolved;
+
+static const u32 *sTitleRom_SlashGfx;
+static u8 sTitleRom_SlashResolved;
+
 static void TitleScreen_ResetRomGameTitleLogoBind(void)
 {
     sTitleRom_GameTitleLogoResolved = FALSE;
@@ -46,6 +66,41 @@ static void TitleScreen_ResetRomCopyrightPressBind(void)
     sTitleRom_CopyrightPressResolved = FALSE;
     sTitleRom_CopyrightPressTiles = NULL;
     sTitleRom_CopyrightPressMap = NULL;
+}
+
+static void TitleScreen_ResetRomBoxArtMonBind(void)
+{
+    sTitleRom_BoxArtMonResolved = FALSE;
+    sTitleRom_BoxArtMonPals = NULL;
+    sTitleRom_BoxArtMonTiles = NULL;
+    sTitleRom_BoxArtMonMap = NULL;
+}
+
+static void TitleScreen_ResetRomBackgroundPalsBind(void)
+{
+    sTitleRom_BackgroundPalsResolved = FALSE;
+    sTitleRom_BackgroundPals = NULL;
+}
+
+static void TitleScreen_ResetRomBorderBgBind(void)
+{
+    sTitleRom_BorderBgResolved = FALSE;
+    sTitleRom_BorderBgTiles = NULL;
+    sTitleRom_BorderBgMap = NULL;
+}
+
+static void TitleScreen_ResetRomFlameFxBind(void)
+{
+    sTitleRom_FlameFxResolved = FALSE;
+    sTitleRom_FlamesPal = NULL;
+    sTitleRom_FlamesGfx = NULL;
+    sTitleRom_BlankFlamesGfx = NULL;
+}
+
+static void TitleScreen_ResetRomSlashBind(void)
+{
+    sTitleRom_SlashResolved = FALSE;
+    sTitleRom_SlashGfx = NULL;
 }
 
 static void TitleScreen_EnsureRomGameTitleLogoBound(void)
@@ -69,11 +124,64 @@ static void TitleScreen_EnsureRomCopyrightPressBound(void)
         &sTitleRom_CopyrightPressMap);
 }
 
+static void TitleScreen_EnsureRomBoxArtMonBound(void)
+{
+    if (sTitleRom_BoxArtMonResolved)
+        return;
+    sTitleRom_BoxArtMonResolved = TRUE;
+    firered_portable_title_screen_try_bind_box_art_mon(
+        &sTitleRom_BoxArtMonPals, &sTitleRom_BoxArtMonTiles, &sTitleRom_BoxArtMonMap);
+}
+
+static void TitleScreen_EnsureRomBackgroundPalsBound(void)
+{
+    if (sTitleRom_BackgroundPalsResolved)
+        return;
+    sTitleRom_BackgroundPalsResolved = TRUE;
+    firered_portable_title_screen_try_bind_background_pals(&sTitleRom_BackgroundPals);
+}
+
+static void TitleScreen_EnsureRomBorderBgBound(void)
+{
+    if (sTitleRom_BorderBgResolved)
+        return;
+    sTitleRom_BorderBgResolved = TRUE;
+    firered_portable_title_screen_try_bind_border_bg(
+        &sTitleRom_BorderBgTiles, &sTitleRom_BorderBgMap);
+}
+
+static void TitleScreen_EnsureRomFlameFxBound(void)
+{
+    if (sTitleRom_FlameFxResolved)
+        return;
+    sTitleRom_FlameFxResolved = TRUE;
+    firered_portable_title_screen_try_bind_flame_effect_assets(
+        &sTitleRom_FlamesPal, &sTitleRom_FlamesGfx, &sTitleRom_BlankFlamesGfx);
+}
+
+static void TitleScreen_EnsureRomSlashBound(void)
+{
+    if (sTitleRom_SlashResolved)
+        return;
+    sTitleRom_SlashResolved = TRUE;
+    firered_portable_title_screen_try_bind_slash_gfx(&sTitleRom_SlashGfx);
+}
+
 #define TITLE_GT_GAME_LOGO_PALS  (sTitleRom_GameTitleLogoPals ? sTitleRom_GameTitleLogoPals : (const u8 *)gGraphics_TitleScreen_GameTitleLogoPals_Portable)
 #define TITLE_GT_GAME_LOGO_TILES (sTitleRom_GameTitleLogoTiles ? sTitleRom_GameTitleLogoTiles : (const u8 *)gGraphics_TitleScreen_GameTitleLogoTiles_Portable)
 #define TITLE_GT_GAME_LOGO_MAP   (sTitleRom_GameTitleLogoMap ? sTitleRom_GameTitleLogoMap : (const u8 *)gGraphics_TitleScreen_GameTitleLogoMap_Portable)
 #define TITLE_CR_PRESS_TILES (sTitleRom_CopyrightPressTiles ? sTitleRom_CopyrightPressTiles : (const u8 *)gGraphics_TitleScreen_CopyrightPressStartTiles_Portable)
 #define TITLE_CR_PRESS_MAP   (sTitleRom_CopyrightPressMap ? sTitleRom_CopyrightPressMap : (const u8 *)gGraphics_TitleScreen_CopyrightPressStartMap_Portable)
+#define TITLE_BOX_ART_PALS  (sTitleRom_BoxArtMonPals ? sTitleRom_BoxArtMonPals : (const u8 *)gGraphics_TitleScreen_BoxArtMonPals_Portable)
+#define TITLE_BOX_ART_TILES (sTitleRom_BoxArtMonTiles ? sTitleRom_BoxArtMonTiles : (const u8 *)gGraphics_TitleScreen_BoxArtMonTiles_Portable)
+#define TITLE_BOX_ART_MAP   (sTitleRom_BoxArtMonMap ? sTitleRom_BoxArtMonMap : (const u8 *)gGraphics_TitleScreen_BoxArtMonMap_Portable)
+#define TITLE_BG_PALS       (sTitleRom_BackgroundPals ? sTitleRom_BackgroundPals : (const u8 *)gGraphics_TitleScreen_BackgroundPals_Portable)
+#define TITLE_BORDER_BG_TILES (sTitleRom_BorderBgTiles ? sTitleRom_BorderBgTiles : (const u8 *)sBorderBgTiles_Portable)
+#define TITLE_BORDER_BG_MAP   (sTitleRom_BorderBgMap ? sTitleRom_BorderBgMap : (const u8 *)sBorderBgMap_Portable)
+#define TITLE_FLAMES_PAL (sTitleRom_FlamesPal ? sTitleRom_FlamesPal : sFlames_Pal_Portable)
+#define TITLE_FLAMES_GFX (sTitleRom_FlamesGfx ? sTitleRom_FlamesGfx : sFlames_Gfx_Portable)
+#define TITLE_BLANK_FLAMES_GFX (sTitleRom_BlankFlamesGfx ? sTitleRom_BlankFlamesGfx : sBlankFlames_Gfx_Portable)
+#define TITLE_SLASH_GFX (sTitleRom_SlashGfx ? sTitleRom_SlashGfx : sSlash_Gfx_Portable)
 
 static void TraceTitleScreenState(const char *tag, s16 *data)
 {
@@ -83,6 +191,24 @@ static void TraceTitleScreenState(const char *tag, s16 *data)
         tag, data[0], data[1], data[2], data[3], data[4], data[5]);
     firered_runtime_trace_external(buffer);
 }
+#endif
+
+#ifndef PORTABLE
+#define TITLE_GT_GAME_LOGO_PALS  gGraphics_TitleScreen_GameTitleLogoPals
+#define TITLE_GT_GAME_LOGO_TILES gGraphics_TitleScreen_GameTitleLogoTiles
+#define TITLE_GT_GAME_LOGO_MAP   gGraphics_TitleScreen_GameTitleLogoMap
+#define TITLE_CR_PRESS_TILES     gGraphics_TitleScreen_CopyrightPressStartTiles
+#define TITLE_CR_PRESS_MAP       gGraphics_TitleScreen_CopyrightPressStartMap
+#define TITLE_BOX_ART_PALS       gGraphics_TitleScreen_BoxArtMonPals
+#define TITLE_BOX_ART_TILES      gGraphics_TitleScreen_BoxArtMonTiles
+#define TITLE_BOX_ART_MAP        gGraphics_TitleScreen_BoxArtMonMap
+#define TITLE_BG_PALS            gGraphics_TitleScreen_BackgroundPals
+#define TITLE_BORDER_BG_TILES    sBorderBgTiles
+#define TITLE_BORDER_BG_MAP      sBorderBgMap
+#define TITLE_FLAMES_PAL         sFlames_Pal
+#define TITLE_FLAMES_GFX         sFlames_Gfx
+#define TITLE_BLANK_FLAMES_GFX   sBlankFlames_Gfx
+#define TITLE_SLASH_GFX          sSlash_Gfx
 #endif
 
 enum TitleScreenScene
@@ -148,8 +274,6 @@ static void SpriteCallback_Slash(struct Sprite *sprite);
 #define gGraphics_TitleScreen_CopyrightPressStartTiles gGraphics_TitleScreen_CopyrightPressStartTiles_Portable
 #define gGraphics_TitleScreen_CopyrightPressStartMap gGraphics_TitleScreen_CopyrightPressStartMap_Portable
 #define gTitleScreen_BlankSprite_Tiles gTitleScreen_BlankSprite_Tiles_Portable
-#define sBorderBgTiles sBorderBgTiles_Portable
-#define sBorderBgMap sBorderBgMap_Portable
 #define sSlash_Gfx sSlash_Gfx_Portable
 
 #if defined(FIRERED)
@@ -427,6 +551,12 @@ void CB2_InitTitleScreen(void)
     case 0:
 #ifdef PORTABLE
         TitleScreen_ResetRomGameTitleLogoBind();
+        TitleScreen_ResetRomCopyrightPressBind();
+        TitleScreen_ResetRomBoxArtMonBind();
+        TitleScreen_ResetRomBackgroundPalsBind();
+        TitleScreen_ResetRomBorderBgBind();
+        TitleScreen_ResetRomFlameFxBind();
+        TitleScreen_ResetRomSlashBind();
 #endif
         SetVBlankCallback(NULL);
         StartTimer1();
@@ -448,19 +578,24 @@ void CB2_InitTitleScreen(void)
 #ifdef PORTABLE
         TitleScreen_EnsureRomGameTitleLogoBound();
         TitleScreen_EnsureRomCopyrightPressBound();
+        TitleScreen_EnsureRomBoxArtMonBound();
+        TitleScreen_EnsureRomBackgroundPalsBound();
+        TitleScreen_EnsureRomBorderBgBound();
+        TitleScreen_EnsureRomFlameFxBound();
+        TitleScreen_EnsureRomSlashBound();
 #endif
         LoadPalette(TITLE_GT_GAME_LOGO_PALS, BG_PLTT_ID(0), 13 * PLTT_SIZE_4BPP);
         DecompressAndCopyTileDataToVram(0, TITLE_GT_GAME_LOGO_TILES, 0, 0, 0);
         DecompressAndCopyTileDataToVram(0, TITLE_GT_GAME_LOGO_MAP, 0, 0, 1);
-        LoadPalette(gGraphics_TitleScreen_BoxArtMonPals, BG_PLTT_ID(13), PLTT_SIZE_4BPP);
-        DecompressAndCopyTileDataToVram(1, gGraphics_TitleScreen_BoxArtMonTiles, 0, 0, 0);
-        DecompressAndCopyTileDataToVram(1, gGraphics_TitleScreen_BoxArtMonMap, 0, 0, 1);
-        LoadPalette(gGraphics_TitleScreen_BackgroundPals, BG_PLTT_ID(15), PLTT_SIZE_4BPP);
+        LoadPalette(TITLE_BOX_ART_PALS, BG_PLTT_ID(13), PLTT_SIZE_4BPP);
+        DecompressAndCopyTileDataToVram(1, TITLE_BOX_ART_TILES, 0, 0, 0);
+        DecompressAndCopyTileDataToVram(1, TITLE_BOX_ART_MAP, 0, 0, 1);
+        LoadPalette(TITLE_BG_PALS, BG_PLTT_ID(15), PLTT_SIZE_4BPP);
         DecompressAndCopyTileDataToVram(2, TITLE_CR_PRESS_TILES, 0, 0, 0);
         DecompressAndCopyTileDataToVram(2, TITLE_CR_PRESS_MAP, 0, 0, 1);
-        LoadPalette(gGraphics_TitleScreen_BackgroundPals, BG_PLTT_ID(14), PLTT_SIZE_4BPP);
-        DecompressAndCopyTileDataToVram(3, sBorderBgTiles, 0, 0, 0);
-        DecompressAndCopyTileDataToVram(3, sBorderBgMap, 0, 0, 1);
+        LoadPalette(TITLE_BG_PALS, BG_PLTT_ID(14), PLTT_SIZE_4BPP);
+        DecompressAndCopyTileDataToVram(3, TITLE_BORDER_BG_TILES, 0, 0, 0);
+        DecompressAndCopyTileDataToVram(3, TITLE_BORDER_BG_MAP, 0, 0, 1);
         LoadSpriteGfxAndPals();
         break;
     case 2:
@@ -685,7 +820,7 @@ static void SetTitleScreenScene_FadeIn(s16 *data)
             BlendPalettes(palettes, 16, RGB(30, 30, 31));
             BeginNormalPaletteFade(palettes, 1, 16, 0, RGB(30, 30, 31));
             ShowBg(0);
-            CpuCopy16(gGraphics_TitleScreen_BoxArtMonPals, &gPlttBufferUnfaded[BG_PLTT_ID(13)], PLTT_SIZE_4BPP);
+            CpuCopy16(TITLE_BOX_ART_PALS, &gPlttBufferUnfaded[BG_PLTT_ID(13)], PLTT_SIZE_4BPP);
             BlendPalettesGradually(1 << 13, 1, 15, 0, RGB(30, 30, 31), 0, 0);
             tState++;
         }
@@ -963,16 +1098,16 @@ static void Task_TitleScreen_BlinkPressStart(u8 taskId)
             {
                 for (i = 0; i < 5; i++)
                 {
-                    gPlttBufferUnfaded[BG_PLTT_ID(15) + 1 + i] = gGraphics_TitleScreen_BackgroundPals[6];
-                    gPlttBufferFaded[BG_PLTT_ID(15) + 1 + i] = gGraphics_TitleScreen_BackgroundPals[6];
+                    gPlttBufferUnfaded[BG_PLTT_ID(15) + 1 + i] = ((const u16 *)TITLE_BG_PALS)[6];
+                    gPlttBufferFaded[BG_PLTT_ID(15) + 1 + i] = ((const u16 *)TITLE_BG_PALS)[6];
                 }
             }
             else
             {
                 for (i = 0; i < 5; i++)
                 {
-                    gPlttBufferUnfaded[BG_PLTT_ID(15) + 1 + i] = gGraphics_TitleScreen_BackgroundPals[1 + i];
-                    gPlttBufferFaded[BG_PLTT_ID(15) + 1 + i] = gGraphics_TitleScreen_BackgroundPals[1 + i];
+                    gPlttBufferUnfaded[BG_PLTT_ID(15) + 1 + i] = ((const u16 *)TITLE_BG_PALS)[1 + i];
+                    gPlttBufferFaded[BG_PLTT_ID(15) + 1 + i] = ((const u16 *)TITLE_BG_PALS)[1 + i];
                 }
             }
             if (data[14])
@@ -1033,6 +1168,8 @@ static void LoadMainTitleScreenPalsAndResetBgs(void)
 
 #ifdef PORTABLE
     TitleScreen_EnsureRomGameTitleLogoBound();
+    TitleScreen_EnsureRomBoxArtMonBound();
+    TitleScreen_EnsureRomBackgroundPalsBound();
 #endif
     taskId = FindTaskIdByFunc(Task_TitleScreen_SlideWin0);
     if (taskId != TASK_NONE)
@@ -1041,9 +1178,9 @@ static void LoadMainTitleScreenPalsAndResetBgs(void)
     DestroyBlendPalettesGraduallyTask();
     ResetPaletteFadeControl();
     LoadPalette(TITLE_GT_GAME_LOGO_PALS, BG_PLTT_ID(0), 13 * PLTT_SIZE_4BPP);
-    LoadPalette(gGraphics_TitleScreen_BoxArtMonPals, BG_PLTT_ID(13), PLTT_SIZE_4BPP);
-    LoadPalette(gGraphics_TitleScreen_BackgroundPals, BG_PLTT_ID(15), PLTT_SIZE_4BPP);
-    LoadPalette(gGraphics_TitleScreen_BackgroundPals, BG_PLTT_ID(14), PLTT_SIZE_4BPP);
+    LoadPalette(TITLE_BOX_ART_PALS, BG_PLTT_ID(13), PLTT_SIZE_4BPP);
+    LoadPalette(TITLE_BG_PALS, BG_PLTT_ID(15), PLTT_SIZE_4BPP);
+    LoadPalette(TITLE_BG_PALS, BG_PLTT_ID(14), PLTT_SIZE_4BPP);
     ResetBgPositions();
     ClearGpuRegBits(REG_OFFSET_DISPCNT, DISPCNT_WIN0_ON | DISPCNT_WIN1_ON | DISPCNT_OBJWIN_ON);
     ShowBg(1);
@@ -1070,6 +1207,25 @@ static void CB2_FadeOutTransitionToBerryFix(void)
 static void LoadSpriteGfxAndPals(void)
 {
     s32 i;
+
+#if defined(PORTABLE) && defined(FIRERED)
+    struct CompressedSpriteSheet sPortableSpriteSheets[] = {
+        {(const u32 *)TITLE_FLAMES_GFX,               0x500, TILE_TAG_FLAME_OR_LEAF},
+        {(const u32 *)TITLE_BLANK_FLAMES_GFX,         0x500, TILE_TAG_BLANK_OR_STREAK},
+        {(const u32 *)gTitleScreen_BlankSprite_Tiles, 0x400, TILE_TAG_BLANK},
+        {(const u32 *)TITLE_SLASH_GFX,                0x800, TILE_TAG_SLASH}
+    };
+    struct SpritePalette sPortableSpritePals[] = {
+        {(const u16 *)TITLE_FLAMES_PAL, PAL_TAG_DEFAULT},
+        {gTitleScreen_Slash_Pal, PAL_TAG_SLASH},
+        {}
+    };
+
+    for (i = 0; i < NELEMS(sPortableSpriteSheets); i++)
+        LoadCompressedSpriteSheet(&sPortableSpriteSheets[i]);
+    LoadSpritePalettes(sPortableSpritePals);
+    return;
+#endif
 
     for (i = 0; i < NELEMS(sSpriteSheets); i++)
         LoadCompressedSpriteSheet(&sSpriteSheets[i]);
