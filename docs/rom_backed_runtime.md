@@ -69,23 +69,31 @@ On **PORTABLE / SDL**, the title screen was wired as follows:
 | Asset / path | Source |
 |--------------|--------|
 | **Game title logo** (8bpp BG0: pal + LZ tiles + LZ tilemap) | `#define` → `gGraphics_TitleScreen_GameTitleLogo{Pals,Tiles,Map}_Portable` in `src_transformed/title_screen_portable_assets.h` |
-| **Box art mon, copyright strip, border BG, flames, slash, …** | Still `*_Portable` or local `*_Portable` / fake `INCBIN` in `title_screen.c` |
+| **Copyright / PRESS START strip** (BG2: LZ tiles + LZ map) | `*_Portable` fallback path in `title_screen.c` |
+| **Box art mon panel** (BG1: pal + LZ tiles + LZ map) | ROM bind attempt with `*_Portable` fallback in `title_screen.c` |
+| **Background palette block** (title BG palettes) | ROM bind attempt with `*_Portable` fallback in `title_screen.c` |
+| **Border BG** (BG3: LZ tiles + LZ map) | ROM bind attempt with `*_Portable` fallback in `title_screen.c` |
+| **Flames / slash / blank-flame title effect assets** | ROM bind attempt (env/scan) with `*_Portable` fallback in `title_screen.c` |
 | **`graphics.c` INCBIN symbols** | `PORTABLE_FAKE_INCBIN` → empty placeholders; not used for logo once `title_screen.c` aliases to `_Portable` |
 | **Generated `cores/firered/generated/data`** | Not used for this logo trio |
 
-## 5. Implemented vertical slice (phase 2) — game title logo from ROM
+## 5. Implemented vertical slice (phase 2) — title/logo core from ROM
 
-**Slice:** **BG0 “Pokémon / FireRed” game title logo** only (palette + compressed tiles + compressed tilemap).
+**Slice:** the visible title/logo core:
+
+- **BG0 “Pokémon / FireRed” game title logo** (palette + compressed tiles + compressed tilemap)
+- **BG2 copyright / PRESS START strip** (compressed tiles + compressed tilemap)
 
 - **`firered_portable_title_screen_try_bind_game_title_logo()`** (`cores/firered/portable/firered_portable_title_screen_rom.c`):
   1. If **`FIRERED_ROM_TITLE_LOGO_PAL_OFF`**, **`FIRERED_ROM_TITLE_LOGO_TILES_OFF`**, **`FIRERED_ROM_TITLE_LOGO_MAP_OFF`** are all set (hex, `strtoul` syntax), uses those **file offsets** into the mapped ROM.
   2. Else **scans** the loaded ROM for the **vanilla pokefirered** LZ/pal fingerprints and **layout** (512-byte palette immediately before tiles LZ; map LZ **after** the compressed tiles, within **256KiB**: first match on **32-byte stock** compressed prefix, else **LZ77 `0x10`** with declared decompressed size **`0x500`** that fully parses — covers FRLG+-style repacking / padding).
-- **`src_transformed/title_screen.c`** drops the three `#define`s for the logo and uses ROM pointers when bound, else **`_Portable` fallback** (vanilla still works if scan fails).
+- **`firered_portable_title_screen_try_bind_copyright_press_start()`** uses env offsets first then ROM scan for the copyright/PRESS START strip on **all ROM loads** (including vanilla-sized images), with compiled `*_Portable` fallback.
+- **`src_transformed/title_screen.c`** now caches ROM binds for static visible title families at scene init (logo, copyright strip, box-art panel, background pals, border BG); each family uses ROM pointers when bound, else **`_Portable` fallback**.
 - **LZ77** is read through existing **`MallocAndDecompress` → `LZ77UnCompWram`** (ROM-backed `src` is fine).
 
 **Visible when hacks matter:** Any loaded ROM that still matches the **layout + pal prefix** (vanilla order) but **replaced logo art** (different pixels after decompress) shows the **patched** logo. If a hack **rewrites** the compressed blobs such that the **first 32 bytes** of tiles (or pal prefix) change, the **scan may fail** → set the three **`FIRERED_ROM_TITLE_LOGO_*_OFF`** env vars for that ROM layout.
 
-**Reuse pattern:** portable module + “bind once per title init” + env override + scan fallback; same idea can target other `*_Portable` families.
+**Reuse pattern:** portable module + “bind once per title init” + env override + scan fallback; same idea can target remaining `*_Portable` families.
 
 ## 5c. Species → National Pokédex table (structural `u16[]`)
 
@@ -116,6 +124,15 @@ See **`docs/portable_rom_species_national_dex_table.md`**.
 ## 5h. Experience tables (`gExperienceTables`, 6 × (`MAX_LEVEL`+1) × `u32`)
 
 **Slice:** **`FIRERED_ROM_EXPERIENCE_TABLES_OFF`** — **2424** bytes of little-endian **`u32`**, **6** growth-rate rows × **(`MAX_LEVEL` + 1)** level columns, **row-major**. Each row must be **monotonic non-decreasing** by level or the ROM path is rejected. All gameplay reads go through **`ExperienceTableGet`** (function on PORTABLE, macro elsewhere). See **`docs/portable_rom_experience_tables.md`**.
+
+**Strict provenance model (mod runtime):** this seam reports one of three states:
+
+- **`UNCHANGED`** — ROM candidate equals compiled baseline (or no usable candidate was resolved).
+- **`CHANGED_AND_BOUND`** — candidate differs and ROM bind became active.
+- **`CHANGED_BUT_FELL_BACK`** — candidate differs, validation failed, compiled fallback remained active.
+
+In strict mod runtime mode, boot is rejected only for **`CHANGED_BUT_FELL_BACK`** (not for every fallback).
+The same state model now also applies to the **title-core** seam components (`game_title_logo`, `copyright_press_start`) for strict checks; this does **not** cover the full title scene.
 
 ## 5i. Type effectiveness chart (`gTypeEffectiveness`, 336 bytes)
 
@@ -249,13 +266,13 @@ use **env first**, then **profile**, then **scan**, then **`*_Portable`**. See `
 
 - `FIRERED_TRACE_MOD_LAUNCH=1` — SDL shell: patch apply + **`engine_load_rom`** handoff (ptr/size/**CRC32**), success/failure (`engine/shells/sdl/main.c`). Use to confirm **patched ROM bytes** reach the core.
 - `FIRERED_TRACE_ROM_CONSUMPTION=1` — raw GBA header bytes in mapped ROM (`engine_memory.c`).
-- `FIRERED_TRACE_TITLE_ROM=1` (non-empty, not `0`) — stderr diagnostics for **every** title-logo bind attempt: env/scan success, env incomplete or OOB, scan statistics, explicit **`fallback: ... *_Portable`** when ROM bind fails (`firered_portable_title_screen_rom.c`). Not gated on `NDEBUG` (works in release builds too).
+- `FIRERED_TRACE_TITLE_ROM=1` (non-empty, not `0`) — stderr diagnostics for both title binders (game title logo and copyright/PRESS START): env/scan success, env incomplete or OOB, scan statistics, explicit **`fallback: ... *_Portable`** when ROM bind fails (`firered_portable_title_screen_rom.c`). Not gated on `NDEBUG` (works in release builds too).
 
 ## 7. FRLG+ early-visible audit (offline)
 
 For **FireRed & LeafGreen+** (`mods/frlgPlus.bps` on clean `baserom.gba`), offline checks show the **shipping title graphics** (logo, copyright strip, box art, background) and **oak speech BG** tiles/tilemaps still embed the **same bytes** as vanilla `graphics/` — only file offsets in the ROM move. The **GBA internal name** stays `POKEMON FIRE` / game code `BPRE`. So “title still looks vanilla” is largely **because the hack keeps vanilla art there**, not because ROM bind failed.
 
-**Still compiled / mirrored on PORTABLE** after the title-logo slice: all other title layers (`*_Portable` in `src_transformed/title_screen.c`). The **earliest new-game scene** (`StartNewGameScene` → `Task_NewGameScene`) shows the **controls guide** first, then **Pikachu intro** pages (unless §8c’s optional ROM prose pointer table is active — then **N generic prose pages** replace the Pikachu intro segment). On PORTABLE, those strings resolve through **`firered_portable_early_new_game_help_get_text()`** (§8b — env / scan / compiled fallback from **`data/text/new_game_intro.inc`**). The same path still loads **BG LZ tiles/tilemaps** and **Pikachu** graphics from **`oak_speech_portable_assets.h`** (`*_Portable`); Oak’s **later** main speech background may bind from the loaded ROM via **`firered_portable_oak_speech_try_bind_main_bg`** (env/scan; **`docs/portable_rom_oak_speech_bg.md`**).
+**Still compiled / mirrored on PORTABLE** after this startup/title pass: a few utility sprite assets remain compile-backed (for example the blank sprite tiles and slash palette source), while the visible title effects (`flames`, `blank_flames`, `slash` gfx) are now ROM-first. The **earliest new-game scene** (`StartNewGameScene` → `Task_NewGameScene`) shows the **controls guide** first, then **Pikachu intro** pages (unless §8c’s optional ROM prose pointer table is active — then **N generic prose pages** replace the Pikachu intro segment). On PORTABLE, those strings resolve through **`firered_portable_early_new_game_help_get_text()`** (§8b — env / scan / compiled fallback from **`data/text/new_game_intro.inc`**). The same path still loads **BG LZ tiles/tilemaps** and **Pikachu** graphics from **`oak_speech_portable_assets.h`** (`*_Portable`); Oak’s **later** main speech background may bind from the loaded ROM via **`firered_portable_oak_speech_try_bind_main_bg`** (env/scan; **`docs/portable_rom_oak_speech_bg.md`**).
 
 **Oak’s spoken dialogue** (`gOakSpeech_Text_*`) uses **`firered_portable_oak_speech_get_text()`** (§8). **Next gap** for full early-intro parity with some hacks: **intro graphics** from ROM, or overworld **scripts/maps** when the intro is script-driven.
 
