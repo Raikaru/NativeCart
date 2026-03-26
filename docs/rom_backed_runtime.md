@@ -344,7 +344,7 @@ Helper: `python tools/frlgplus_early_visible_audit.py` — reapplies BPS and rep
 
 **Approach:** `firered_portable_rom_auto_prepare()` runs in `engine_backend_init` **before** `engine_runtime_copy_rom`. When the incoming image matches a tiny built-in rule (**16 MiB**, CRC **`0xB197A9B9`** for the stock Omega dump used here), the engine:
 
-1. Loads **`cores/firered/portable/data/omega_map_layout_rom_companion_bundle.bin`** (map layout companion built with **`--metatile-pack-base-offset 0x1000000`**, same wire as offline bundle but relocated).
+1. Loads a **local-generated** **`omega_map_layout_rom_companion_bundle.bin`** (map layout companion built with **`--metatile-pack-base-offset 0x1000000`**, same wire as offline bundle but relocated). Keep this blob **out of git**; it is a local ROM-derived artifact.
 2. Allocates **`max(rom_size, 0x1000000 + bundle_bytes)`**, copies the ROM, splices the bundle at **`0x01000000`**.
 3. Unless disabled, appends the **3×`u32`** intro-prose pointer table at **EOF** using the same string file offsets as §8c (`0x71A78D`, `0x71AA66`, `0x71A972`).
 
@@ -359,7 +359,7 @@ The resulting buffer’s CRC matches the existing profile rows, so **layout + pr
 **Regenerating the shipped bundle** (clobbers intermediate `build/offline_map_layout_*` packs; rebuild offline bundle afterward if you need base-0 CI artifacts):
 
 `python tools/portable_generators/build_map_layout_rom_companion_bundle.py . build/omega_map_layout_rom_companion_bundle.bin --metatile-pack-base-offset 0x1000000`  
-then copy `build/omega_map_layout_rom_companion_bundle.bin` (+ `.manifest.txt`) into **`cores/firered/portable/data/`**, then restore **`build/offline_map_layout_rom_companion_bundle.bin`** with **`--metatile-pack-base-offset 0x0`**.
+keep `build/omega_map_layout_rom_companion_bundle.bin` local, or copy it into **`cores/firered/portable/data/`** only as an **ignored local file** next to the committed `.manifest.txt`; then restore **`build/offline_map_layout_rom_companion_bundle.bin`** with **`--metatile-pack-base-offset 0x0`**.
 
 **Local validation recipe (Fire Red Omega test data, generic seam):** use your own copy of **`Pokemon Fire Red Omega.gba`** or **`build/omega_layout_test.gba`** (not redistributed here). Append a **`3 × u32`** table at EOF with:
 

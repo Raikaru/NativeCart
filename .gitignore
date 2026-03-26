@@ -1,6 +1,7 @@
 # Copyrighted / local-only ROM inputs and outputs
 baserom*.gba
 *.gba
+cores/firered/portable/data/omega_map_layout_rom_companion_bundle.bin
 
 # Build products
 build/
