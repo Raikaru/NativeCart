@@ -332,6 +332,10 @@ static int engine_sample_sprite_pixel(int obj_1d,
                                       uint32_t *rgba_out) {
     uint8_t *vram = engine_vram();
     int tiles_per_row = obj_1d ? (width / 8) : (use_256_colors ? 16 : 32);
+
+    if (src_x < 0 || src_y < 0 || src_x >= width || src_y >= height) {
+        return 0;
+    }
     int tile_stride = use_256_colors ? 2 : 1;
     int tile_col = src_x / 8;
     int tile_row = src_y / 8;
@@ -442,12 +446,16 @@ static void engine_precompute_obj_window_mask(uint16_t dispcnt) {
             continue;
         if ((attr0 & 0x0C00u) != 0x0800u)
             continue;
+        if (attr0 == 0u && attr1 == 0u && attr2 == 0u)
+            continue;
         y_pos = attr0 & 0xFF;
-        x_pos = attr1 & 0x1FF;
+        x_pos = (int)(attr1 & 0x1FFu);
         if (y_pos >= 160)
             y_pos -= 256;
-        if (x_pos >= 240)
+        /* GBA OBJ X is 9-bit; bit 8 selects negative coordinates (256..511 -> -256..-1). */
+        if (x_pos >= 256) {
             x_pos -= 512;
+        }
 
         shape = (attr0 >> 14) & 0x3;
         size = (attr1 >> 14) & 0x3;
@@ -468,6 +476,9 @@ static void engine_precompute_obj_window_mask(uint16_t dispcnt) {
             end_x = ENGINE_GBA_WIDTH;
         if (end_y > ENGINE_GBA_HEIGHT)
             end_y = ENGINE_GBA_HEIGHT;
+
+        if (start_x >= end_x || start_y >= end_y)
+            continue;
 
         for (y = start_y; y < end_y; ++y) {
             for (x = start_x; x < end_x; ++x) {
@@ -672,8 +683,15 @@ static void engine_trace_trainer_card_layer_pixel(int x, int y, uint32_t color, 
 }
 
 static void engine_insert_layer_pixel(int x, int y, uint32_t color, uint8_t kind, uint8_t semi_transparent) {
-    size_t index = (size_t)y * ENGINE_GBA_WIDTH + (size_t)x;
-    EnginePixelLayers *pixel_layers = &g_pixel_layers[index];
+    size_t index;
+    EnginePixelLayers *pixel_layers;
+
+    if (x < 0 || y < 0 || x >= ENGINE_GBA_WIDTH || y >= ENGINE_GBA_HEIGHT) {
+        return;
+    }
+
+    index = (size_t)y * ENGINE_GBA_WIDTH + (size_t)x;
+    pixel_layers = &g_pixel_layers[index];
     EngineLayerPixel *layer;
 
     engine_trace_trainer_card_layer_pixel(x, y, color, kind);
@@ -690,6 +708,220 @@ static void engine_insert_layer_pixel(int x, int y, uint32_t color, uint8_t kind
     layer->kind = kind;
     layer->valid = 1;
     layer->semi_transparent = semi_transparent;
+}
+
+/* GBA BG2X/BG2Y: 19.8 fixed point, 27-bit signed payload in bits 0-26 (sign bit 26). */
+static int32_t engine_read_bg_affine_ref(uint32_t reg_lo_addr) {
+    uint32_t lo = (uint32_t)*engine_reg16(reg_lo_addr);
+    uint32_t hi = (uint32_t)*engine_reg16(reg_lo_addr + 2u);
+    uint32_t raw = (lo | (hi << 16)) & 0x07FFFFFFu;
+
+    return (int32_t)(raw << 5) >> 5;
+}
+
+static int engine_affine_bg_map_tiles(int screen_size) {
+    switch (screen_size & 3) {
+    case 0:
+        return 16;
+    case 1:
+        return 32;
+    case 2:
+        return 64;
+    case 3:
+    default:
+        return 128;
+    }
+}
+
+static int engine_wrap_affine_map_px(int coord, int dim_px) {
+    int m = coord % dim_px;
+
+    if (m < 0) {
+        m += dim_px;
+    }
+    return m;
+}
+
+/* Mode 1/2 affine BG: byte tilemap; 8bpp or 4bpp tiles (same char layout as text BG). */
+static int engine_sample_affine_rotoscale_pixel(uint16_t bgcnt, uint32_t screen_base, int map_tiles,
+                                                int map_x_px, int map_y_px, int use_256_colors, int wrap,
+                                                uint32_t *rgba_out) {
+    uint8_t *vram = engine_vram();
+    uint32_t char_base = (uint32_t)(((bgcnt >> 2) & 0x3u) * 0x4000u);
+    int dim_px = map_tiles * 8;
+    int wx;
+    int wy;
+
+    if (!wrap) {
+        if (map_x_px < 0 || map_y_px < 0 || map_x_px >= dim_px || map_y_px >= dim_px) {
+            return 0;
+        }
+        wx = map_x_px;
+        wy = map_y_px;
+    } else {
+        wx = engine_wrap_affine_map_px(map_x_px, dim_px);
+        wy = engine_wrap_affine_map_px(map_y_px, dim_px);
+    }
+    int tile_x = wx / 8;
+    int tile_y = wy / 8;
+    int pixel_x = wx & 7;
+    int pixel_y = wy & 7;
+    uint32_t map_off = screen_base + (uint32_t)(tile_y * map_tiles + tile_x);
+    uint8_t tile_index;
+    uint32_t tile_data_off;
+
+    if (map_off > ENGINE_VRAM_SIZE - 1u) {
+        return 0;
+    }
+
+    tile_index = vram[map_off];
+
+    if (use_256_colors) {
+        uint8_t pixel;
+
+        tile_data_off = char_base + (uint32_t)tile_index * 64u + (uint32_t)(pixel_y * 8 + pixel_x);
+        if (tile_data_off > ENGINE_VRAM_SIZE - 1u) {
+            return 0;
+        }
+
+        pixel = vram[tile_data_off];
+        if (pixel == 0) {
+            return 0;
+        }
+
+        *rgba_out = g_palette_cache[pixel];
+        return 1;
+    }
+
+    {
+        uint8_t pair;
+        uint8_t pixel;
+
+        tile_data_off = char_base + (uint32_t)tile_index * 32u + (uint32_t)(pixel_y * 4 + (pixel_x / 2));
+        if (tile_data_off > ENGINE_VRAM_SIZE - 1u) {
+            return 0;
+        }
+
+        pair = vram[tile_data_off];
+        pixel = (pixel_x & 1) ? (uint8_t)(pair >> 4) : (uint8_t)(pair & 0x0Fu);
+        if (pixel == 0) {
+            return 0;
+        }
+
+        /* Affine 16-color BGs index the first background palette bank (hardware has no per-map palette field). */
+        *rgba_out = g_palette_cache[pixel];
+        return 1;
+    }
+}
+
+/*
+ * GBA mode 1 BG2 or mode 2 BG2/BG3: affine (BGnX/BGnY + PA–PD), byte tilemap, optional mosaic.
+ * Mode 2 is 8bpp-only on hardware; mode 1 may be 4bpp or 8bpp.
+ */
+static void engine_render_affine_rotoscale_bg(int bg, int priority, uint16_t dispcnt, uint16_t bgcnt,
+                                                int force_mode2) {
+    uint32_t reg_pa;
+    uint32_t reg_x_l;
+    uint32_t reg_y_l;
+    uint32_t screen_base = (uint32_t)(((bgcnt >> 8) & 0x1Fu) * 0x800u);
+    int use_256_colors = force_mode2 != 0 || (bgcnt & 0x0080u) != 0;
+    int screen_size = (bgcnt >> 14) & 0x3;
+    int map_tiles = engine_affine_bg_map_tiles(screen_size);
+    int pa;
+    int pb;
+    int pc;
+    int pd;
+    int32_t lx0;
+    int32_t ly0;
+    int wrap = (bgcnt & BGCNT_WRAP) != 0;
+    uint16_t mosaic_reg = *engine_reg16(ENGINE_REG_MOSAIC);
+    int bg_mosaic = (bgcnt & BGCNT_MOSAIC) != 0;
+    int mosaic_h_raw = (int)(mosaic_reg & 0xFu);
+    int mosaic_v_raw = (int)((mosaic_reg >> 4) & 0xFu);
+    int mosaic_h = mosaic_h_raw + 1;
+    int mosaic_v = mosaic_v_raw + 1;
+    int screen_y;
+    int screen_x;
+    uint8_t layer_kind;
+
+    if (bg == 2) {
+        reg_pa = ENGINE_REG_BG2PA;
+        reg_x_l = ENGINE_REG_BG2X_L;
+        reg_y_l = ENGINE_REG_BG2Y_L;
+    } else if (bg == 3) {
+        reg_pa = ENGINE_REG_BG3PA;
+        reg_x_l = ENGINE_REG_BG3X_L;
+        reg_y_l = ENGINE_REG_BG3Y_L;
+    } else {
+        return;
+    }
+
+    if (((dispcnt >> (8 + bg)) & 1u) == 0u) {
+        return;
+    }
+    if ((bgcnt & 0x3u) != (uint16_t)priority) {
+        return;
+    }
+
+    pa = (int)(int16_t)*engine_reg16(reg_pa);
+    pb = (int)(int16_t)*engine_reg16(reg_pa + 2u);
+    pc = (int)(int16_t)*engine_reg16(reg_pa + 4u);
+    pd = (int)(int16_t)*engine_reg16(reg_pa + 6u);
+    /*
+     * Oak intro (and similar) uses mode-1 BG2 as a byte-mapped layer with only BGnX/BGnY updates
+     * from ChangeBgX/ChangeBgY; it never calls SetBgAffine / BgAffineSet. After IO reset PA–PD are 0,
+     * which freezes map stepping here and blanks the layer. Hardware identity uses 0x0100 in 8.8.
+     */
+    if (pa == 0 && pc == 0) {
+        pa = 0x100;
+    }
+    if (pb == 0 && pd == 0) {
+        pd = 0x100;
+    }
+
+    lx0 = engine_read_bg_affine_ref(reg_x_l);
+    ly0 = engine_read_bg_affine_ref(reg_y_l);
+    layer_kind = (uint8_t)(ENGINE_LAYER_BG0 + bg);
+
+    for (screen_y = 0; screen_y < ENGINE_GBA_HEIGHT; ++screen_y) {
+        int sy = screen_y;
+        int32_t line_start_x;
+        int32_t line_start_y;
+
+        if (bg_mosaic && mosaic_v > 1) {
+            sy = screen_y - (screen_y % mosaic_v);
+        }
+        line_start_x = lx0 + sy * pb;
+        line_start_y = ly0 + sy * pd;
+
+        for (screen_x = 0; screen_x < ENGINE_GBA_WIDTH; ++screen_x) {
+            uint32_t rgba;
+            int sx = screen_x;
+            int32_t cur_x;
+            int32_t cur_y;
+            size_t index = (size_t)screen_y * ENGINE_GBA_WIDTH + (size_t)screen_x;
+            uint8_t window_mask = g_window_mask_cache[index];
+
+            if ((window_mask & (1u << bg)) == 0) {
+                continue;
+            }
+
+            if (bg_mosaic && mosaic_h_raw != 0) {
+                sx = screen_x - (screen_x % mosaic_h);
+            }
+            cur_x = line_start_x + pa * sx;
+            cur_y = line_start_y + pc * sx;
+
+            if (engine_sample_affine_rotoscale_pixel(bgcnt, screen_base, map_tiles, cur_x >> 8, cur_y >> 8,
+                                                     use_256_colors, wrap, &rgba)) {
+                engine_insert_layer_pixel(screen_x, screen_y, rgba, layer_kind, 0);
+            }
+        }
+    }
+}
+
+static void engine_render_mode1_bg2_layer(int priority, uint16_t dispcnt, uint16_t bgcnt) {
+    engine_render_affine_rotoscale_bg(2, priority, dispcnt, bgcnt, 0);
 }
 
 static EngineLayerPixel engine_get_pixel_layer(const EnginePixelLayers *pixel_layers, int reverse_index)
@@ -852,6 +1084,8 @@ static void engine_compose_framebuffer(void) {
     ENGINE_RENDERER_TRACE_MSG("compose: exit");
 }
 
+/* GBA text BG: BGCNT char base (2 bits) * 16KiB + linear 4bpp tile_index * 32. Indices may span two 16KiB
+ * slabs from one base (FireRed field map tileset policy documents this in `fieldmap.h` MAP_BG_*). */
 static void engine_render_4bpp_tile(int bg, int screen_x, int screen_y, uint16_t tile_index, uint16_t palette_bank, int hflip, int vflip) {
     uint8_t *vram = engine_vram();
     uint16_t bgcnt = engine_bgcnt_value(bg);
@@ -1132,6 +1366,11 @@ static int engine_sample_bg_pixel(int bg, uint16_t bgcnt, uint32_t screen_base, 
 
 static void engine_render_mode0_backgrounds_for_priority(int priority) {
     uint16_t dispcnt = *engine_reg16(ENGINE_REG_DISPCNT);
+    unsigned int video_mode = dispcnt & 7u;
+    uint16_t mosaic_reg = *engine_reg16(ENGINE_REG_MOSAIC);
+    int mosaic_h_raw_global = (int)(mosaic_reg & 0xFu);
+    int mosaic_v_global = (int)((mosaic_reg >> 4) & 0xFu) + 1;
+    int mosaic_h_global = mosaic_h_raw_global + 1;
     int bg;
 
     ENGINE_RENDERER_TRACEF("render_bg: priority=%d enter", priority);
@@ -1149,11 +1388,26 @@ static void engine_render_mode0_backgrounds_for_priority(int priority) {
         int screen_y;
         int line_hofs_cache[ENGINE_GBA_HEIGHT];
         int line_vofs_cache[ENGINE_GBA_HEIGHT];
+        int bg_mosaic = (bgcnt & BGCNT_MOSAIC) != 0;
+        int mosaic_h_active = bg_mosaic && mosaic_h_raw_global != 0;
 
         if (((dispcnt >> (8 + bg)) & 1u) == 0u) {
             continue;
         }
         if ((bgcnt & 0x3u) != (uint16_t)priority) {
+            continue;
+        }
+
+        if (video_mode == 2u) {
+            if (bg < 2) {
+                continue;
+            }
+            engine_render_affine_rotoscale_bg(bg, priority, dispcnt, bgcnt, 1);
+            continue;
+        }
+
+        if (video_mode == 1u && bg == 2) {
+            engine_render_mode1_bg2_layer(priority, dispcnt, bgcnt);
             continue;
         }
 
@@ -1173,10 +1427,17 @@ static void engine_render_mode0_backgrounds_for_priority(int priority) {
         for (screen_y = 0; screen_y < ENGINE_GBA_HEIGHT; ++screen_y) {
             int line_hofs = line_hofs_cache[screen_y];
             int line_vofs = line_vofs_cache[screen_y];
-            int src_y = (screen_y + line_vofs) & (screen_height_tiles * 8 - 1);
+            int eff_y = screen_y;
+            int src_y;
+
+            if (bg_mosaic && mosaic_v_global > 1) {
+                eff_y = screen_y - (screen_y % mosaic_v_global);
+            }
+            src_y = (eff_y + line_vofs) & (screen_height_tiles * 8 - 1);
 
             for (screen_x = 0; screen_x < ENGINE_GBA_WIDTH; ++screen_x) {
-                int src_x = (screen_x + line_hofs) & (screen_width_tiles * 8 - 1);
+                int eff_x = screen_x;
+                int src_x;
                 uint32_t rgba;
                 size_t index = (size_t)screen_y * ENGINE_GBA_WIDTH + (size_t)screen_x;
                 uint8_t window_mask = g_window_mask_cache[index];
@@ -1184,6 +1445,11 @@ static void engine_render_mode0_backgrounds_for_priority(int priority) {
                 if ((window_mask & (1u << bg)) == 0) {
                     continue;
                 }
+
+                if (mosaic_h_active) {
+                    eff_x = screen_x - (screen_x % mosaic_h_global);
+                }
+                src_x = (eff_x + line_hofs) & (screen_width_tiles * 8 - 1);
 
                 if (engine_sample_bg_pixel(bg, bgcnt, screen_base, screen_size, use_256_colors, src_x, src_y, &rgba)) {
                     engine_insert_layer_pixel(screen_x, screen_y, rgba, (uint8_t)(ENGINE_LAYER_BG0 + bg), 0);
@@ -1262,6 +1528,10 @@ static void engine_render_sprite(const EngineOAMEntry *oam,
         end_y = ENGINE_GBA_HEIGHT;
     }
 
+    if (start_x >= end_x || start_y >= end_y) {
+        return;
+    }
+
     for (screen_y = start_y; screen_y < end_y; ++screen_y) {
         for (screen_x = start_x; screen_x < end_x; ++screen_x) {
             int src_x;
@@ -1319,6 +1589,15 @@ static void engine_render_sprites_for_priority(int priority) {
         if ((attr0 & 0x0C00u) == 0x0800u) {
             continue;
         }
+        /*
+         * Uninitialized / cleared OAM decodes as a normal 8x8 OBJ at (0,0) with tile 0.
+         * That samples whatever happens to live in OBJ tile 0 and produces small stray shards
+         * that change with screen content. Retail builds hide unused slots with dummy OAM, not
+         * all-zero attrs.
+         */
+        if (attr0 == 0u && attr1 == 0u && attr2 == 0u) {
+            continue;
+        }
 
         sprite_priority = (attr2 >> 10) & 0x3;
         if (sprite_priority != priority) {
@@ -1326,11 +1605,11 @@ static void engine_render_sprites_for_priority(int priority) {
         }
 
         y_pos = attr0 & 0xFF;
-        x_pos = attr1 & 0x1FF;
+        x_pos = (int)(attr1 & 0x1FFu);
         if (y_pos >= 160) {
             y_pos -= 256;
         }
-        if (x_pos >= 240) {
+        if (x_pos >= 256) {
             x_pos -= 512;
         }
 
@@ -1412,7 +1691,7 @@ static void engine_dump_sprite_pipeline_once(void) {
                  attr0,
                  attr1,
                  attr2,
-                 (attr1 & 0x1FFu) >= 240 ? (int)((attr1 & 0x1FFu) - 512) : (int)(attr1 & 0x1FFu),
+                 (attr1 & 0x1FFu) >= 256u ? (int)((attr1 & 0x1FFu) - 512) : (int)(attr1 & 0x1FFu),
                  (attr0 & 0xFFu) >= 160 ? (int)((attr0 & 0xFFu) - 256) : (int)(attr0 & 0xFFu),
                  (unsigned)(attr2 & 0x03FFu),
                  (unsigned)((attr2 >> 12) & 0x0Fu),
