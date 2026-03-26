@@ -48,8 +48,8 @@ Each host iteration still runs `SDL_PollEvent` first, so keyboard/gamepad stay r
 ## Environment (optional)
 
 - **`FIRERED_VERBOSE_SDL=1`** — print informational messages to stderr (renderer name, vsync interval, gamepad connect/disconnect, first audio-activity line, F5 export path). Errors (window/renderer/audio failures) are always printed.
-- **`FIRERED_SDL_VSYNC`** — after creating the renderer, calls `SDL_SetRenderVSync`: unset or default → **1** (vsync on); **`0`** → off; **`adaptive`** or **`-1`** → `SDL_RENDERER_VSYNC_ADAPTIVE` when supported.
-- **1x pacing:** if the driver reports **vsync active** (`SDL_GetRenderVSync` → non-zero interval), the shell **skips** the extra `SDL_Delay` frame budget so pacing does not stack vsync blocking with an artificial sleep.
+- **`FIRERED_SDL_VSYNC`** — after creating the renderer, calls `SDL_SetRenderVSync`: unset or default → **0** (vsync off); **`1`** → on; **`adaptive`** or **`-1`** → `SDL_RENDERER_VSYNC_ADAPTIVE` when supported.
+- **1x pacing:** when vsync is off, the shell uses the normal 60 FPS sleep cap. If the driver reports **vsync active** (`SDL_GetRenderVSync` → non-zero interval), the shell **skips** the extra `SDL_Delay` frame budget so pacing does not stack vsync blocking with an artificial sleep.
 
 ## Build
 
@@ -91,6 +91,8 @@ SDL-specific intermediates live under `build/sdl/` (separate from the top-level
 
 ```bash
 build/decomp_engine_sdl.exe baserom.gba
+build/decomp_engine_sdl.exe baserom.gba --bps mods/example.bps
+build/decomp_engine_sdl.exe baserom.gba --ups mods/example.ups
 ```
 
 Optional second argument sets the state file path.

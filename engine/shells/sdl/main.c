@@ -22,6 +22,8 @@
 #include "../../core/engine_runtime.h"
 #include "../../core/engine_video.h"
 #include "../../core/mod_patch_bps.h"
+#include "../../core/mod_patch_format.h"
+#include "../../core/mod_patch_ups.h"
 #include "../../../cores/firered/firered_core.h"
 
 #define SDL_SHELL_DEFAULT_SCALE 4
@@ -183,9 +185,11 @@ static void sdl_shell_print_usage(const char *program)
 {
     fprintf(
         stderr,
-        "Usage: %s <rom.gba> [--bps <patch.bps>] [--mod-manifest <file>] [state_file]\n"
-        "       FIRERED_BPS_PATCH may set a default .bps if --bps is not used.\n"
-        "       --mod-manifest: first non-empty, non-# line is a .bps path relative to the manifest directory.\n",
+        "Usage: %s <rom.gba> [--bps <patch.bps> | --ups <patch.ups>] [--require-mod] [--strict-runtime] [--mod-manifest <file>] [state_file]\n"
+        "       FIRERED_MOD_PATCH may set a default .bps/.ups if no patch flag is used.\n"
+        "       FIRERED_BPS_PATCH / FIRERED_UPS_PATCH remain supported as format-specific fallbacks.\n"
+        "       --strict-runtime enables provenance-aware strict checks for mod sessions.\n"
+        "       --mod-manifest: first non-empty, non-# line is a .bps/.ups path relative to the manifest directory.\n",
         program);
 }
 
@@ -205,10 +209,10 @@ static const char *sdl_shell_path_sep_last(const char *path)
 
 /*
  * Reads the first non-empty, non-comment line from a tiny manifest file.
- * The line is a path to a .bps relative to the manifest's directory.
+ * The line is a path to a .bps/.ups relative to the manifest's directory.
  * Returns 1 and writes NUL-terminated absolute/resolved path into out_path if found.
  */
-static int sdl_shell_read_mod_manifest_bps(const char *manifest_path, char *out_path, size_t out_cap)
+static int sdl_shell_read_mod_manifest_patch_path(const char *manifest_path, char *out_path, size_t out_cap)
 {
     FILE *file;
     char line[768];
@@ -275,12 +279,40 @@ typedef struct SdlShellArgs
 {
     const char *rom_path;
     const char *state_path;
-    const char *bps_path;
+    const char *patch_path;
+    enum ModPatchFormat patch_format;
+    int require_mod;
+    int strict_runtime;
     int used_manifest;
-    char manifest_bps_storage[1024];
-    /* 0=none, 1=--bps argv, 2=manifest, 3=FIRERED_BPS_PATCH */
-    int bps_source;
+    char manifest_patch_storage[1024];
+    /* 0=none, 1=--bps argv, 2=--ups argv, 3=manifest, 4=FIRERED_MOD_PATCH, 5=FIRERED_BPS_PATCH, 6=FIRERED_UPS_PATCH */
+    int patch_source;
 } SdlShellArgs;
+
+static enum ModPatchFormat sdl_shell_patch_format_from_path(const char *path)
+{
+    size_t len;
+
+    if (path == NULL)
+        return MOD_PATCH_FORMAT_NONE;
+    len = strlen(path);
+    if (len >= 4)
+    {
+        const char *ext = path + len - 4;
+
+        if ((ext[0] == '.') &&
+            (ext[1] == 'b' || ext[1] == 'B') &&
+            (ext[2] == 'p' || ext[2] == 'P') &&
+            (ext[3] == 's' || ext[3] == 'S'))
+            return MOD_PATCH_FORMAT_BPS;
+        if ((ext[0] == '.') &&
+            (ext[1] == 'u' || ext[1] == 'U') &&
+            (ext[2] == 'p' || ext[2] == 'P') &&
+            (ext[3] == 's' || ext[3] == 'S'))
+            return MOD_PATCH_FORMAT_UPS;
+    }
+    return MOD_PATCH_FORMAT_NONE;
+}
 
 static int sdl_shell_parse_args(int argc, char **argv, SdlShellArgs *out)
 {
@@ -288,7 +320,8 @@ static int sdl_shell_parse_args(int argc, char **argv, SdlShellArgs *out)
 
     memset(out, 0, sizeof(*out));
     out->state_path = SDL_SHELL_DEFAULT_STATE_PATH;
-    out->bps_source = 0;
+    out->patch_source = 0;
+    out->patch_format = MOD_PATCH_FORMAT_NONE;
 
     if (argc < 2)
         return 0;
@@ -301,16 +334,43 @@ static int sdl_shell_parse_args(int argc, char **argv, SdlShellArgs *out)
         {
             if (i + 1 >= argc)
                 return 0;
-            out->bps_path = argv[i + 1];
-            out->bps_source = 1;
+            if (out->patch_path != NULL)
+                return 0;
+            out->patch_path = argv[i + 1];
+            out->patch_source = 1;
+            out->patch_format = MOD_PATCH_FORMAT_BPS;
             i += 2;
+            continue;
+        }
+        if (strcmp(argv[i], "--ups") == 0)
+        {
+            if (i + 1 >= argc)
+                return 0;
+            if (out->patch_path != NULL)
+                return 0;
+            out->patch_path = argv[i + 1];
+            out->patch_source = 2;
+            out->patch_format = MOD_PATCH_FORMAT_UPS;
+            i += 2;
+            continue;
+        }
+        if (strcmp(argv[i], "--require-mod") == 0)
+        {
+            out->require_mod = 1;
+            i += 1;
+            continue;
+        }
+        if (strcmp(argv[i], "--strict-runtime") == 0)
+        {
+            out->strict_runtime = 1;
+            i += 1;
             continue;
         }
         if (strcmp(argv[i], "--mod-manifest") == 0)
         {
             if (i + 1 >= argc)
                 return 0;
-            if (!sdl_shell_read_mod_manifest_bps(argv[i + 1], out->manifest_bps_storage, sizeof(out->manifest_bps_storage)))
+            if (!sdl_shell_read_mod_manifest_patch_path(argv[i + 1], out->manifest_patch_storage, sizeof(out->manifest_patch_storage)))
             {
                 fprintf(stderr, "Invalid or empty mod manifest: %s\n", argv[i + 1]);
                 return 0;
@@ -326,24 +386,78 @@ static int sdl_shell_parse_args(int argc, char **argv, SdlShellArgs *out)
         i += 1;
     }
 
-    if (out->bps_path == NULL && out->used_manifest)
+    if (out->patch_path == NULL && out->used_manifest)
     {
-        out->bps_path = out->manifest_bps_storage;
-        out->bps_source = 2;
-    }
-
-    if (out->bps_path == NULL)
-    {
-        const char *env_bps = getenv("FIRERED_BPS_PATCH");
-
-        if (env_bps != NULL && env_bps[0] != '\0')
+        out->patch_path = out->manifest_patch_storage;
+        out->patch_source = 3;
+        out->patch_format = sdl_shell_patch_format_from_path(out->patch_path);
+        if (out->patch_format == MOD_PATCH_FORMAT_NONE)
         {
-            out->bps_path = env_bps;
-            out->bps_source = 3;
+            fprintf(stderr, "Unsupported mod patch extension in manifest: %s\n", out->patch_path);
+            return 0;
         }
     }
 
+    if (out->patch_path == NULL)
+    {
+        const char *env_mod = getenv("FIRERED_MOD_PATCH");
+        const char *env_bps = getenv("FIRERED_BPS_PATCH");
+        const char *env_ups = getenv("FIRERED_UPS_PATCH");
+
+        if (env_mod != NULL && env_mod[0] != '\0')
+        {
+            out->patch_path = env_mod;
+            out->patch_source = 4;
+            out->patch_format = sdl_shell_patch_format_from_path(out->patch_path);
+        }
+        else if (env_bps != NULL && env_bps[0] != '\0')
+        {
+            out->patch_path = env_bps;
+            out->patch_source = 5;
+            out->patch_format = MOD_PATCH_FORMAT_BPS;
+        }
+        else if (env_ups != NULL && env_ups[0] != '\0')
+        {
+            out->patch_path = env_ups;
+            out->patch_source = 6;
+            out->patch_format = MOD_PATCH_FORMAT_UPS;
+        }
+    }
+
+    if (out->patch_path != NULL && out->patch_format == MOD_PATCH_FORMAT_NONE)
+    {
+        fprintf(stderr, "Unsupported mod patch extension: %s\n", out->patch_path);
+        return 0;
+    }
+
+    if (out->require_mod && out->patch_path == NULL)
+    {
+        fprintf(stderr, "Mod launch requested, but no .bps/.ups patch was resolved. Refusing vanilla fallback.\n");
+        return 0;
+    }
+
     return 1;
+}
+
+static int sdl_shell_env_truthy(const char *name)
+{
+    const char *value = getenv(name);
+
+    return value != NULL && value[0] != '\0' && strcmp(value, "0") != 0;
+}
+
+static void sdl_shell_set_runtime_provenance_env(const SdlShellArgs *args)
+{
+#ifdef _WIN32
+    _putenv_s("FIRERED_RUNTIME_MOD_REQUESTED", (args->require_mod != 0) ? "1" : "0");
+    _putenv_s("FIRERED_RUNTIME_STRICT_MOD",
+              (args->strict_runtime != 0 || sdl_shell_env_truthy("FIRERED_STRICT_MOD_RUNTIME")) ? "1" : "0");
+#else
+    setenv("FIRERED_RUNTIME_MOD_REQUESTED", (args->require_mod != 0) ? "1" : "0", 1);
+    setenv("FIRERED_RUNTIME_STRICT_MOD",
+           (args->strict_runtime != 0 || sdl_shell_env_truthy("FIRERED_STRICT_MOD_RUNTIME")) ? "1" : "0",
+           1);
+#endif
 }
 
 static void sdl_shell_write_marker(const char *path, const char *contents)
@@ -610,10 +724,10 @@ static bool sdl_shell_init_video(SdlShellContext *ctx)
 
     {
         const char *vs = getenv("FIRERED_SDL_VSYNC");
-        int want = 1;
+        int want = 0;
 
-        if (vs != NULL && strcmp(vs, "0") == 0)
-            want = 0;
+        if (vs != NULL && strcmp(vs, "1") == 0)
+            want = 1;
         else if (vs != NULL && (strcmp(vs, "adaptive") == 0 || strcmp(vs, "-1") == 0))
             want = SDL_RENDERER_VSYNC_ADAPTIVE;
 
@@ -632,13 +746,14 @@ static bool sdl_shell_init_video(SdlShellContext *ctx)
     if (sdl_shell_verbose_sdl())
         fprintf(stderr, "SDL renderer: %s (vsync=%d)\n", renderer_name, vsync);
 
-    SDL_SetRenderLogicalPresentation(ctx->renderer, frame.width, frame.height, SDL_LOGICAL_PRESENTATION_STRETCH);
+    SDL_SetRenderLogicalPresentation(ctx->renderer, frame.width, frame.height, SDL_LOGICAL_PRESENTATION_INTEGER_SCALE);
     ctx->texture = SDL_CreateTexture(ctx->renderer, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_STREAMING, frame.width, frame.height);
     if (ctx->texture == NULL)
     {
         fprintf(stderr, "SDL_CreateTexture failed: %s\n", SDL_GetError());
         return false;
     }
+    SDL_SetTextureScaleMode(ctx->texture, SDL_SCALEMODE_NEAREST);
 
     return true;
 }
@@ -913,14 +1028,21 @@ int main(int argc, char **argv)
 
     if (sdl_shell_trace_mod_launch())
     {
-        static const char *src_names[] = { "none", "--bps", "manifest", "FIRERED_BPS_PATCH" };
-        const char *sn = (args.bps_source >= 0 && args.bps_source < 4) ? src_names[args.bps_source] : "?";
+        static const char *src_names[] = { "none", "--bps", "--ups", "manifest", "FIRERED_MOD_PATCH", "FIRERED_BPS_PATCH", "FIRERED_UPS_PATCH" };
+        const char *sn = (args.patch_source >= 0 && args.patch_source < 7) ? src_names[args.patch_source] : "?";
+        const char *fmt = "none";
+
+        if (args.patch_format == MOD_PATCH_FORMAT_BPS)
+            fmt = "bps";
+        else if (args.patch_format == MOD_PATCH_FORMAT_UPS)
+            fmt = "ups";
 
         sdl_shell_tracef("argv[0]=%s", argv[0] ? argv[0] : "(null)");
         sdl_shell_tracef("rom_path=%s", args.rom_path ? args.rom_path : "(null)");
         sdl_shell_tracef("state_path=%s", args.state_path ? args.state_path : "(null)");
-        sdl_shell_tracef("bps_path=%s", args.bps_path ? args.bps_path : "(none)");
-        sdl_shell_tracef("bps_source=%s", sn);
+        sdl_shell_tracef("patch_path=%s", args.patch_path ? args.patch_path : "(none)");
+        sdl_shell_tracef("patch_source=%s", sn);
+        sdl_shell_tracef("patch_format=%s", fmt);
     }
 
     memset(&ctx, 0, sizeof(ctx));
@@ -944,7 +1066,7 @@ int main(int argc, char **argv)
     }
     sdl_shell_tracef("ROM read OK size=%zu", rom_size);
 
-    if (args.bps_path != NULL)
+    if (args.patch_path != NULL)
     {
         char errbuf[512];
         uint8_t *patch_data;
@@ -952,42 +1074,67 @@ int main(int argc, char **argv)
         uint8_t *patched_rom = NULL;
         size_t patched_size = 0;
 
-        fprintf(stderr, "Runtime mod: applying BPS \"%s\" (in memory; base ROM on disk is not modified)\n", args.bps_path);
-        patch_data = sdl_shell_read_file(args.bps_path, &patch_size);
+        fprintf(stderr,
+                "Runtime mod: applying %s \"%s\" (in memory; base ROM on disk is not modified)\n",
+                args.patch_format == MOD_PATCH_FORMAT_UPS ? "UPS" : "BPS",
+                args.patch_path);
+        patch_data = sdl_shell_read_file(args.patch_path, &patch_size);
         if (patch_data == NULL)
         {
-            sdl_shell_tracef("BPS read FAILED path=%s", args.bps_path);
-            fprintf(stderr, "Failed to read BPS patch: %s\n", args.bps_path);
+            sdl_shell_tracef("patch read FAILED path=%s", args.patch_path);
+            fprintf(stderr, "Failed to read patch: %s\n", args.patch_path);
             free(rom_data);
             return 1;
         }
-        sdl_shell_tracef("BPS read OK size=%zu", patch_size);
+        sdl_shell_tracef("patch read OK size=%zu", patch_size);
 
-        if (!mod_patch_bps_apply(
-                rom_data,
-                rom_size,
-                patch_data,
-                patch_size,
-                &patched_rom,
-                &patched_size,
-                errbuf,
-                sizeof(errbuf)))
+        if (args.patch_format == MOD_PATCH_FORMAT_BPS)
         {
-            sdl_shell_tracef("mod_patch_bps_apply FAILED: %s", errbuf[0] != '\0' ? errbuf : "(no details)");
-            fprintf(stderr, "BPS apply failed: %s\n", errbuf[0] != '\0' ? errbuf : "(no details)");
-            free(patch_data);
-            free(rom_data);
-            return 1;
+            if (!mod_patch_bps_apply(
+                    rom_data,
+                    rom_size,
+                    patch_data,
+                    patch_size,
+                    &patched_rom,
+                    &patched_size,
+                    errbuf,
+                    sizeof(errbuf)))
+            {
+                sdl_shell_tracef("mod_patch_bps_apply FAILED: %s", errbuf[0] != '\0' ? errbuf : "(no details)");
+                fprintf(stderr, "BPS apply failed: %s\n", errbuf[0] != '\0' ? errbuf : "(no details)");
+                free(patch_data);
+                free(rom_data);
+                return 1;
+            }
+        }
+        else
+        {
+            if (!mod_patch_ups_apply(
+                    rom_data,
+                    rom_size,
+                    patch_data,
+                    patch_size,
+                    &patched_rom,
+                    &patched_size,
+                    errbuf,
+                    sizeof(errbuf)))
+            {
+                sdl_shell_tracef("mod_patch_ups_apply FAILED: %s", errbuf[0] != '\0' ? errbuf : "(no details)");
+                fprintf(stderr, "UPS apply failed: %s\n", errbuf[0] != '\0' ? errbuf : "(no details)");
+                free(patch_data);
+                free(rom_data);
+                return 1;
+            }
         }
 
         free(patch_data);
         free(rom_data);
         rom_data = patched_rom;
         rom_size = patched_size;
-        sdl_shell_tracef("BPS apply OK patched_rom_size=%zu (handoff to engine_load_rom)", rom_size);
+        sdl_shell_tracef("patch apply OK patched_rom_size=%zu (handoff to engine_load_rom)", rom_size);
     }
     else
-        sdl_shell_tracef("no BPS path; vanilla ROM handoff size=%zu", rom_size);
+        sdl_shell_tracef("no patch path; vanilla ROM handoff size=%zu", rom_size);
 
     engine_set_core(firered_core_get());
     if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_GAMEPAD))
@@ -1000,6 +1147,7 @@ int main(int argc, char **argv)
     sdl_shell_tracef("SDL_Init OK");
 
     sdl_shell_tracef("calling engine_load_rom size=%zu", rom_size);
+    sdl_shell_set_runtime_provenance_env(&args);
     if (engine_load_rom(rom_data, rom_size) == 0)
     {
         sdl_shell_tracef("engine_load_rom FAILED");

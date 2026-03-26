@@ -13,4 +13,13 @@
 
 void firered_portable_rom_experience_tables_refresh_after_rom_load(void);
 
+typedef enum FireredExperienceTableProvenanceState {
+    FIRERED_EXPERIENCE_TABLE_PROVENANCE_UNCHANGED = 0,
+    FIRERED_EXPERIENCE_TABLE_PROVENANCE_CHANGED_AND_BOUND = 1,
+    FIRERED_EXPERIENCE_TABLE_PROVENANCE_CHANGED_BUT_FELL_BACK = 2,
+} FireredExperienceTableProvenanceState;
+
+FireredExperienceTableProvenanceState firered_portable_rom_experience_tables_get_provenance_state(void);
+const char *firered_portable_rom_experience_tables_get_provenance_state_name(void);
+
 #endif /* GUARD_FIRERED_PORTABLE_ROM_EXPERIENCE_TABLES_H */

@@ -24,6 +24,7 @@
 #include "portable/firered_portable_rom_hm_moves_table.h"
 #include "portable/firered_portable_rom_deoxys_base_stats_table.h"
 #include "portable/firered_portable_rom_experience_tables.h"
+#include "portable/firered_portable_title_screen_rom.h"
 #include "portable/firered_portable_rom_type_effectiveness_table.h"
 #include "portable/firered_portable_rom_species_info_table.h"
 #include "portable/firered_portable_rom_mon_pic_layout.h"
@@ -333,6 +334,72 @@ static int engine_runtime_any_trace_enabled(void)
     engine_runtime_trace_init_config();
     return s_trace_mask != 0u;
 }
+
+static int engine_runtime_env_truthy(const char *name)
+{
+    const char *value = getenv(name);
+
+    return value != NULL && value[0] != '\0' && strcmp(value, "0") != 0;
+}
+
+#ifdef PORTABLE
+static int engine_runtime_enforce_mod_provenance_strictness(void)
+{
+    FireredExperienceTableProvenanceState state;
+    FireredTitleCoreProvenanceState title_component_state;
+    const char *state_name;
+    const char *component_name;
+
+    if (!engine_runtime_env_truthy("FIRERED_RUNTIME_MOD_REQUESTED"))
+        return 1;
+    if (!engine_runtime_env_truthy("FIRERED_RUNTIME_STRICT_MOD"))
+        return 1;
+
+    state = firered_portable_rom_experience_tables_get_provenance_state();
+    if (state == FIRERED_EXPERIENCE_TABLE_PROVENANCE_CHANGED_BUT_FELL_BACK)
+    {
+        state_name = firered_portable_rom_experience_tables_get_provenance_state_name();
+
+        fprintf(stderr,
+                "Strict mod runtime provenance failure: seam=experience_tables state=%s\n",
+                state_name != NULL ? state_name : "UNKNOWN");
+        engine_runtime_trace("engine_backend_init: strict provenance fail seam=experience_tables");
+        return 0;
+    }
+
+    title_component_state =
+        firered_portable_title_core_get_component_provenance_state(FIRERED_TITLE_CORE_COMPONENT_GAME_TITLE_LOGO);
+    if (title_component_state == FIRERED_TITLE_CORE_PROVENANCE_CHANGED_BUT_FELL_BACK)
+    {
+        component_name = firered_portable_title_core_get_component_name(FIRERED_TITLE_CORE_COMPONENT_GAME_TITLE_LOGO);
+        state_name = firered_portable_title_core_get_provenance_state_name(title_component_state);
+        fprintf(stderr,
+                "Strict mod runtime provenance failure: seam=title_core component=%s state=%s\n",
+                component_name != NULL ? component_name : "UNKNOWN",
+                state_name != NULL ? state_name : "UNKNOWN");
+        engine_runtime_trace("engine_backend_init: strict provenance fail seam=title_core component=game_title_logo");
+        return 0;
+    }
+
+    title_component_state = firered_portable_title_core_get_component_provenance_state(
+        FIRERED_TITLE_CORE_COMPONENT_COPYRIGHT_PRESS_START);
+    if (title_component_state == FIRERED_TITLE_CORE_PROVENANCE_CHANGED_BUT_FELL_BACK)
+    {
+        component_name =
+            firered_portable_title_core_get_component_name(FIRERED_TITLE_CORE_COMPONENT_COPYRIGHT_PRESS_START);
+        state_name = firered_portable_title_core_get_provenance_state_name(title_component_state);
+        fprintf(stderr,
+                "Strict mod runtime provenance failure: seam=title_core component=%s state=%s\n",
+                component_name != NULL ? component_name : "UNKNOWN",
+                state_name != NULL ? state_name : "UNKNOWN");
+        engine_runtime_trace(
+            "engine_backend_init: strict provenance fail seam=title_core component=copyright_press_start");
+        return 0;
+    }
+
+    return 1;
+}
+#endif
 
 static int engine_runtime_trace_should_emit(const char *message)
 {
@@ -783,9 +850,11 @@ int engine_backend_init(const uint8_t *rom, size_t rom_size) {
         size_t rom_size_use = rom_size;
 #ifdef PORTABLE
         uint8_t *auto_prep_buf = NULL;
+        size_t auto_prep_size = 0;
 
-        if (firered_portable_rom_auto_prepare(rom, rom_size, &auto_prep_buf, &rom_size_use)) {
+        if (firered_portable_rom_auto_prepare(rom, rom_size, &auto_prep_buf, &auto_prep_size)) {
             rom_use = auto_prep_buf;
+            rom_size_use = auto_prep_size;
         }
 
         if (!engine_runtime_copy_rom(rom_use, rom_size_use)) {
@@ -848,6 +917,11 @@ int engine_backend_init(const uint8_t *rom, size_t rom_size) {
     firered_portable_rom_map_events_directory_refresh_after_rom_load();
     firered_portable_rom_wild_encounter_family_refresh_after_rom_load();
     firered_portable_init_map_object_event_script_words();
+    firered_portable_title_core_refresh_provenance_from_rom();
+    if (!engine_runtime_enforce_mod_provenance_strictness()) {
+        engine_backend_shutdown();
+        return 0;
+    }
 #endif
 
     engine_backend_input_reset();

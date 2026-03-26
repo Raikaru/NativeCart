@@ -258,6 +258,39 @@ static void path_directory(char *out, size_t cap, const char *path)
     }
 }
 
+static bool path_is_absolute(const char *path)
+{
+    if (path == NULL || path[0] == '\0')
+        return false;
+#ifdef _WIN32
+    if ((path[0] >= 'A' && path[0] <= 'Z') || (path[0] >= 'a' && path[0] <= 'z'))
+    {
+        if (path[1] == ':')
+            return true;
+    }
+    return path[0] == '\\' || path[0] == '/';
+#else
+    return path[0] == '/';
+#endif
+}
+
+static void path_join(char *out, size_t cap, const char *dir, const char *leaf)
+{
+    if (cap == 0)
+        return;
+    if (leaf == NULL || leaf[0] == '\0')
+    {
+        out[0] = '\0';
+        return;
+    }
+    if (path_is_absolute(leaf) || dir == NULL || dir[0] == '\0')
+    {
+        snprintf(out, cap, "%s", leaf);
+        return;
+    }
+    snprintf(out, cap, "%s" PATH_SEP_STR "%s", dir, leaf);
+}
+
 static bool file_exists(const char *path)
 {
     FILE *fp = fopen(path, "rb");
@@ -630,13 +663,11 @@ static void detect_exe(LauncherState *s)
 
 static void launch_game(LauncherState *s)
 {
-    char cmd[4096];
     char exe_dir[LAUNCHER_MAX_PATH];
     char seeded_asset_root[LAUNCHER_MAX_PATH];
     int enabled_count = 0;
     const char *patch_path = NULL;
     int i;
-    int sys_ret;
 
     if (s->rom_path[0] == '\0')
         return;
@@ -674,48 +705,97 @@ static void launch_game(LauncherState *s)
         launcher_tracef("selected_patch_for_shell=%s", patch_path != NULL ? patch_path : "(none)");
     }
 
-    if (patch_path != NULL)
-    {
-        const char *flag = launcher_patch_path_is_ups(patch_path) ? "--ups" : "--bps";
-
-        if (launcher_trace_mod_launch())
-            launcher_tracef("launch patch_flag=%s (UPS if .ups/.UPS else BPS) path=%s", flag, patch_path);
-
-        snprintf(cmd, sizeof(cmd),
-#ifdef _WIN32
-                 "start \"\" /D \"%s\" \"%s\" \"%s\" %s \"%s\"",
-#else
-                 "\"%s\" \"%s\" %s \"%s\" &",
-#endif
-                 exe_dir, s->exe_path, s->rom_path, flag, patch_path);
-    }
-    else
-    {
-        snprintf(cmd, sizeof(cmd),
-#ifdef _WIN32
-                 "start \"\" /D \"%s\" \"%s\" \"%s\"",
-#else
-                 "\"%s\" \"%s\" &",
-#endif
-                 exe_dir, s->exe_path, s->rom_path);
-    }
-
     if (enabled_count > 1)
         fprintf(stderr, "Launcher: Warning: %d mods enabled but only 1 patch supported at a time. Using: %s\n",
                 enabled_count, path_basename(patch_path));
 
-    fprintf(stderr, "Launcher: %s\n", cmd);
-    if (launcher_trace_mod_launch())
-        launcher_tracef("system() cmdline: %s", cmd);
-
-    sys_ret = system(cmd);
-    if (launcher_trace_mod_launch())
+#ifdef _WIN32
     {
-        launcher_tracef("system() returned %d (0 often OK; Windows+start may be non-zero)", sys_ret);
-        launcher_trace_close_log();
+        char exe_path_abs[LAUNCHER_MAX_PATH];
+        char cmd[4096];
+        STARTUPINFOA si;
+        PROCESS_INFORMATION pi;
+        BOOL ok;
+
+        path_join(exe_path_abs, sizeof(exe_path_abs), exe_dir, s->exe_path);
+        ZeroMemory(&si, sizeof(si));
+        ZeroMemory(&pi, sizeof(pi));
+        si.cb = sizeof(si);
+
+        if (patch_path != NULL)
+        {
+            const char *flag = launcher_patch_path_is_ups(patch_path) ? "--ups" : "--bps";
+
+            if (launcher_trace_mod_launch())
+                launcher_tracef("launch patch_flag=%s (UPS if .ups/.UPS else BPS) path=%s", flag, patch_path);
+            snprintf(cmd, sizeof(cmd), "\"%s\" \"%s\" --require-mod --strict-runtime %s \"%s\"", exe_path_abs, s->rom_path, flag, patch_path);
+        }
+        else
+        {
+            snprintf(cmd, sizeof(cmd), "\"%s\" \"%s\"", exe_path_abs, s->rom_path);
+        }
+
+        fprintf(stderr, "Launcher: %s\n", cmd);
+        if (launcher_trace_mod_launch())
+            launcher_tracef("CreateProcess cmdline: %s", cmd);
+
+        ok = CreateProcessA(
+            exe_path_abs,
+            cmd,
+            NULL,
+            NULL,
+            FALSE,
+            0,
+            NULL,
+            exe_dir,
+            &si,
+            &pi);
+
+        if (!ok)
+        {
+            DWORD err = GetLastError();
+
+            fprintf(stderr, "Launcher: CreateProcess failed (%lu)\n", (unsigned long)err);
+            if (launcher_trace_mod_launch())
+                launcher_tracef("CreateProcess failed err=%lu", (unsigned long)err);
+        }
+        else
+        {
+            if (launcher_trace_mod_launch())
+                launcher_tracef("CreateProcess ok pid=%lu", (unsigned long)pi.dwProcessId);
+            CloseHandle(pi.hThread);
+            CloseHandle(pi.hProcess);
+        }
     }
-    else
-        launcher_trace_close_log();
+#else
+    {
+        char cmd[4096];
+        int sys_ret;
+
+        if (patch_path != NULL)
+        {
+            const char *flag = launcher_patch_path_is_ups(patch_path) ? "--ups" : "--bps";
+
+            if (launcher_trace_mod_launch())
+                launcher_tracef("launch patch_flag=%s (UPS if .ups/.UPS else BPS) path=%s", flag, patch_path);
+            snprintf(cmd, sizeof(cmd), "\"%s\" \"%s\" --require-mod --strict-runtime %s \"%s\" &", s->exe_path, s->rom_path, flag, patch_path);
+        }
+        else
+        {
+            snprintf(cmd, sizeof(cmd), "\"%s\" \"%s\" &", s->exe_path, s->rom_path);
+        }
+
+        fprintf(stderr, "Launcher: %s\n", cmd);
+        if (launcher_trace_mod_launch())
+            launcher_tracef("system() cmdline: %s", cmd);
+
+        sys_ret = system(cmd);
+        if (launcher_trace_mod_launch())
+            launcher_tracef("system() returned %d", sys_ret);
+    }
+#endif
+
+    launcher_trace_close_log();
 }
 
 /* ── Main UI ────────────────────────────────────────────────────────── */

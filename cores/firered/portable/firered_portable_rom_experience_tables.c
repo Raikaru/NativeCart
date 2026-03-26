@@ -5,11 +5,22 @@
 #include "constants/pokemon.h"
 
 #include <stddef.h>
+#include <string.h>
 
 #ifndef PORTABLE
 
 void firered_portable_rom_experience_tables_refresh_after_rom_load(void)
 {
+}
+
+FireredExperienceTableProvenanceState firered_portable_rom_experience_tables_get_provenance_state(void)
+{
+    return FIRERED_EXPERIENCE_TABLE_PROVENANCE_UNCHANGED;
+}
+
+const char *firered_portable_rom_experience_tables_get_provenance_state_name(void)
+{
+    return "UNCHANGED";
 }
 
 #else
@@ -29,6 +40,7 @@ static const FireredRomU32TableProfileRow s_experience_tables_profile_rows[] = {
 
 static u32 s_experience_tables_rom[FIRERED_ROM_EXPERIENCE_TABLE_U32_TOTAL];
 static u8 s_experience_tables_rom_active;
+static FireredExperienceTableProvenanceState s_experience_tables_provenance;
 
 extern const u32 gExperienceTables[][MAX_LEVEL + 1];
 
@@ -67,8 +79,12 @@ void firered_portable_rom_experience_tables_refresh_after_rom_load(void)
     size_t table_off;
     size_t need;
     size_t n;
+    u32 candidate[FIRERED_ROM_EXPERIENCE_TABLE_U32_TOTAL];
+    const u32 *compiled = &gExperienceTables[0][0];
+    int changed;
 
     s_experience_tables_rom_active = 0;
+    s_experience_tables_provenance = FIRERED_EXPERIENCE_TABLE_PROVENANCE_UNCHANGED;
 
     n = (size_t)FIRERED_ROM_EXPERIENCE_TABLE_U32_TOTAL;
     need = n * 4u;
@@ -84,12 +100,21 @@ void firered_portable_rom_experience_tables_refresh_after_rom_load(void)
     if (table_off > rom_size || need > rom_size - table_off)
         return;
 
-    read_le_u32_block(rom, table_off, n, s_experience_tables_rom);
-    if (!experience_tables_rows_monotonic(s_experience_tables_rom, (size_t)FIRERED_ROM_EXPERIENCE_GROWTH_ROW_COUNT,
-            FIRERED_ROM_EXPERIENCE_LEVEL_COLUMN_COUNT))
+    read_le_u32_block(rom, table_off, n, candidate);
+    changed = (memcmp(candidate, compiled, need) != 0);
+    if (!changed)
         return;
 
+    if (!experience_tables_rows_monotonic(candidate, (size_t)FIRERED_ROM_EXPERIENCE_GROWTH_ROW_COUNT,
+            FIRERED_ROM_EXPERIENCE_LEVEL_COLUMN_COUNT))
+    {
+        s_experience_tables_provenance = FIRERED_EXPERIENCE_TABLE_PROVENANCE_CHANGED_BUT_FELL_BACK;
+        return;
+    }
+
+    memcpy(s_experience_tables_rom, candidate, need);
     s_experience_tables_rom_active = 1;
+    s_experience_tables_provenance = FIRERED_EXPERIENCE_TABLE_PROVENANCE_CHANGED_AND_BOUND;
 }
 
 u32 ExperienceTableGet(u8 growthRate, u8 level)
@@ -102,6 +127,25 @@ u32 ExperienceTableGet(u8 growthRate, u8 level)
     }
 
     return gExperienceTables[growthRate][level];
+}
+
+FireredExperienceTableProvenanceState firered_portable_rom_experience_tables_get_provenance_state(void)
+{
+    return s_experience_tables_provenance;
+}
+
+const char *firered_portable_rom_experience_tables_get_provenance_state_name(void)
+{
+    switch (s_experience_tables_provenance)
+    {
+    case FIRERED_EXPERIENCE_TABLE_PROVENANCE_CHANGED_AND_BOUND:
+        return "CHANGED_AND_BOUND";
+    case FIRERED_EXPERIENCE_TABLE_PROVENANCE_CHANGED_BUT_FELL_BACK:
+        return "CHANGED_BUT_FELL_BACK";
+    case FIRERED_EXPERIENCE_TABLE_PROVENANCE_UNCHANGED:
+    default:
+        return "UNCHANGED";
+    }
 }
 
 #endif /* PORTABLE */

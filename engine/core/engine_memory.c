@@ -36,6 +36,16 @@ enum {
 static EngineMappedRegion g_regions[ENGINE_REGION_COUNT];
 static int g_memory_ready = 0;
 static size_t g_loaded_rom_size = 0;
+static const char *const g_region_names[ENGINE_REGION_COUNT] = {
+    "EWRAM",
+    "IWRAM",
+    "IOREG",
+    "PALETTE",
+    "VRAM",
+    "OAM",
+    "ROM",
+    "SRAM",
+};
 
 static size_t engine_page_size(void) {
 #ifdef _WIN32
@@ -67,9 +77,18 @@ static int engine_map_region(EngineMappedRegion *region, uintptr_t address, size
 #ifdef _WIN32
     mapped_ptr = VirtualAlloc((LPVOID)address, mapped_size, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
     if (mapped_ptr == NULL || (uintptr_t)mapped_ptr != address) {
+        DWORD err = GetLastError();
         if (mapped_ptr != NULL) {
             VirtualFree(mapped_ptr, 0, MEM_RELEASE);
         }
+        fprintf(stderr,
+                "[engine_memory] map_failed addr=0x%08lX req_size=0x%lX map_size=0x%lX ptr=0x%p gle=%lu\n",
+                (unsigned long)address,
+                (unsigned long)size,
+                (unsigned long)mapped_size,
+                mapped_ptr,
+                (unsigned long)err);
+        fflush(stderr);
         return 0;
     }
 #else
@@ -136,8 +155,29 @@ static void engine_unmap_region(EngineMappedRegion *region) {
 
 int engine_memory_init(const uint8_t *rom, size_t rom_size) {
     size_t copy_size;
+    static const struct {
+        int index;
+        uintptr_t address;
+        size_t size;
+    } region_specs[] = {
+        { ENGINE_REGION_EWRAM, ENGINE_EWRAM_ADDR, ENGINE_EWRAM_SIZE },
+        { ENGINE_REGION_IWRAM, ENGINE_IWRAM_ADDR, ENGINE_IWRAM_SIZE },
+        { ENGINE_REGION_IOREG, ENGINE_IOREG_ADDR, ENGINE_IOREG_SIZE },
+        { ENGINE_REGION_PALETTE, ENGINE_PALETTE_ADDR, ENGINE_PALETTE_SIZE },
+        { ENGINE_REGION_VRAM, ENGINE_VRAM_ADDR, ENGINE_VRAM_SIZE },
+        { ENGINE_REGION_OAM, ENGINE_OAM_ADDR, ENGINE_OAM_SIZE },
+        { ENGINE_REGION_ROM, ENGINE_ROM_ADDR, ENGINE_ROM_SIZE },
+        { ENGINE_REGION_SRAM, ENGINE_SRAM_ADDR, ENGINE_SRAM_SIZE },
+    };
+    size_t i;
 
     if (rom == NULL || rom_size == 0 || rom_size > ENGINE_ROM_SIZE) {
+        fprintf(stderr,
+                "[engine_memory] init_guard_fail rom=%p rom_size=0x%lX rom_limit=0x%lX\n",
+                (const void *)rom,
+                (unsigned long)rom_size,
+                (unsigned long)ENGINE_ROM_SIZE);
+        fflush(stderr);
         return 0;
     }
 
@@ -145,16 +185,18 @@ int engine_memory_init(const uint8_t *rom, size_t rom_size) {
         return 1;
     }
 
-    if (!engine_map_region(&g_regions[ENGINE_REGION_EWRAM], ENGINE_EWRAM_ADDR, ENGINE_EWRAM_SIZE) ||
-        !engine_map_region(&g_regions[ENGINE_REGION_IWRAM], ENGINE_IWRAM_ADDR, ENGINE_IWRAM_SIZE) ||
-        !engine_map_region(&g_regions[ENGINE_REGION_IOREG], ENGINE_IOREG_ADDR, ENGINE_IOREG_SIZE) ||
-        !engine_map_region(&g_regions[ENGINE_REGION_PALETTE], ENGINE_PALETTE_ADDR, ENGINE_PALETTE_SIZE) ||
-        !engine_map_region(&g_regions[ENGINE_REGION_VRAM], ENGINE_VRAM_ADDR, ENGINE_VRAM_SIZE) ||
-        !engine_map_region(&g_regions[ENGINE_REGION_OAM], ENGINE_OAM_ADDR, ENGINE_OAM_SIZE) ||
-        !engine_map_region(&g_regions[ENGINE_REGION_ROM], ENGINE_ROM_ADDR, ENGINE_ROM_SIZE) ||
-        !engine_map_region(&g_regions[ENGINE_REGION_SRAM], ENGINE_SRAM_ADDR, ENGINE_SRAM_SIZE)) {
-        engine_memory_shutdown();
-        return 0;
+    for (i = 0; i < sizeof(region_specs) / sizeof(region_specs[0]); ++i) {
+        int index = region_specs[i].index;
+        if (!engine_map_region(&g_regions[index], region_specs[i].address, region_specs[i].size)) {
+            fprintf(stderr,
+                    "[engine_memory] init_region_fail region=%s addr=0x%08lX size=0x%lX\n",
+                    g_region_names[index],
+                    (unsigned long)region_specs[i].address,
+                    (unsigned long)region_specs[i].size);
+            fflush(stderr);
+            engine_memory_shutdown();
+            return 0;
+        }
     }
 
     copy_size = rom_size;
