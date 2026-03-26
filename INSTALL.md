@@ -108,14 +108,24 @@ That file is ignored by `.gitignore` and should not be committed.
 
 ## CI and local portable check
 
-Pull requests run **`.github/workflows/portable_host.yml`**: Ubuntu 24.04, **SDL**
-debug build from `engine/shells/sdl` (includes **`runtime_progress_runner`**).
+Pull requests run **`.github/workflows/portable_host.yml`**: Ubuntu 24.04, **Direction B**
+`tools/check_direction_b_offline.py`, **Project C** `tools/check_project_c_block_word_offline.py`,
+`tools/check_project_c_phase3_offline.py`, layout block bins, **Direction D** `tools/check_direction_d_offline.py`, then **SDL** debug build
+from `engine/shells/sdl` (includes **`runtime_progress_runner`**).
+
+**GBA ROM compare (`make compare_*`, agbcc):** needs **devkitARM / MSYS2** (or Linux CI). Use a **bash** environment (MSYS2 MinGW64 / Git Bash) so the Makefile’s `shell`/`uname` rules work. **`docs/upstream_pokefirered.md`** = commands and regeneration; **`docs/upstream_reference_lane.md`** = **pinned pret baseline (§0)**, **lane state / stopping point**, **metrics policy** (headline **`.text`** vs ROM / per-object sizes), drift categories, and **recorded** compare/ROM outcomes (pret is **not** vendored in-tree; add **`pret`** remote + **`git fetch`** locally — see that doc; compare **green** is **not** assumed; further compare work should be **explicitly chartered** per that doc). On a machine without **`make`** / **`arm-none-eabi-as`**, run Python-only gates: **`python tools/run_offline_build_gates.py`** or **`make check-offline-gates`** when **`make`** is available.
 
 To match locally:
 
 - **Linux / macOS:** `bash tools/verify_portable_default.sh` (set `SDL3_INCLUDE_DIR` /
-  `SDL3_LIB_DIR` if SCons cannot find SDL3).
-- **Windows (PowerShell):** `tools/verify_portable_default.ps1`
+  `SDL3_LIB_DIR` if SCons cannot find SDL3). Requires **`python3`** on `PATH` for the table check.
+- **Windows (PowerShell):** `tools/verify_portable_default.ps1` (requires **`python`** on `PATH`).
+
+## Search tools
+
+- Use `rg` / `rg --files` for fast text and file discovery.
+- Use `ast-grep` (`sg`) for syntax-aware code queries.
+- Treat plain `grep` as fallback-only when `rg` or `ast-grep` is unavailable.
 
 ## Optional Notes
 

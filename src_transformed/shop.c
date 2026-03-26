@@ -21,6 +21,9 @@
 #include "menu_indicators.h"
 #include "field_player_avatar.h"
 #include "fieldmap.h"
+#ifdef PORTABLE
+#include "map_layout_metatiles_access.h"
+#endif
 #include "event_object_movement.h"
 #include "money.h"
 #include "quest_log.h"
@@ -737,11 +740,30 @@ static void BuyMenuDrawMapBg(void)
         {
             metatile = MapGridGetMetatileIdAt(x + i, y + j);
             metatileLayerType = MapGridGetMetatileLayerTypeAt(x + i, y + j);
+            if (!MapGridMetatileIdIsInEncodedSpace(metatile))
+                metatile = 0;
 
-            if (metatile < NUM_METATILES_IN_PRIMARY)
+            if (MapGridMetatileIdUsesPrimaryTileset(metatile))
+            {
+#ifdef PORTABLE
+                BuyMenuDrawMapMetatile(i, j,
+                    FireredMapLayoutMetatileGraphicsPtrForPrimary(mapLayout) + metatile * NUM_TILES_PER_METATILE,
+                    metatileLayerType);
+#else
                 BuyMenuDrawMapMetatile(i, j, mapLayout->primaryTileset->metatiles + metatile * NUM_TILES_PER_METATILE, metatileLayerType);
+#endif
+            }
             else
-                BuyMenuDrawMapMetatile(i, j, mapLayout->secondaryTileset->metatiles + ((metatile - NUM_METATILES_IN_PRIMARY) * NUM_TILES_PER_METATILE), metatileLayerType);
+            {
+#ifdef PORTABLE
+                BuyMenuDrawMapMetatile(i, j,
+                    FireredMapLayoutMetatileGraphicsPtrForSecondary(mapLayout)
+                        + MapGridMetatileNonPrimaryRowOffset(metatile) * NUM_TILES_PER_METATILE,
+                    metatileLayerType);
+#else
+                BuyMenuDrawMapMetatile(i, j, mapLayout->secondaryTileset->metatiles + (MapGridMetatileNonPrimaryRowOffset(metatile) * NUM_TILES_PER_METATILE), metatileLayerType);
+#endif
+            }
         }
     }
 }

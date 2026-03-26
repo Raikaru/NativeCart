@@ -147,6 +147,8 @@ void AgbMain()
 #else
     RegisterRamReset(RESET_ALL);
 #endif //MODERN
+    /* Heap must exist before any Alloc(); earlier init paths can touch the allocator. */
+    InitHeap(gHeap, HEAP_SIZE);
     *(vu16 *)BG_PLTT = RGB_WHITE;
 #ifdef PORTABLE
     firered_runtime_trace_external("AgbMain: pre-InitGpuRegManager");
@@ -177,7 +179,6 @@ void AgbMain()
     InitMapMusic();
     ClearDma3Requests();
     ResetBgs();
-    InitHeap(gHeap, HEAP_SIZE);
     SetDefaultFontsPointer();
 
     gSoftResetDisabled = FALSE;

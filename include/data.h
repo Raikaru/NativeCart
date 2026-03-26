@@ -18,7 +18,7 @@ struct MonCoords
 #define GET_MON_COORDS_WIDTH(size)((size >> 4) * 8)
 #define GET_MON_COORDS_HEIGHT(size)((size & 0xF) * 8)
 
-extern const u8 gSpeciesNames[][POKEMON_NAME_LENGTH + 1];
+extern const u8 gSpeciesNames_Compiled[][POKEMON_NAME_LENGTH + 1];
 extern const u8 gMoveNames_Compiled[][MOVE_NAME_LENGTH + 1];
 #ifdef PORTABLE
 const u8 *FireredMoveNamesBytes(void);

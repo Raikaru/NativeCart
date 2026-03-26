@@ -108,7 +108,7 @@ static bool8 validate_pack(size_t rom_size, const u8 *rom, size_t pack_off)
             if (gMapGroups[g][n] == NULL)
                 return FALSE;
 
-            if (row->mapLayoutId != 0u && row->mapLayoutId > gMapLayoutsSlotCount)
+            if (row->mapLayoutId == 0u || row->mapLayoutId > gMapLayoutsSlotCount)
                 return FALSE;
             if (row->regionMapSectionId >= MAPSEC_COUNT)
                 return FALSE;
@@ -176,6 +176,22 @@ void firered_portable_rom_map_header_scalars_merge(struct MapHeader *dst, u16 ma
         return;
 
     apply_wire_to_header(dst, row);
+}
+
+u16 FireredRomMapHeaderScalarsEffectiveMapLayoutId(u16 mapGroup, u16 mapNum, u16 compiledLayoutId)
+{
+    const FireredRomMapHeaderScalarsWire *row;
+
+    if (!s_map_header_scalars_rom_active)
+        return compiledLayoutId;
+    if (mapGroup >= MAP_GROUPS_COUNT || mapNum >= gMapGroupSizes[mapGroup])
+        return compiledLayoutId;
+
+    row = row_at(mapGroup, mapNum);
+    if (row == NULL)
+        return compiledLayoutId;
+
+    return row->mapLayoutId;
 }
 
 u16 FireredRomMapHeaderScalarsMusic(u16 mapGroup, u16 mapNum, u16 fallback)

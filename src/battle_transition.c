@@ -2,7 +2,7 @@
 #include "sprite.h"
 #include "task.h"
 #include "overworld.h"
-#include "malloc.h"
+#include "gba_malloc.h"
 #include "palette.h"
 #include "trig.h"
 #include "random.h"

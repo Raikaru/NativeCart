@@ -439,6 +439,9 @@
 #define FACILITY_CLASS_ELITE_FOUR_LANCE       148
 #define FACILITY_CLASS_CHAMPION_RIVAL_2       149
 
+/* `gFacilityClassToPicIndex` / `gFacilityClassToTrainerClass` row count (0 .. CHAMPION_RIVAL_2). */
+#define NUM_FACILITY_CLASSES (FACILITY_CLASS_CHAMPION_RIVAL_2 + 1)
+
 #define F_TRAINER_FEMALE (1 << 7)
 
 // All trainer parties specify the IV, level, and species for each Pokémon in the

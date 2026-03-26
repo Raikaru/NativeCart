@@ -13,6 +13,8 @@
 #include "constants/songs.h"
 
 #ifdef PORTABLE
+#include "map_header_scalars_access.h"
+#include "map_layout_metatiles_access.h"
 #include "portable_generated/itemfinder_portable_nullfix.h"
 #endif
 
@@ -317,8 +319,21 @@ static bool8 HiddenItemInConnectedMapAtPos(const struct MapConnection * connecti
     u16 localX, localY;
     u32 localOffset;
     s32 localLength;
+#ifdef PORTABLE
+    u16 lid;
+    const struct MapLayout *nLayout;
+#endif
 
     mapHeader = GetMapHeaderFromConnection(connection);
+
+#ifdef PORTABLE
+    lid = FireredRomMapHeaderScalarsEffectiveMapLayoutId(connection->mapGroup, connection->mapNum, mapHeader->mapLayoutId);
+    nLayout = FireredPortableEffectiveMapLayoutForLayoutId(lid);
+    if (nLayout == NULL)
+        nLayout = mapHeader->mapLayout;
+#else
+#define nLayout (mapHeader->mapLayout)
+#endif
 
     switch (connection->direction)
     {
@@ -326,7 +341,7 @@ static bool8 HiddenItemInConnectedMapAtPos(const struct MapConnection * connecti
     case CONNECTION_NORTH:
         localOffset = connection->offset + 7;
         localX = x - localOffset;
-        localLength = mapHeader->mapLayout->height - 7;
+        localLength = nLayout->height - 7;
         localY = localLength + y; // additions are reversed for some reason
         break;
     case CONNECTION_SOUTH:
@@ -336,7 +351,7 @@ static bool8 HiddenItemInConnectedMapAtPos(const struct MapConnection * connecti
         localY = y - localLength;
         break;
     case CONNECTION_WEST:
-        localLength = mapHeader->mapLayout->width - 7;
+        localLength = nLayout->width - 7;
         localX = localLength + x; // additions are reversed for some reason
         localOffset = connection->offset + 7;
         localY = y - localOffset;
@@ -348,8 +363,14 @@ static bool8 HiddenItemInConnectedMapAtPos(const struct MapConnection * connecti
         localY = y - localOffset;
         break;
     default:
+#ifndef PORTABLE
+#undef nLayout
+#endif
         return FALSE;
     }
+#ifndef PORTABLE
+#undef nLayout
+#endif
     return HiddenItemAtPos(mapHeader->events, localX, localY);
 }
 

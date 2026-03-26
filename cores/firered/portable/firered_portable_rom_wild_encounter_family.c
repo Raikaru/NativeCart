@@ -1,3 +1,6 @@
+/* Host ROM pack buffers: engine_backend_init runs this before AgbMain InitHeap. */
+#define FIRERED_HOST_LIBC_MALLOC 1
+
 #include "global.h"
 
 #include "portable/firered_portable_rom_wild_encounter_family.h"
@@ -118,6 +121,8 @@ static bool8 validate_header_row(const u8 *rom, size_t rom_size, const u8 *row)
     u32 land, water, rock, fish;
 
     if ((size_t)(row - rom) + FIRERED_GBA_HEADER_ROW_BYTES > rom_size)
+        return FALSE;
+    if (row[2] != 0u || row[3] != 0u)
         return FALSE;
 
     land = read_le_u32(row + 4u);

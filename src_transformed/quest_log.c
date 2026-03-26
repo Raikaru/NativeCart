@@ -145,6 +145,7 @@ static void DoSceneEndTransition(s8 delay);
 static void DoSkipToEndTransition(s8 delay);
 static void QuestLog_AdvancePlayhead(void);
 static void QuestLog_StartFinalScene(void);
+static void RestorePlaybackCallbackIfStillActive(void);
 static void Task_AvoidDisplay(u8);
 static void QuestLog_PlayCurrentEvent(void);
 static void HandleShowQuestLogMessage(void);
@@ -1212,7 +1213,7 @@ static void Task_QuestLogWarpExitStep(u8 taskId)
             }
             UnfreezeObjectEvents();
             UnlockPlayerFieldControls();
-            sQuestLogCB = QLogCB_Playback;
+            RestorePlaybackCallbackIfStillActive();
             DestroyTask(taskId);
         }
         break;
@@ -1221,7 +1222,7 @@ static void Task_QuestLogWarpExitStep(u8 taskId)
         {
             UnfreezeObjectEvents();
             UnlockPlayerFieldControls();
-            sQuestLogCB = QLogCB_Playback;
+            RestorePlaybackCallbackIfStillActive();
             DestroyTask(taskId);
         }
         break;
@@ -1528,6 +1529,12 @@ static void QuestLog_StartFinalScene(void)
     FreeAllWindowBuffers();
     gQuestLogState = QL_STATE_PLAYBACK_LAST;
     sQuestLogCB = NULL;
+}
+
+static void RestorePlaybackCallbackIfStillActive(void)
+{
+    if (gQuestLogState == QL_STATE_PLAYBACK && gQuestLogPlaybackState != QL_PLAYBACK_STATE_STOPPED)
+        sQuestLogCB = QLogCB_Playback;
 }
 
 void QuestLog_AdvancePlayhead_(void)

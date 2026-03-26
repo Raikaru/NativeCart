@@ -1,7 +1,6 @@
 #include "global.h"
 #include "gba_malloc.h"
 #include "menu.h"
-#include "gba_malloc.h"
 
 #ifdef PORTABLE
 #define HELP_MESSAGE_DEFINE_GLOBALS

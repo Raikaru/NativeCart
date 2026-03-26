@@ -86,7 +86,8 @@ SHELL := bash -o pipefail
 # Set flags for tools
 ASFLAGS := -mcpu=arm7tdmi --defsym $(GAME_VERSION)=1 --defsym REVISION=$(GAME_REVISION) --defsym $(GAME_LANGUAGE)=1 --defsym MODERN=$(MODERN)
 
-INCLUDE_DIRS := include
+# `cores/firered` lets `#include "portable/...` resolve to `cores/firered/portable/...`.
+INCLUDE_DIRS := include cores/firered
 INCLUDE_CPP_ARGS := $(INCLUDE_DIRS:%=-iquote %)
 INCLUDE_SCANINC_ARGS := $(INCLUDE_DIRS:%=-I %)
 
@@ -147,10 +148,10 @@ MAKEFLAGS += --no-print-directory
 ALL_BUILDS := firered firered_rev1 leafgreen leafgreen_rev1
 ALL_BUILDS += $(ALL_BUILDS:%=%_modern)
 
-RULES_NO_SCAN += clean clean-assets tidy generated clean-generated check-root-deps check-agbcc check-arm-toolchain
+RULES_NO_SCAN += clean clean-assets tidy generated clean-generated check-root-deps check-agbcc check-arm-toolchain check-field-map-logical-physical-table check-direction-b-offline check-direction-b check-project-c-block-word-offline check-project-c-phase3-offline check-map-layout-block-bins check-offline-gates check-validators check-direction-d-offline check-direction-d
 .PHONY: all rom modern compare $(ALL_BUILDS) $(ALL_BUILDS:%=compare_%)
 .PHONY: $(RULES_NO_SCAN)
-.PHONY: check-root-deps check-agbcc check-arm-toolchain
+.PHONY: check-root-deps check-agbcc check-arm-toolchain check-field-map-logical-physical-table check-direction-b-offline check-direction-b check-project-c-block-word-offline check-project-c-phase3-offline check-map-layout-block-bins check-offline-gates check-validators check-direction-d-offline check-direction-d
 
 infoshell = $(foreach line, $(shell $1 | sed "s/ /__SPACE__/g"), $(info $(subst __SPACE__, ,$(line))))
 
@@ -275,6 +276,46 @@ check-arm-toolchain:
 		exit $$status; \
 	}
 
+# Direction B: `gFieldMapLogicalToPhysicalTileId` initializer (door contract, collision warnings).
+# Use `python ... --strict-injective` in CI for non-identity hacks. Requires `python` on PATH.
+check-field-map-logical-physical-table:
+	@python tools/validate_field_map_logical_to_physical_inc.py
+
+# Direction B: `.inc` present + same validator (CI / portable script entry point).
+check-direction-b-offline:
+	@python tools/check_direction_b_offline.py
+
+check-direction-b: check-direction-b-offline
+	@:
+
+# Project C: `MAPGRID_*` vs `MAP_GRID_BLOCK_WORD_*` vs Python policy (no agbcc).
+check-project-c-block-word-offline:
+	@python tools/check_project_c_block_word_offline.py
+
+# Project C Phase 3: documented `u32` on-disk constants vs Python (no u32 bins in vanilla tree).
+check-project-c-phase3-offline:
+	@python tools/check_project_c_phase3_offline.py
+
+# Project C: layout `map.bin` / `border.bin` as vanilla `u16` block words (`constants/map_grid_block_word.h`).
+check-map-layout-block-bins:
+	@python tools/validate_map_layout_block_bin.py --layouts-json data/layouts/layouts.json --repo-root .
+
+# All Python-only gates (handy when agbcc/`make compare` unavailable); see `tools/run_offline_build_gates.py`.
+check-offline-gates:
+	@python tools/run_offline_build_gates.py
+
+# Direction B + Project C validators (no ROM build required).
+check-validators: check-direction-b-offline check-project-c-block-word-offline check-project-c-phase3-offline check-map-layout-block-bins
+	@:
+
+# Project B / Direction D: offline compiled-tileset role map parses (needs generated map_data_portable.c).
+check-direction-d-offline:
+	@python tools/check_direction_d_offline.py
+
+# Validators (B + Project C block-word + layout bins) + Direction D compiled-tileset smoke (no ROM build).
+check-direction-d: check-validators check-direction-d-offline
+	@:
+
 clean: tidy clean-tools clean-generated clean-assets
 
 clean-assets:
@@ -345,6 +386,11 @@ $(C_BUILDDIR)/m4a.o: CC1 := $(TOOLS_DIR)/agbcc/bin/old_agbcc$(EXE)
 $(C_BUILDDIR)/isagbprn.o: CC1 := $(TOOLS_DIR)/agbcc/bin/old_agbcc$(EXE)
 $(C_BUILDDIR)/isagbprn.o: CFLAGS := -mthumb-interwork
 
+# Thumb agbcc ICE on this gEvolutionTable walk (stor-layout.c:203); agbcc_arm matches pret algorithm, not codegen vs thumb.
+$(C_BUILDDIR)/daycare_egg_species.o: CC1 := $(TOOLS_DIR)/agbcc/bin/agbcc_arm$(EXE)
+$(C_BUILDDIR)/daycare_egg_species.o: CFLAGS := -O2 -mthumb-interwork -quiet
+
+# agbcc can ICE in stor-layout.c on daycare.c at -O2; last -O* wins for cc1.
 $(C_BUILDDIR)/trainer_tower.o: CFLAGS += -ffreestanding
 $(C_BUILDDIR)/battle_anim_flying.o: CFLAGS += -ffreestanding
 

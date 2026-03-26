@@ -71,6 +71,11 @@ CRC, size, version).
 
 - **Shared bind flow** — [`portable_rom_asset_bind.md`](portable_rom_asset_bind.md).
 
+## See also
+
+- [`cfru_integration_playbook.md`](cfru_integration_playbook.md) — CFRU / CFRU-derivative **native** port planning (battle, save, scripts, data width); `profile_id` rows here are **inputs** to that work, not implementations.
+- [`cfru_upstream_reference.md`](cfru_upstream_reference.md) — CFRU/DPE repos, wiki, ROM insertion build model, README terms pointer.
+
 ## Non-goals
 
 - No remote catalog, no large registry.

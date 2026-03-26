@@ -67,7 +67,13 @@ extern const u8 gStatusConditionString_ConfusionJpn[8];
 extern const u8 gStatusConditionString_LoveJpn[8];
 extern const u8 *const gStatusConditionStringsTable[7][2];
 extern const u8 gTypeEffectiveness[FIRERED_TYPE_EFFECTIVENESS_BYTE_COUNT];
+#ifdef PORTABLE
+extern const struct TrainerMoney gTrainerMoneyTable_Compiled[];
+extern const struct TrainerMoney *gTrainerMoneyTableActive;
+#define gTrainerMoneyTable ((gTrainerMoneyTableActive) != NULL ? (gTrainerMoneyTableActive) : (gTrainerMoneyTable_Compiled))
+#else
 extern const struct TrainerMoney gTrainerMoneyTable[];
+#endif
 extern const u8 *const gAbilityDescriptionPointers[ABILITIES_COUNT];
 extern const u8 gAbilityNames[ABILITIES_COUNT][ABILITY_NAME_LENGTH + 1];
 

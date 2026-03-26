@@ -119,6 +119,8 @@ void AgbMain()
 #else
     RegisterRamReset(RESET_ALL);
 #endif //MODERN
+    /* Heap must exist before any Alloc(); earlier init paths can touch the allocator. */
+    InitHeap(gHeap, HEAP_SIZE);
     *(vu16 *)BG_PLTT = RGB_WHITE;
     InitGpuRegManager();
     REG_WAITCNT = WAITCNT_PREFETCH_ENABLE | WAITCNT_WS0_S_1 | WAITCNT_WS0_N_3;
@@ -132,7 +134,6 @@ void AgbMain()
     InitMapMusic();
     ClearDma3Requests();
     ResetBgs();
-    InitHeap(gHeap, HEAP_SIZE);
     SetDefaultFontsPointer();
 
     gSoftResetDisabled = FALSE;

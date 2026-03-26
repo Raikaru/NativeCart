@@ -387,7 +387,7 @@ struct SaveBlock2
     /*0x0AC*/ bool8 unkFlag1; // Set TRUE, never read
     /*0x0AD*/ bool8 unkFlag2; // Set FALSE, never read
     /*0x0B0*/ struct BattleTowerData battleTower;
-    /*0x898*/ u16 mapView[0x100];
+    /*0x898*/ u16 mapView[0x100]; // Phase 2 RAM block words after migration (`MAP_GRID_BLOCK_WORD_LAYOUT_PHASE2_U16`); legacy saves: wire V1 until `NormalizeSavedMapViewBlockWords`. On-disk `map.bin` stays PRET wire V1.
     /*0xA98*/ struct LinkBattleRecords linkBattleRecords;
     /*0xAF0*/ struct BerryCrush berryCrush;
     /*0xB00*/ struct PokemonJumpRecords pokeJump;
@@ -821,7 +821,7 @@ struct SaveBlock1
     /*0x002E*/ u8 weather;
     /*0x002F*/ u8 weatherCycleStage;
     /*0x0030*/ u8 flashLevel;
-    /*0x0032*/ u16 mapLayoutId;
+    /*0x0032*/ u16 mapLayoutId; // `gMapLayouts` slot; PORTABLE ROM metatile border/map blobs key off this — `docs/architecture/project_c_map_block_word_and_tooling_boundary.md`.
     /*0x0034*/ u8 playerPartyCount;
     /*0x0038*/ struct Pokemon playerParty[PARTY_SIZE];
     /*0x0290*/ u32 money;
@@ -835,7 +835,8 @@ struct SaveBlock1
     /*0x054c*/ struct ItemSlot bagPocket_Berries[BAG_BERRIES_COUNT];
     /*0x05F8*/ u8 seen1[DEX_FLAGS_NO];
     /*0x062C*/ u16 berryBlenderRecords[3]; // unused
-    /*0x0632*/ u8 unused_632[6];
+    /*0x0632*/ u8 mapGridBlockWordSaveLayout; /* `MAP_GRID_BLOCK_WORD_LAYOUT_*` for `gSaveBlock2Ptr->mapView` packing; 0 = legacy wire V1 */
+    /*0x0633*/ u8 unused_632_remain[5];
     /*0x0638*/ u16 trainerRematchStepCounter;
     /*0x063A*/ u8 ALIGNED(2) trainerRematches[MAX_REMATCH_ENTRIES];
 #ifdef PORTABLE

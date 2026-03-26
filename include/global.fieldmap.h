@@ -2,18 +2,23 @@
 #define GUARD_GLOBAL_FIELDMAP_H
 
 #include <stddef.h>
+#include "constants/map_grid_block_word.h"
 
-// Masks/shifts for blocks in the map grid
-// Map grid blocks consist of a 10 bit metatile id, a 2 bit collision value, and a 4 bit elevation value
-// This is the data stored in each data/layouts/*/map.bin file
-#define MAPGRID_METATILE_ID_MASK 0x03FF // Bits 0-9
-#define MAPGRID_COLLISION_MASK   0x0C00 // Bits 10-11
-#define MAPGRID_ELEVATION_MASK   0xF000 // Bits 12-15
-#define MAPGRID_COLLISION_SHIFT  10
-#define MAPGRID_ELEVATION_SHIFT  12
+/*
+ * Live map grid / save `mapView` **`u16` words** use **Phase 2 RAM** packing (`MAP_GRID_BLOCK_WORD_*`):
+ * 11-bit metatile, 2-bit collision, 3-bit elevation. Layout `map.bin` / `border.bin` on disk stay **PRET
+ * wire V1** (10+2+4); `fieldmap.c` converts with `MapGridBlockWordFromWireV1` when loading.
+ * Pack/unpack: `map_grid_block_word.h` (via `fieldmap.h`). Project C:
+ * `docs/architecture/project_c_map_block_word_and_tooling_boundary.md`.
+ */
+#define MAPGRID_METATILE_ID_MASK MAP_GRID_BLOCK_WORD_METATILE_ID_MASK
+#define MAPGRID_COLLISION_MASK   MAP_GRID_BLOCK_WORD_COLLISION_MASK
+#define MAPGRID_ELEVATION_MASK   MAP_GRID_BLOCK_WORD_ELEVATION_MASK
+#define MAPGRID_COLLISION_SHIFT  MAP_GRID_BLOCK_WORD_COLLISION_SHIFT
+#define MAPGRID_ELEVATION_SHIFT  MAP_GRID_BLOCK_WORD_ELEVATION_SHIFT
 
-// An undefined map grid block has all metatile id bits set and nothing else
-#define MAPGRID_UNDEFINED   MAPGRID_METATILE_ID_MASK
+/* All metatile id bits set — buffer **sentinel** (same bit pattern as encoded id **2047**; mirrors vanilla 0x3FF vs id 1023). */
+#define MAPGRID_UNDEFINED        MAPGRID_METATILE_ID_MASK
 
 enum {
     METATILE_LAYER_TYPE_NORMAL,  // Metatile uses middle and top bg layers
@@ -105,6 +110,12 @@ struct Tileset
     /*0x14*/ const u32 *metatileAttributes;
 };
 
+/*
+ * `border` / `map` are `u16` arrays (`border.bin` / `map.bin`): each element is a **map block word**
+ * (metatile id, collision, elevation — see masks at top of this file). Metatile **id** semantics:
+ * `docs/architecture/project_c_metatile_id_map_format.md`. Changing word **layout**:
+ * `docs/architecture/project_c_map_block_word_and_tooling_boundary.md`.
+ */
 struct MapLayout
 {
     /*0x00*/ s32 width;
@@ -117,6 +128,7 @@ struct MapLayout
     /*0x19*/ u8 borderHeight;
 };
 
+/* Live virtual map (`gBackupMapData`): `u16` block words per masks above; same meaning as `MapLayout::map` cells. */
 struct BackupMapLayout
 {
     s32 Xsize;

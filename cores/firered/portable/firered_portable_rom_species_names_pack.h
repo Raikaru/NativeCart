@@ -1,0 +1,6 @@
+#ifndef GUARD_FIRERED_PORTABLE_ROM_SPECIES_NAMES_PACK_H
+#define GUARD_FIRERED_PORTABLE_ROM_SPECIES_NAMES_PACK_H
+
+void firered_portable_rom_species_names_pack_refresh_after_rom_load(void);
+
+#endif /* GUARD_FIRERED_PORTABLE_ROM_SPECIES_NAMES_PACK_H */

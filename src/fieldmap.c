@@ -7,6 +7,18 @@
 #include "fieldmap.h"
 #include "map_layout_metatiles_access.h"
 
+/* Project C: encoded metatile id span must match the Phase 2 RAM mask in map block words. */
+STATIC_ASSERT((u32)(MAP_GRID_METATILE_ID_SPACE_SIZE - 1u) == (u32)MAPGRID_METATILE_ID_MASK,
+              map_grid_encoded_space_matches_metatile_id_mask);
+STATIC_ASSERT((u32)MAPGRID_METATILE_ID_MASK == (u32)MAP_GRID_BLOCK_WORD_METATILE_ID_MASK,
+              map_grid_block_word_mask_matches_global_fieldmap);
+STATIC_ASSERT((u32)MAPGRID_COLLISION_MASK == (u32)MAP_GRID_BLOCK_WORD_COLLISION_MASK,
+              map_grid_block_word_collision_mask_matches);
+STATIC_ASSERT((u32)MAPGRID_ELEVATION_MASK == (u32)MAP_GRID_BLOCK_WORD_ELEVATION_MASK,
+              map_grid_block_word_elevation_mask_matches);
+STATIC_ASSERT((u32)MAP_GRID_METATILE_ID_SPACE_SIZE == (u32)MAP_GRID_BLOCK_WORD_ENCODED_METATILE_COUNT,
+              map_grid_block_word_encoded_count_matches_fieldmap);
+
 struct ConnectionFlags
 {
     u8 south:1;
@@ -16,6 +28,7 @@ struct ConnectionFlags
 };
 
 COMMON_DATA struct BackupMapLayout VMap = {0};
+/* Live overworld grid: `u16` block words per `global.fieldmap.h` / Project C (`project_c_map_block_word_and_tooling_boundary.md`). */
 EWRAM_DATA u16 gBackupMapData[VIRTUAL_MAP_SIZE] = {};
 EWRAM_DATA struct MapHeader gMapHeader = {};
 EWRAM_DATA struct Camera gCamera = {};
@@ -32,11 +45,13 @@ static void FillNorthConnection(struct MapHeader const *, struct MapHeader const
 static void FillWestConnection(struct MapHeader const *, struct MapHeader const *, s32);
 static void FillEastConnection(struct MapHeader const *, struct MapHeader const *, s32);
 static void LoadSavedMapView(void);
+static void NormalizeSavedMapViewBlockWords(void);
 static const struct MapConnection *GetIncomingConnection(u8, s32, s32);
 static bool8 IsPosInIncomingConnectingMap(u8, s32, s32, const struct MapConnection *);
 static bool8 IsCoordInIncomingConnectingMap(s32, s32, s32, s32);
 static u32 GetAttributeByMetatileIdAndMapLayout(const struct MapLayout *, u16, u8);
 
+/* Border `border.bin` entries are `u16` block words (`global.fieldmap.h`); ORs default collision for wrap tiles. */
 #define GetBorderBlockAt(x, y) ({                                                                 \
     u16 block;                                                                                    \
     s32 xprime;                                                                                   \
@@ -44,19 +59,28 @@ static u32 GetAttributeByMetatileIdAndMapLayout(const struct MapLayout *, u16, u
                                                                                                   \
     const struct MapLayout *mapLayout = gMapHeader.mapLayout;                                     \
                                                                                                   \
-    xprime = x - MAP_OFFSET;                                                                      \
-    xprime += 8 * mapLayout->borderWidth;                                                         \
-    xprime %= mapLayout->borderWidth;                                                             \
+    if (mapLayout->borderWidth == 0 || mapLayout->borderHeight == 0)                              \
+        block = MapGridBlockWordApplyBorderWrapCollision(MapGridBlockWordFromWireV1(0));          \
+    else                                                                                          \
+    {                                                                                             \
+        xprime = x - MAP_OFFSET;                                                                  \
+        xprime += 8 * mapLayout->borderWidth;                                                     \
+        xprime %= mapLayout->borderWidth;                                                         \
                                                                                                   \
-    yprime = y - MAP_OFFSET;                                                                      \
-    yprime += 8 * mapLayout->borderHeight;                                                        \
-    yprime %= mapLayout->borderHeight;                                                            \
+        yprime = y - MAP_OFFSET;                                                                  \
+        yprime += 8 * mapLayout->borderHeight;                                                    \
+        yprime %= mapLayout->borderHeight;                                                        \
                                                                                                   \
-    block = MAP_LAYOUT_METATILE_BORDER_PTR(mapLayout)[xprime + yprime * mapLayout->borderWidth] | MAPGRID_COLLISION_MASK; \
+        block = MapGridBlockWordApplyBorderWrapCollision(                                         \
+            MapGridBlockWordFromWireV1(                                                           \
+                MAP_LAYOUT_METATILE_BORDER_PTR(mapLayout)[xprime + yprime * mapLayout->borderWidth])); \
+    }                                                                                             \
+    block;                                                                                        \
 })
 
 #define AreCoordsWithinMapGridBounds(x, y) (x >= 0 && x < VMap.Xsize && y >= 0 && y < VMap.Ysize)
 
+/* Full `u16` word: interior from `gBackupMapData`, out-of-bounds from border wrap (`GetBorderBlockAt`). */
 #define GetMapGridBlockAt(x, y) (AreCoordsWithinMapGridBounds(x, y) ? VMap.map[x + VMap.Xsize * y] : GetBorderBlockAt(x, y))
 
 // Masks/shifts for metatile attributes
@@ -101,6 +125,7 @@ void InitMapFromSavedGame(void)
     RunOnLoadMapScript();
 }
 
+/* Fills `gBackupMapData` from the layout metatile grid (`map.bin` / same `u16` word layout as save `mapView`). */
 static void InitMapLayoutData(struct MapHeader * mapHeader)
 {
     const struct MapLayout * mapLayout = mapHeader->mapLayout;
@@ -113,15 +138,18 @@ static void InitMapLayoutData(struct MapHeader * mapHeader)
     InitBackupMapLayoutConnections(mapHeader);
 }
 
+/* PRET wire V1 `map.bin` rows -> Phase 2 RAM (`MapGridBlockWordFromWireV1`). */
 static void InitBackupMapLayoutData(const u16 *map, u16 width, u16 height)
 {
     s32 y;
+    u16 x;
     u16 *dest = VMap.map;
     dest += VMap.Xsize * 7 + MAP_OFFSET;
 
     for (y = 0; y < height; y++)
     {
-        CpuCopy16(map, dest, width * sizeof(u16));
+        for (x = 0; x < width; x++)
+            dest[x] = MapGridBlockWordFromWireV1(map[x]);
         dest += width + MAP_OFFSET_W;
         map += width;
     }
@@ -171,9 +199,11 @@ static void InitBackupMapLayoutConnections(struct MapHeader *mapHeader)
     }
 }
 
+/* Copies connected-map PRET wire V1 words into `VMap` as Phase 2 RAM. */
 static void FillConnection(s32 x, s32 y, const struct MapHeader *connectedMapHeader, s32 x2, s32 y2, s32 width, s32 height)
 {
     s32 i;
+    u16 j;
     const u16 *src;
     u16 *dest;
     s32 mapWidth;
@@ -184,7 +214,8 @@ static void FillConnection(s32 x, s32 y, const struct MapHeader *connectedMapHea
 
     for (i = 0; i < height; i++)
     {
-        CpuCopy16(src, dest, width * 2);
+        for (j = 0; j < (u16)width; j++)
+            dest[j] = MapGridBlockWordFromWireV1(src[j]);
         dest += VMap.Xsize;
         src += mapWidth;
     }
@@ -349,30 +380,29 @@ u8 MapGridGetElevationAt(s32 x, s32 y)
 {
     u16 block = GetMapGridBlockAt(x, y);
 
-    if (block == MAPGRID_UNDEFINED)
-        return 0;
-
-    return block >> MAPGRID_ELEVATION_SHIFT;
+    return MapGridBlockWordGetElevation(block);
 }
 
 u8 MapGridGetCollisionAt(s32 x, s32 y)
 {
     u16 block = GetMapGridBlockAt(x, y);
 
-    if (block == MAPGRID_UNDEFINED)
-        return TRUE;
-
-    return (block & MAPGRID_COLLISION_MASK) >> MAPGRID_COLLISION_SHIFT;
+    return MapGridBlockWordGetCollision(block);
 }
 
+/*
+ * Returns the metatile id in **encoded space** `0 .. MAP_GRID_METATILE_ID_SPACE_SIZE - 1` (Phase 2: 0..2047):
+ * low **11 bits** of the Phase 2 RAM block word (`MAPGRID_METATILE_ID_MASK`). See
+ * `docs/architecture/project_c_map_block_word_and_tooling_boundary.md`.
+ */
 u32 MapGridGetMetatileIdAt(s32 x, s32 y)
 {
     u16 block = GetMapGridBlockAt(x, y);
 
     if (block == MAPGRID_UNDEFINED)
-        return GetBorderBlockAt(x, y) & MAPGRID_METATILE_ID_MASK;
+        return MapGridBlockWordGetMetatileIdFromWord(GetBorderBlockAt(x, y));
 
-    return block & MAPGRID_METATILE_ID_MASK;
+    return MapGridBlockWordGetMetatileIdFromWord(block);
 }
 
 u32 ExtractMetatileAttribute(u32 attributes, u8 attributeType)
@@ -399,16 +429,18 @@ u8 MapGridGetMetatileLayerTypeAt(s16 x, s16 y)
     return MapGridGetMetatileAttributeAt(x, y, METATILE_ATTRIBUTE_LAYER_TYPE);
 }
 
+/* Mutates metatile + collision bits; preserves elevation (`MAPGRID_*` in `global.fieldmap.h`). */
 void MapGridSetMetatileIdAt(s32 x, s32 y, u16 metatile)
 {
     s32 i;
     if (AreCoordsWithinMapGridBounds(x, y))
     {
         i = x + y * VMap.Xsize;
-        VMap.map[i] = (VMap.map[i] & MAPGRID_ELEVATION_MASK) | (metatile & ~MAPGRID_ELEVATION_MASK);
+        VMap.map[i] = MapGridBlockWordReplaceMetatileAndCollisionKeepingElevation(VMap.map[i], metatile);
     }
 }
 
+/* Overwrites the full `u16` block word (must stay consistent with layout `map.bin` / save `mapView`). */
 void MapGridSetMetatileEntryAt(s32 x, s32 y, u16 metatile)
 {
     s32 i;
@@ -419,30 +451,35 @@ void MapGridSetMetatileEntryAt(s32 x, s32 y, u16 metatile)
     }
 }
 
+/* Toggles collision bits only; metatile id and elevation unchanged. */
 void MapGridSetMetatileImpassabilityAt(s32 x, s32 y, bool32 impassable)
 {
     if (AreCoordsWithinMapGridBounds(x, y))
     {
-        if (impassable)
-            VMap.map[x + VMap.Xsize * y] |= MAPGRID_COLLISION_MASK;
-        else
-            VMap.map[x + VMap.Xsize * y] &= ~MAPGRID_COLLISION_MASK;
+        {
+            s32 idx = x + VMap.Xsize * y;
+            VMap.map[idx] = MapGridBlockWordSetImpassable(VMap.map[idx], impassable);
+        }
     }
 }
 
 static u32 GetAttributeByMetatileIdAndMapLayout(const struct MapLayout *mapLayout, u16 metatile, u8 attributeType)
 {
     const u32 * attributes;
+    u32 mid = metatile;
 
-    if (metatile < NUM_METATILES_IN_PRIMARY)
+    if (!MapGridMetatileIdIsInEncodedSpace(mid))
+        return 0xFF;
+
+    if (MapGridMetatileIdUsesPrimaryTileset(mid))
     {
         attributes = mapLayout->primaryTileset->metatileAttributes;
-        return ExtractMetatileAttribute(attributes[metatile], attributeType);
+        return ExtractMetatileAttribute(attributes[mid], attributeType);
     }
-    else if (metatile < NUM_METATILES_TOTAL)
+    else if (MapGridMetatileIdUsesSecondaryTileset(mid))
     {
         attributes = mapLayout->secondaryTileset->metatileAttributes;
-        return ExtractMetatileAttribute(attributes[metatile - NUM_METATILES_IN_PRIMARY], attributeType);
+        return ExtractMetatileAttribute(attributes[MapGridMetatileSecondaryRowIndex(mid)], attributeType);
     }
     else
     {
@@ -450,6 +487,11 @@ static u32 GetAttributeByMetatileIdAndMapLayout(const struct MapLayout *mapLayou
     }
 }
 
+/*
+ * Persists a screen-sized window of `gBackupMapData` into `gSaveBlock2Ptr->mapView` (Fly / return UX).
+ * Words are the same **`u16` block format** as the live map grid — any change to map block encoding
+ * (Project C large program) must revisit save layout: `docs/architecture/project_c_map_block_word_and_tooling_boundary.md`.
+ */
 void SaveMapView(void)
 {
     s32 i, j;
@@ -465,6 +507,7 @@ void SaveMapView(void)
         for (j = x; j < x + MAP_OFFSET_W; j++)
             *mapView++ = gBackupMapData[width * i + j];
     }
+    gSaveBlock1Ptr->mapGridBlockWordSaveLayout = MAP_GRID_BLOCK_WORD_LAYOUT_PHASE2_U16;
 }
 
 static bool32 SavedMapViewIsEmpty(void)
@@ -492,6 +535,23 @@ static void ClearSavedMapView(void)
     CpuFill16(0, gSaveBlock2Ptr->mapView, sizeof(gSaveBlock2Ptr->mapView));
 }
 
+/*
+ * Migrates `gSaveBlock2Ptr->mapView` from PRET **wire V1** to Phase 2 RAM words when needed.
+ * `gSaveBlock1Ptr->mapGridBlockWordSaveLayout` == `MAP_GRID_BLOCK_WORD_LAYOUT_PHASE2_U16` => already Phase 2.
+ */
+static void NormalizeSavedMapViewBlockWords(void)
+{
+    u32 i;
+
+    if (gSaveBlock1Ptr->mapGridBlockWordSaveLayout == MAP_GRID_BLOCK_WORD_LAYOUT_PHASE2_U16)
+        return;
+
+    for (i = 0; i < NELEMS(gSaveBlock2Ptr->mapView); i++)
+        gSaveBlock2Ptr->mapView[i] = MapGridBlockWordFromWireV1(gSaveBlock2Ptr->mapView[i]);
+    gSaveBlock1Ptr->mapGridBlockWordSaveLayout = MAP_GRID_BLOCK_WORD_LAYOUT_PHASE2_U16;
+}
+
+/* Inverse of `SaveMapView`: `mapView` words must stay bitwise-compatible with `gBackupMapData` / layout bins. */
 static void LoadSavedMapView(void)
 {
     s32 i, j;
@@ -501,6 +561,7 @@ static void LoadSavedMapView(void)
     mapView = gSaveBlock2Ptr->mapView;
     if (!SavedMapViewIsEmpty())
     {
+        NormalizeSavedMapViewBlockWords();
         width = VMap.Xsize;
         x = gSaveBlock1Ptr->pos.x;
         y = gSaveBlock1Ptr->pos.y;
@@ -516,6 +577,7 @@ static void LoadSavedMapView(void)
     }
 }
 
+/* Stitches `gSaveBlock2Ptr->mapView` into `gBackupMapData` when crossing a map connection (same `u16` word layout). */
 static void MoveMapViewToBackup(u8 direction)
 {
     s32 width;
@@ -817,14 +879,76 @@ void GetCameraCoords(u16 *x, u16 *y)
     *y = gSaveBlock1Ptr->pos.y;
 }
 
+static void FieldMapSyncWaitForBgTilesDmaRequestIfValid(u16 loadBgTilesReturn)
+{
+    s16 idx = (s16)loadBgTilesReturn;
+
+    if (idx < 0)
+        return;
+    while (WaitDma3Request(idx) != 0)
+        ;
+}
+
+static void FieldMapCopyUncompressedFieldTileSpanToBg(const void *linearTiles, u16 numTiles, u16 logicalFirstTileIndex)
+{
+    const u8 *src = (const u8 *)linearTiles;
+    u16 t;
+
+    if (FieldMapFieldTileUploadUsesIdentityLayout())
+    {
+        LoadBgTiles(MAP_BG_FIELD_TILESET_GFX_BG, linearTiles, (u16)(numTiles * TILE_SIZE_4BPP), logicalFirstTileIndex);
+        return;
+    }
+    for (t = 0; t < numTiles; t++)
+    {
+        u16 logical = (u16)(logicalFirstTileIndex + t);
+        u16 dest = (u16)(gFieldMapLogicalToPhysicalTileId[logical] & 0x3FFu);
+
+        LoadBgTiles(MAP_BG_FIELD_TILESET_GFX_BG, src + t * TILE_SIZE_4BPP, TILE_SIZE_4BPP, dest);
+    }
+}
+
+static void FieldMapCopyCompressedFieldTileSpanRemappedToBg(struct Tileset const *tileset, u16 numTiles, u16 logicalFirstTileIndex)
+{
+    void *ptr;
+    u32 sizeOut;
+    u32 maxBytes;
+    u16 t;
+    u16 tileCount;
+
+    ptr = MallocAndDecompress(tileset->tiles, &sizeOut);
+    if (ptr == NULL)
+        return;
+    maxBytes = (u32)numTiles * TILE_SIZE_4BPP;
+    if (sizeOut > maxBytes)
+        sizeOut = maxBytes;
+    if (sizeOut < TILE_SIZE_4BPP)
+    {
+        Free(ptr);
+        return;
+    }
+    tileCount = (u16)(sizeOut / TILE_SIZE_4BPP);
+    for (t = 0; t < tileCount; t++)
+    {
+        u16 logical = (u16)(logicalFirstTileIndex + t);
+        u16 dest = (u16)(gFieldMapLogicalToPhysicalTileId[logical] & 0x3FFu);
+        u16 c = LoadBgTiles(MAP_BG_FIELD_TILESET_GFX_BG, (u8 *)ptr + t * TILE_SIZE_4BPP, TILE_SIZE_4BPP, dest);
+
+        FieldMapSyncWaitForBgTilesDmaRequestIfValid(c);
+    }
+    Free(ptr);
+}
+
 static void CopyTilesetToVram(struct Tileset const *tileset, u16 numTiles, u16 offset)
 {
     if (tileset)
     {
         if (!tileset->isCompressed)
-            LoadBgTiles(2, tileset->tiles, numTiles * 32, offset);
+            FieldMapCopyUncompressedFieldTileSpanToBg(tileset->tiles, numTiles, offset);
+        else if (FieldMapFieldTileUploadUsesIdentityLayout())
+            DecompressAndCopyTileDataToVram2(MAP_BG_FIELD_TILESET_GFX_BG, tileset->tiles, numTiles * TILE_SIZE_4BPP, offset, 0);
         else
-            DecompressAndCopyTileDataToVram2(2, tileset->tiles, numTiles * 32, offset, 0);
+            FieldMapCopyCompressedFieldTileSpanRemappedToBg(tileset, numTiles, offset);
     }
 }
 
@@ -833,9 +957,11 @@ static void CopyTilesetToVramUsingHeap(struct Tileset const *tileset, u16 numTil
     if (tileset)
     {
         if (!tileset->isCompressed)
-            LoadBgTiles(2, tileset->tiles, numTiles * 32, offset);
+            FieldMapCopyUncompressedFieldTileSpanToBg(tileset->tiles, numTiles, offset);
+        else if (FieldMapFieldTileUploadUsesIdentityLayout())
+            DecompressAndLoadBgGfxUsingHeap2(MAP_BG_FIELD_TILESET_GFX_BG, tileset->tiles, numTiles * TILE_SIZE_4BPP, offset, 0);
         else
-            DecompressAndLoadBgGfxUsingHeap2(2, tileset->tiles, numTiles * 32, offset, 0);
+            FieldMapCopyCompressedFieldTileSpanRemappedToBg(tileset, numTiles, offset);
     }
 }
 
@@ -897,7 +1023,7 @@ static void LoadTilesetPalette(struct Tileset const *tileset, u16 destOffset, u1
         }
         else if (tileset->isSecondary == TRUE)
         {
-            LoadPalette(tileset->palettes[NUM_PALS_IN_PRIMARY], destOffset, size);
+            LoadPalette(tileset->palettes[MAP_BG_SECONDARY_TILESET_PALETTE_ROW_INDEX], destOffset, size);
             ApplyGlobalTintToPaletteEntries(destOffset, size >> 1);
         }
         else
@@ -910,35 +1036,35 @@ static void LoadTilesetPalette(struct Tileset const *tileset, u16 destOffset, u1
 
 void CopyPrimaryTilesetToVram(const struct MapLayout *mapLayout)
 {
-    CopyTilesetToVram(mapLayout->primaryTileset, NUM_TILES_IN_PRIMARY, 0);
+    CopyTilesetToVram(mapLayout->primaryTileset, MAP_BG_PRIMARY_TILESET_TILE_COUNT, MAP_BG_PRIMARY_TILESET_CHAR_BASE_TILE);
 }
 
 void CopySecondaryTilesetToVram(const struct MapLayout *mapLayout)
 {
-    CopyTilesetToVram(mapLayout->secondaryTileset, NUM_TILES_TOTAL - NUM_TILES_IN_PRIMARY, NUM_TILES_IN_PRIMARY);
+    CopyTilesetToVram(mapLayout->secondaryTileset, MAP_BG_SECONDARY_TILESET_TILE_COUNT, MAP_BG_SECONDARY_TILESET_CHAR_BASE_TILE);
 }
 
 void CopySecondaryTilesetToVramUsingHeap(const struct MapLayout *mapLayout)
 {
-    CopyTilesetToVramUsingHeap(mapLayout->secondaryTileset, NUM_TILES_TOTAL - NUM_TILES_IN_PRIMARY, NUM_TILES_IN_PRIMARY);
+    CopyTilesetToVramUsingHeap(mapLayout->secondaryTileset, MAP_BG_SECONDARY_TILESET_TILE_COUNT, MAP_BG_SECONDARY_TILESET_CHAR_BASE_TILE);
 }
 
 static void LoadPrimaryTilesetPalette(const struct MapLayout *mapLayout)
 {
-    LoadTilesetPalette(mapLayout->primaryTileset, BG_PLTT_ID(0), NUM_PALS_IN_PRIMARY * PLTT_SIZE_4BPP);
+    LoadTilesetPalette(mapLayout->primaryTileset, BG_PLTT_ID(0), MAP_BG_PRIMARY_PALETTE_BYTES);
 }
 
 void LoadSecondaryTilesetPalette(const struct MapLayout *mapLayout)
 {
-    LoadTilesetPalette(mapLayout->secondaryTileset, BG_PLTT_ID(NUM_PALS_IN_PRIMARY), (NUM_PALS_TOTAL - NUM_PALS_IN_PRIMARY) * PLTT_SIZE_4BPP);
+    LoadTilesetPalette(mapLayout->secondaryTileset, BG_PLTT_ID(MAP_BG_SECONDARY_PALETTE_START_SLOT), MAP_BG_SECONDARY_PALETTE_BYTES);
 }
 
 void CopyMapTilesetsToVram(struct MapLayout const *mapLayout)
 {
     if (mapLayout)
     {
-        CopyTilesetToVramUsingHeap(mapLayout->primaryTileset, NUM_TILES_IN_PRIMARY, 0);
-        CopyTilesetToVramUsingHeap(mapLayout->secondaryTileset, NUM_TILES_TOTAL - NUM_TILES_IN_PRIMARY, NUM_TILES_IN_PRIMARY);
+        CopyTilesetToVramUsingHeap(mapLayout->primaryTileset, MAP_BG_PRIMARY_TILESET_TILE_COUNT, MAP_BG_PRIMARY_TILESET_CHAR_BASE_TILE);
+        CopyTilesetToVramUsingHeap(mapLayout->secondaryTileset, MAP_BG_SECONDARY_TILESET_TILE_COUNT, MAP_BG_SECONDARY_TILESET_CHAR_BASE_TILE);
     }
 }
 

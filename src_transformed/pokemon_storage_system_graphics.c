@@ -335,7 +335,7 @@ static bool8 IsStorageSpritePtrValid(struct Sprite *sprite)
         && sprite >= gSprites
         && sprite < gSprites + MAX_SPRITES
         && sprite->inUse
-        && sprite->spriteTemplate != NULL;
+        && sprite->template != NULL;
 }
 
 void InitMonIconFields(void)

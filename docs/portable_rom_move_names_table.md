@@ -19,3 +19,5 @@ Env hex + optional profile row **`__firered_builtin_move_names_profile_none__`**
 **Validation:** total size matches **`MOVES_COUNT × 13`**; every row contains at least one **`EOS`** byte in its **`row_bytes`**. On any failure, the cache stays inactive and **`FireredMoveNamesBytes()`** returns the compiled flat buffer.
 
 **Refresh:** **`firered_portable_rom_move_names_table_refresh_after_rom_load()`** from **`engine_backend_init`** immediately after battle moves.
+
+Offline: **`tools/portable_generators/validate_move_names_rom_pack.py`** (`tools/docs/README_validators.md`).

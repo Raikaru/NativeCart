@@ -15,7 +15,7 @@ If no override applies or a slot is `0` / out of ROM range, the runtime uses the
 
 ## Testing (PowerShell example)
 
-1. Find the **file offset** of `gStdScripts` in your `.gba` (same order as vanilla: 9× `u32` LE script pointers). Tools: `grep`/hex editor, or a symbol map from your build.
+1. Find the **file offset** of `gStdScripts` in your `.gba` (same order as vanilla: 9× `u32` LE script pointers). Tools: **`rg`**, `ast-grep` (`sg`) for source-side structure checks, a hex editor, or a symbol map from your build.
 2. Before launching the SDL binary:
 
 ```powershell

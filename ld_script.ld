@@ -86,6 +86,9 @@ SECTIONS {
         src/util.o(.text);
         src/blend_palette.o(.text);
         src/daycare.o(.text);
+        src/daycare_egg_moves.o(.text);
+        src/daycare_egg_species.o(.text);
+        src/daycare_egg_hatch.o(.text);
         src/battle_interface.o(.text);
         src/battle_anim_smokescreen.o(.text);
         src/pokeball.o(.text);
@@ -421,6 +424,9 @@ SECTIONS {
         src/trig.o(.rodata);
         src/util.o(.rodata);
         src/daycare.o(.rodata);
+        src/daycare_egg_moves.o(.rodata);
+        src/daycare_egg_species.o(.rodata);
+        src/daycare_egg_hatch.o(.rodata);
         src/battle_gfx_sfx_util.o(.rodata);
         src/battle_interface.o(.rodata);
         src/pokeball.o(.rodata);

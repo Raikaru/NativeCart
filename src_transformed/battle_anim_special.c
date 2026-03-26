@@ -1220,7 +1220,7 @@ static void SpriteCB_ThrowBall_FinishClick(struct Sprite *sprite)
         sprite->oam.objMode = ST_OAM_OBJ_BLEND;
         SetGpuReg(REG_OFFSET_BLDCNT, BLDCNT_EFFECT_BLEND | BLDCNT_TGT2_ALL);
         SetGpuReg(REG_OFFSET_BLDALPHA, BLDALPHA_BLEND(16, 0));
-        paletteIndex = IndexOfSpritePaletteTag(sprite->spriteTemplate->paletteTag);
+        paletteIndex = IndexOfSpritePaletteTag(sprite->template->paletteTag);
         BeginNormalPaletteFade(1 << (paletteIndex + 0x10), 0, 0, 16, RGB_WHITE);
         sprite->data[0]++;
         break;

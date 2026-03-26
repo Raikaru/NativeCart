@@ -1,4 +1,9 @@
 #define SDL_MAIN_HANDLED
+/*
+ * Transitive game headers can pull firered_heap.h, which otherwise #defines malloc -> Alloc.
+ * This TU uses libc malloc/free for ROM I/O.
+ */
+#define FIRERED_HOST_LIBC_MALLOC 1
 
 #include <SDL3/SDL.h>
 
@@ -26,6 +31,90 @@
 #define SDL_SHELL_MAX_AUDIO_QUEUE_BYTES (SDL_SHELL_AUDIO_FREQUENCY * SDL_SHELL_AUDIO_CHANNELS * (int)sizeof(int16_t))
 #define SDL_SHELL_TARGET_FPS 60.0
 #define SDL_SHELL_WINDOW_TITLE "decomp-engine SDL shell"
+
+/*
+ * Tiered turbo (FF12-style): each host iteration polls input once, runs a short sim burst,
+ * then applies present/audio pacing.
+ *
+ * 1x/2x use a fixed small batch (unchanged feel). 4x/8x/MAX use a wall-clock budget plus a
+ * hard per-spin frame cap so each host spin returns quickly for PollEvent/present instead of
+ * running dozens of engine_run_frame() calls back-to-back.
+ */
+typedef enum SdlShellTurboTier
+{
+    SDL_SHELL_TURBO_1X = 0,
+    SDL_SHELL_TURBO_2X,
+    SDL_SHELL_TURBO_4X,
+    SDL_SHELL_TURBO_8X,
+    SDL_SHELL_TURBO_UNCAPPED,
+    SDL_SHELL_TURBO_TIER_COUNT,
+} SdlShellTurboTier;
+
+typedef struct SdlShellTurboPolicy
+{
+    const char *label;
+    int fixed_sim_frames; /* >0: run exactly this many per host spin; 0: use budget + cap below */
+    double max_spin_wall_ms; /* wall time budget for sim loop (only if fixed_sim_frames == 0) */
+    int max_sim_frames_per_spin; /* hard cap per spin when using budget */
+    int present_every_host_iters;
+    int audio_push_each_sim_frame; /* 1 = after each engine_run_frame; 0 = mute / do not feed SDL */
+} SdlShellTurboPolicy;
+
+static const SdlShellTurboPolicy k_sdl_shell_turbo_policies[SDL_SHELL_TURBO_TIER_COUNT] = {
+    [SDL_SHELL_TURBO_1X] = {
+        .label = "1x",
+        .fixed_sim_frames = 1,
+        .max_spin_wall_ms = 0.0,
+        .max_sim_frames_per_spin = 0,
+        .present_every_host_iters = 1,
+        .audio_push_each_sim_frame = 1,
+    },
+    [SDL_SHELL_TURBO_2X] = {
+        .label = "2x",
+        .fixed_sim_frames = 2,
+        .max_spin_wall_ms = 0.0,
+        .max_sim_frames_per_spin = 0,
+        .present_every_host_iters = 1,
+        .audio_push_each_sim_frame = 1,
+    },
+    [SDL_SHELL_TURBO_4X] = {
+        .label = "4x",
+        .fixed_sim_frames = 0,
+        .max_spin_wall_ms = 4.5,
+        .max_sim_frames_per_spin = 8,
+        .present_every_host_iters = 3,
+        .audio_push_each_sim_frame = 0,
+    },
+    [SDL_SHELL_TURBO_8X] = {
+        .label = "8x",
+        .fixed_sim_frames = 0,
+        .max_spin_wall_ms = 6.0,
+        .max_sim_frames_per_spin = 16,
+        .present_every_host_iters = 5,
+        .audio_push_each_sim_frame = 0,
+    },
+    [SDL_SHELL_TURBO_UNCAPPED] = {
+        .label = "MAX",
+        .fixed_sim_frames = 0,
+        .max_spin_wall_ms = 2.2,
+        .max_sim_frames_per_spin = 24,
+        .present_every_host_iters = 8,
+        .audio_push_each_sim_frame = 0,
+    },
+};
+
+/* FIRERED_VERBOSE_SDL=1: informational stderr (renderer name, gamepad, F5 export, audio marker). */
+static int sdl_shell_verbose_sdl(void)
+{
+    static int tri = -1;
+    const char *e;
+
+    if (tri >= 0)
+        return tri;
+    e = getenv("FIRERED_VERBOSE_SDL");
+    tri = (e != NULL && e[0] != '\0' && strcmp(e, "0") != 0);
+    return tri;
+}
 
 /* FIRERED_TRACE_MOD_LAUNCH=1: stderr trace for ROM/BPS/engine_load_rom (not noisy by default). */
 static int sdl_shell_trace_mod_launch(void)
@@ -80,12 +169,14 @@ typedef struct SdlShellContext
     uint16_t input_state;
     uint16_t input_latched;
     bool has_focus;
-    bool fast_forward_active;
-    bool fast_forward_toggled;
+    SdlShellTurboTier turbo_tier;
+    bool turbo_tab_sprint;
+    unsigned int turbo_present_phase;
     bool audio_selftest_enabled;
     bool audio_activity_marked;
     bool running;
     unsigned int frame_count;
+    int render_vsync_interval; /* from SDL_GetRenderVSync after policy; 0 = off */
 } SdlShellContext;
 
 static void sdl_shell_print_usage(const char *program)
@@ -398,7 +489,8 @@ static bool sdl_shell_open_gamepad(SdlShellContext *ctx, SDL_JoystickID instance
 
     sdl_shell_close_gamepad(ctx);
     ctx->gamepad = gamepad;
-    fprintf(stderr, "SDL gamepad connected: %s\n", SDL_GetGamepadName(gamepad));
+    if (sdl_shell_verbose_sdl())
+        fprintf(stderr, "SDL gamepad connected: %s\n", SDL_GetGamepadName(gamepad));
     return true;
 }
 
@@ -424,9 +516,31 @@ static uint16_t sdl_shell_collect_input(const SdlShellContext *ctx)
     return ctx->input_state | ctx->input_latched;
 }
 
-static bool sdl_shell_is_fast_forward_active(const SdlShellContext *ctx)
+static int sdl_shell_effective_turbo_index(const SdlShellContext *ctx)
 {
-    return ctx->fast_forward_active || ctx->fast_forward_toggled;
+    int t = (int)ctx->turbo_tier;
+
+    /*
+     * Tab (without Shift): temporary sprint — at least 8x policy when below 8x/MAX.
+     * At 8x or uncapped, sprint does not slow the run.
+     */
+    if (ctx->turbo_tab_sprint && t < (int)SDL_SHELL_TURBO_8X)
+        return (int)SDL_SHELL_TURBO_8X;
+    return t;
+}
+
+static const SdlShellTurboPolicy *sdl_shell_effective_turbo_policy(const SdlShellContext *ctx)
+{
+    int idx = sdl_shell_effective_turbo_index(ctx);
+
+    if (idx < 0 || idx >= (int)SDL_SHELL_TURBO_TIER_COUNT)
+        idx = 0;
+    return &k_sdl_shell_turbo_policies[idx];
+}
+
+static bool sdl_shell_turbo_is_realtime_paced(const SdlShellContext *ctx)
+{
+    return sdl_shell_effective_turbo_index(ctx) == (int)SDL_SHELL_TURBO_1X;
 }
 
 static bool sdl_shell_init_audio(SdlShellContext *ctx)
@@ -493,9 +607,30 @@ static bool sdl_shell_init_video(SdlShellContext *ctx)
     renderer_name = SDL_GetRendererName(ctx->renderer);
     if (renderer_name == NULL)
         renderer_name = "unknown";
+
+    {
+        const char *vs = getenv("FIRERED_SDL_VSYNC");
+        int want = 1;
+
+        if (vs != NULL && strcmp(vs, "0") == 0)
+            want = 0;
+        else if (vs != NULL && (strcmp(vs, "adaptive") == 0 || strcmp(vs, "-1") == 0))
+            want = SDL_RENDERER_VSYNC_ADAPTIVE;
+
+        if (!SDL_SetRenderVSync(ctx->renderer, want))
+        {
+            if (sdl_shell_verbose_sdl())
+                fprintf(stderr, "SDL_SetRenderVSync(%d) failed: %s\n", want, SDL_GetError());
+        }
+    }
+
+    ctx->render_vsync_interval = 0;
     if (!SDL_GetRenderVSync(ctx->renderer, &vsync))
-        vsync = -1;
-    fprintf(stderr, "SDL renderer: %s (vsync=%d)\n", renderer_name, vsync);
+        vsync = 0;
+    ctx->render_vsync_interval = vsync;
+
+    if (sdl_shell_verbose_sdl())
+        fprintf(stderr, "SDL renderer: %s (vsync=%d)\n", renderer_name, vsync);
 
     SDL_SetRenderLogicalPresentation(ctx->renderer, frame.width, frame.height, SDL_LOGICAL_PRESENTATION_STRETCH);
     ctx->texture = SDL_CreateTexture(ctx->renderer, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_STREAMING, frame.width, frame.height);
@@ -508,7 +643,7 @@ static bool sdl_shell_init_video(SdlShellContext *ctx)
     return true;
 }
 
-static void sdl_shell_update_audio(SdlShellContext *ctx)
+static void sdl_shell_update_audio(SdlShellContext *ctx, bool push_to_device)
 {
     EngineAudioBuffer buffer;
     size_t i;
@@ -516,7 +651,7 @@ static void sdl_shell_update_audio(SdlShellContext *ctx)
     if (ctx->audio_stream == NULL)
         return;
 
-    if (sdl_shell_is_fast_forward_active(ctx))
+    if (!push_to_device)
     {
         SDL_ClearAudioStream(ctx->audio_stream);
         return;
@@ -534,7 +669,8 @@ static void sdl_shell_update_audio(SdlShellContext *ctx)
             {
                 ctx->audio_activity_marked = true;
                 sdl_shell_write_marker("build/sdl_audio_sdl_nonzero.ok", "SDL shell observed nonzero interleaved audio samples\n");
-                fprintf(stderr, "SDL audio activity detected (%zu samples)\n", buffer.sample_count);
+                if (sdl_shell_verbose_sdl())
+                    fprintf(stderr, "SDL audio activity detected (%zu samples)\n", buffer.sample_count);
                 break;
             }
         }
@@ -544,6 +680,28 @@ static void sdl_shell_update_audio(SdlShellContext *ctx)
         SDL_ClearAudioStream(ctx->audio_stream);
 
     SDL_PutAudioStreamData(ctx->audio_stream, buffer.samples, (int)(buffer.sample_count * sizeof(int16_t)));
+}
+
+static void sdl_shell_run_one_engine_frame(SdlShellContext *ctx, bool push_audio)
+{
+    engine_run_frame();
+    ctx->frame_count += 1u;
+
+    if (ctx->audio_selftest_enabled && ctx->frame_count == 1u)
+        SDL_SetWindowTitle(ctx->window, "decomp-engine SDL shell [post-frame-1]");
+
+    if (ctx->audio_selftest_enabled && ctx->frame_count == 1u)
+        sdl_shell_write_marker("build/sdl_audio_loop.ok", "entered SDL frame loop\n");
+
+    if (ctx->audio_selftest_enabled && ctx->frame_count == 5u)
+    {
+        m4aSongNumStart(SE_BIKE_BELL);
+        fprintf(stderr, "SDL audio self-test: triggered SE_BIKE_BELL on frame %u\n", ctx->frame_count);
+        sdl_shell_write_marker("build/sdl_audio_selftest_triggered.ok", "triggered SE_BIKE_BELL from SDL shell\n");
+    }
+
+    if (push_audio)
+        sdl_shell_update_audio(ctx, true);
 }
 
 static bool sdl_shell_update_video(SdlShellContext *ctx)
@@ -604,7 +762,7 @@ static void sdl_shell_handle_event(SdlShellContext *ctx, const SDL_Event *event)
     if (event->type == SDL_EVENT_WINDOW_FOCUS_LOST)
     {
         ctx->has_focus = false;
-        ctx->fast_forward_active = false;
+        ctx->turbo_tab_sprint = false;
         return;
     }
 
@@ -619,7 +777,8 @@ static void sdl_shell_handle_event(SdlShellContext *ctx, const SDL_Event *event)
     {
         if (ctx->gamepad != NULL && SDL_GetGamepadID(ctx->gamepad) == event->gdevice.which)
         {
-            fprintf(stderr, "SDL gamepad disconnected\n");
+            if (sdl_shell_verbose_sdl())
+                fprintf(stderr, "SDL gamepad disconnected\n");
             sdl_shell_close_gamepad(ctx);
             sdl_shell_open_first_gamepad(ctx);
         }
@@ -634,12 +793,12 @@ static void sdl_shell_handle_event(SdlShellContext *ctx, const SDL_Event *event)
         {
             if (event->type == SDL_EVENT_KEY_DOWN && !event->key.repeat && (event->key.mod & SDL_KMOD_SHIFT))
             {
-                ctx->fast_forward_toggled = !ctx->fast_forward_toggled;
-                ctx->fast_forward_active = false;
+                ctx->turbo_tier = (SdlShellTurboTier)((ctx->turbo_tier + 1) % SDL_SHELL_TURBO_TIER_COUNT);
+                ctx->turbo_tab_sprint = false;
             }
             else if (!(event->key.mod & SDL_KMOD_SHIFT))
             {
-                ctx->fast_forward_active = (event->type == SDL_EVENT_KEY_DOWN);
+                ctx->turbo_tab_sprint = (event->type == SDL_EVENT_KEY_DOWN);
             }
 
             return;
@@ -686,10 +845,24 @@ static void sdl_shell_handle_event(SdlShellContext *ctx, const SDL_Event *event)
         break;
     case SDLK_F5:
         engine_save_state(ctx->state_path);
+        // Also export a raw battery-backed flash image so mGBA can import.
+        // Note: this reflects the latest in-game flash contents; mGBA
+        // cannot restore an emulator snapshot like FRSTATE1.
+        {
+            char export_path[1024];
+            snprintf(export_path, sizeof(export_path), "%s.sav", ctx->state_path);
+            PortableFlash_Export(export_path);
+            if (sdl_shell_verbose_sdl())
+                fprintf(stderr, "Exported mGBA save: %s\n", export_path);
+        }
         break;
     case SDLK_F9:
         if (engine_load_state(ctx->state_path) != 0)
             sdl_shell_update_video(ctx);
+        break;
+    case SDLK_F11:
+        ctx->turbo_tier = (SdlShellTurboTier)((ctx->turbo_tier + 1) % SDL_SHELL_TURBO_TIER_COUNT);
+        ctx->turbo_tab_sprint = false;
         break;
     case SDLK_F10:
         m4aSongNumStart(SE_BIKE_BELL);
@@ -754,6 +927,7 @@ int main(int argc, char **argv)
     ctx.scale = SDL_SHELL_DEFAULT_SCALE;
     ctx.state_path = args.state_path;
     ctx.has_focus = true;
+    ctx.turbo_tier = SDL_SHELL_TURBO_1X;
     ctx.audio_selftest_enabled = (getenv("FIRERED_AUDIO_SELFTEST") != NULL);
     ctx.running = true;
     perf_freq = SDL_GetPerformanceFrequency();
@@ -844,6 +1018,8 @@ int main(int argc, char **argv)
     }
     sdl_shell_init_audio(&ctx);
     sdl_shell_open_first_gamepad(&ctx);
+    /* So the first host iteration satisfies (phase % present_mod) == 0 for every tier. */
+    ctx.turbo_present_phase = (unsigned int)-1;
 
     while (ctx.running)
     {
@@ -851,6 +1027,10 @@ int main(int argc, char **argv)
         Uint64 frame_start;
         Uint64 frame_end;
         double elapsed_ms;
+        const SdlShellTurboPolicy *turbo_pol;
+        int sim_i;
+        int do_present;
+        bool push_audio;
 
         frame_start = SDL_GetPerformanceCounter();
         if (ctx.audio_selftest_enabled && ctx.frame_count == 0)
@@ -859,35 +1039,59 @@ int main(int argc, char **argv)
         while (SDL_PollEvent(&event))
             sdl_shell_handle_event(&ctx, &event);
 
+        turbo_pol = sdl_shell_effective_turbo_policy(&ctx);
+        push_audio = turbo_pol->audio_push_each_sim_frame != 0;
+
         engine_input_set_buttons(sdl_shell_collect_input(&ctx));
         if (ctx.audio_selftest_enabled && ctx.frame_count == 0)
             SDL_SetWindowTitle(ctx.window, "decomp-engine SDL shell [pre-frame-1]");
-        engine_run_frame();
-        ctx.frame_count += 1;
+
+        if (turbo_pol->fixed_sim_frames > 0)
+        {
+            for (sim_i = 0; sim_i < turbo_pol->fixed_sim_frames; sim_i++)
+                sdl_shell_run_one_engine_frame(&ctx, push_audio);
+        }
+        else
+        {
+            Uint64 deadline;
+            Uint64 budget_ticks;
+
+            budget_ticks = (Uint64)((turbo_pol->max_spin_wall_ms / 1000.0) * (double)perf_freq);
+            deadline = frame_start + budget_ticks;
+            sim_i = 0;
+            for (;;)
+            {
+                sdl_shell_run_one_engine_frame(&ctx, push_audio);
+                sim_i += 1;
+                if (sim_i >= turbo_pol->max_sim_frames_per_spin)
+                    break;
+                if (SDL_GetPerformanceCounter() >= deadline)
+                    break;
+            }
+        }
+
         ctx.input_latched = 0;
 
-        if (ctx.audio_selftest_enabled && ctx.frame_count == 1)
-            SDL_SetWindowTitle(ctx.window, "decomp-engine SDL shell [post-frame-1]");
+        if (!push_audio)
+            sdl_shell_update_audio(&ctx, false);
 
-        if (ctx.audio_selftest_enabled && ctx.frame_count == 1)
+        ctx.turbo_present_phase += 1u;
+        do_present = (turbo_pol->present_every_host_iters > 0)
+            && ((ctx.turbo_present_phase % (unsigned int)turbo_pol->present_every_host_iters) == 0u);
+
+        if (do_present)
         {
-            sdl_shell_write_marker("build/sdl_audio_loop.ok", "entered SDL frame loop\n");
+            if (!sdl_shell_update_video(&ctx))
+                break;
         }
-
-        if (ctx.audio_selftest_enabled && ctx.frame_count == 5)
-        {
-            m4aSongNumStart(SE_BIKE_BELL);
-            fprintf(stderr, "SDL audio self-test: triggered SE_BIKE_BELL on frame %u\n", ctx.frame_count);
-            sdl_shell_write_marker("build/sdl_audio_selftest_triggered.ok", "triggered SE_BIKE_BELL from SDL shell\n");
-        }
-
-        if (!sdl_shell_update_video(&ctx))
-            break;
-        sdl_shell_update_audio(&ctx);
 
         frame_end = SDL_GetPerformanceCounter();
         elapsed_ms = (double)(frame_end - frame_start) * 1000.0 / (double)perf_freq;
-        if (!sdl_shell_is_fast_forward_active(&ctx) && elapsed_ms < target_frame_ms)
+        /*
+         * 1x pacing: SDL_RenderPresent may block on vsync. Avoid stacking SDL_Delay on top
+         * when vsync is active (driver reported interval != 0).
+         */
+        if (sdl_shell_turbo_is_realtime_paced(&ctx) && ctx.render_vsync_interval == 0 && elapsed_ms < target_frame_ms)
             SDL_Delay((Uint32)(target_frame_ms - elapsed_ms));
 
         fps_frames += 1;
@@ -897,15 +1101,17 @@ int main(int argc, char **argv)
 
             if (elapsed >= 500)
             {
-                char title[128];
+                char title[160];
                 double fps = (double)fps_frames * 1000.0 / (double)elapsed;
+                const SdlShellTurboPolicy *pol_title = sdl_shell_effective_turbo_policy(&ctx);
 
                 snprintf(
                     title,
                     sizeof(title),
-                    "%s%s - %.1f FPS",
+                    "%s [%s%s] - %.1f host Hz",
                     SDL_SHELL_WINDOW_TITLE,
-                    sdl_shell_is_fast_forward_active(&ctx) ? " [FF]" : "",
+                    pol_title->label,
+                    ctx.turbo_tab_sprint ? "+" : "",
                     fps);
                 SDL_SetWindowTitle(ctx.window, title);
                 fps_window_start = now;

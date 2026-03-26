@@ -1,3 +1,6 @@
+/* Host ROM pack buffers: engine_backend_init runs this before AgbMain InitHeap. */
+#define FIRERED_HOST_LIBC_MALLOC 1
+
 #include "global.h"
 
 #include "portable/firered_portable_rom_egg_moves_table.h"
@@ -7,21 +10,7 @@
 
 #ifndef PORTABLE
 
-#include "data/pokemon/egg_moves.h"
-
-const u16 *FireredEggMovesTable(void)
-{
-    return gEggMoves;
-}
-
-u32 FireredEggMovesTableWordCount(void)
-{
-    return (u32)NELEMS(gEggMoves);
-}
-
-void firered_portable_rom_egg_moves_table_refresh_after_rom_load(void)
-{
-}
+/* GBA build: macros in firered_portable_rom_egg_moves_table.h map to gEggMoves. */
 
 #else
 

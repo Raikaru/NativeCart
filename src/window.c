@@ -220,10 +220,12 @@ void FreeAllWindowBuffers(void)
     }
 }
 
+#ifdef PORTABLE
 void *GetWindowTileDataAddress(u8 windowId)
 {
     return gWindows[windowId].tileData;
 }
+#endif
 
 void CopyWindowToVram(u8 windowId, u8 mode)
 {

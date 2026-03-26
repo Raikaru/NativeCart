@@ -39,6 +39,28 @@ jobs:
         # gcc-arm-none-eabi is only needed for the modern build
         # as an alternative to dkP
 
+      - name: Direction B offline (logical->physical table)
+        run: python3 tools/check_direction_b_offline.py
+
+      - name: Project C block-word contract (offline)
+        run: python3 tools/check_project_c_block_word_offline.py
+
+      - name: Project C Phase 3 u32 constants (offline)
+        run: python3 tools/check_project_c_phase3_offline.py
+
+      - name: Layout block bins (Project C)
+        run: python3 tools/validate_map_layout_block_bin.py --layouts-json data/layouts/layouts.json --repo-root .
+
+      - name: Layout ROM companion bundle (metatile + dimensions + tileset indices)
+        run: |
+          mkdir -p build
+          python3 tools/portable_generators/build_map_layout_rom_companion_bundle.py .
+          python3 tools/portable_generators/layout_rom_companion_emit_embed_env.py \
+            build/offline_map_layout_rom_companion_bundle.bin.manifest.txt -b 0
+
+      - name: Direction D offline (compiled tileset role map)
+        run: python3 tools/check_direction_d_offline.py
+
       - name: Install agbcc
         run: |
           ./build.sh

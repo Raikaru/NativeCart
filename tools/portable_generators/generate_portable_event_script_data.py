@@ -38,6 +38,37 @@ POINTER_TABLE_TYPES = {
 }
 PTR_BASE_EVENT = 0x81000000
 PTR_BASE_FIELD_EFFECT = 0x82000000
+
+
+def collect_coord_bg_script_symbols_from_maps(root_dir: str) -> set[str]:
+    """
+    Script labels referenced from map.json coord/bg events.
+    Ensures gFireredPortableEventScriptPtrs gets tokens for map-only references
+    (ROM map-events pack + portable resolve).
+    """
+    syms: set[str] = set()
+    maps_dir = os.path.join(root_dir, "data", "maps")
+    if not os.path.isdir(maps_dir):
+        return syms
+    for dirpath, _, files in os.walk(maps_dir):
+        if "map.json" not in files:
+            continue
+        path = os.path.join(dirpath, "map.json")
+        with open(path, encoding="utf-8") as handle:
+            m = json.load(handle)
+        for e in m.get("coord_events", []):
+            if e.get("type") == "weather":
+                continue
+            s = e.get("script")
+            if s not in (None, "", "0x0", "NULL"):
+                syms.add(str(s))
+        for e in m.get("bg_events", []):
+            if e.get("type") in ("hidden_item", "secret_base"):
+                continue
+            s = e.get("script")
+            if s not in (None, "", "0x0", "NULL"):
+                syms.add(str(s))
+    return syms
 MANUAL_TOKENS = {"NULL", "FALSE", "TRUE"}
 BRAILLE_ENCODING = {
     "A": 0x01,
@@ -992,6 +1023,15 @@ def parse_source(root_path, root_dir, charmap, ptr_base, pointer_table_labels, p
         generated.append("")
         for alias, offset in alias_offsets.items():
             alias_blocks.append(f'__asm__(".globl {alias}\\n.set {alias}, {label} + {offset}");')
+
+    if ptr_array_name == "gFireredPortableEventScriptPtrs":
+        for sym in sorted(collect_coord_bg_script_symbols_from_maps(root_dir)):
+            if sym not in all_labels:
+                raise ValueError(
+                    f"map.json references coord/bg script {sym!r} but no matching label in event_scripts.s output"
+                )
+            if sym not in token_values:
+                token_for(sym)
 
     generated.append(f"const void *const {ptr_array_name}[] = {{")
     for expr in token_order:

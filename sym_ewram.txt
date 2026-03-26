@@ -11,6 +11,7 @@
 	.include "src/battle_main.o"
 	.include "src/pokemon.o"
 	.include "src/daycare.o"
+	.include "src/daycare_egg_moves.o"
 	.include "src/load_save.o"
 	.include "src/trade.o"
 	.include "src/trade_scene.o"

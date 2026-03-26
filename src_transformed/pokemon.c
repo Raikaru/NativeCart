@@ -1560,6 +1560,12 @@ static const s8 sNatureStatTable[NUM_NATURES][NUM_NATURE_STATS] =
 #define sTMHMLearnsets ((gTMHMLearnsetsActive) != NULL ? (gTMHMLearnsetsActive) : (sTMHMLearnsets_Compiled))
 #endif
 #include "data/pokemon/trainer_class_lookups.h"
+
+_Static_assert(sizeof(gFacilityClassToPicIndex_Compiled) / sizeof(u8) == NUM_FACILITY_CLASSES,
+    "gFacilityClassToPicIndex_Compiled vs NUM_FACILITY_CLASSES");
+_Static_assert(sizeof(gFacilityClassToTrainerClass_Compiled) / sizeof(u8) == NUM_FACILITY_CLASSES,
+    "gFacilityClassToTrainerClass_Compiled vs NUM_FACILITY_CLASSES");
+
 #include "data/pokemon/cry_ids.h"
 #include "data/pokemon/experience_tables.h"
 #include "data/pokemon/species_info.h"
@@ -1983,10 +1989,15 @@ void CreateBoxMon(struct BoxPokemon *boxMon, u16 species, u8 level, u8 fixedIV, 
     SetBoxMonData(boxMon, MON_DATA_LANGUAGE, &gGameLanguage);
     SetBoxMonData(boxMon, MON_DATA_OT_NAME, gSaveBlock2Ptr->playerName);
     SetBoxMonData(boxMon, MON_DATA_SPECIES, &species);
+#ifdef PORTABLE
     {
         u32 expVal = ExperienceTableGet(gSpeciesInfo[species].growthRate, level);
+
         SetBoxMonData(boxMon, MON_DATA_EXP, &expVal);
     }
+#else
+    SetBoxMonData(boxMon, MON_DATA_EXP, &gExperienceTables[gSpeciesInfo[species].growthRate][level]);
+#endif
     SetBoxMonData(boxMon, MON_DATA_FRIENDSHIP, &gSpeciesInfo[species].friendship);
     value = GetCurrentRegionMapSectionId();
     SetBoxMonData(boxMon, MON_DATA_MET_LOCATION, &value);

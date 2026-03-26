@@ -2,7 +2,7 @@
 #include "bg.h"
 #include "battle.h"
 #include "battle_anim.h"
-#include "malloc.h"
+#include "gba_malloc.h"
 #include "pokemon.h"
 #include "trainer_tower.h"
 

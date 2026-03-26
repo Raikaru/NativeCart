@@ -42,6 +42,43 @@ static void *PortableResolveDmaAddress(const void *ptr, const char **rangeName, 
     return (void *)ptr;
 }
 
+/*
+ * PORTABLE: reject DMA that would extend past emulated hardware ranges (`0x18000` VRAM, etc.).
+ * Field tile uploads: `LoadBgVram` → `RequestDma3Copy`; policy span `MAP_BG_FIELD_TILESET_CHAR_VRAM_BYTES`.
+ */
+static bool8 PortableDmaDestBufferRangeOk(const void *destAny, u32 size)
+{
+    const char *rangeName;
+    bool8 isHardware;
+    void *resolved;
+    uintptr_t p;
+    u32 off;
+
+    resolved = PortableResolveDmaAddress(destAny, &rangeName, &isHardware);
+    p = (uintptr_t)resolved;
+
+    if (!isHardware)
+        return TRUE;
+
+    if (p >= PORTABLE_PLTT_BASE && p < PORTABLE_PLTT_BASE + PORTABLE_PLTT_SIZE)
+    {
+        off = (u32)(p - PORTABLE_PLTT_BASE);
+        return (u32)(off + size) <= PORTABLE_PLTT_SIZE;
+    }
+    if (p >= PORTABLE_VRAM_BASE && p < PORTABLE_VRAM_BASE + PORTABLE_VRAM_SIZE)
+    {
+        off = (u32)(p - PORTABLE_VRAM_BASE);
+        return (u32)(off + size) <= PORTABLE_VRAM_SIZE;
+    }
+    if (p >= PORTABLE_OAM_BASE && p < PORTABLE_OAM_BASE + PORTABLE_OAM_SIZE)
+    {
+        off = (u32)(p - PORTABLE_OAM_BASE);
+        return (u32)(off + size) <= PORTABLE_OAM_SIZE;
+    }
+
+    return TRUE;
+}
+
 static void PortableTraceDmaRequest(const char *status, s16 index, const void *src, const void *dest, u16 size, u16 mode)
 {
     char buffer[192];
@@ -159,6 +196,19 @@ void ProcessDma3Requests(void)
 
         resolvedSrc = PortableResolveDmaAddress(gDma3Requests[gDma3RequestCursor].src, &srcRange, &srcIsHardware);
         resolvedDest = PortableResolveDmaAddress(gDma3Requests[gDma3RequestCursor].dest, &destRange, &destIsHardware);
+        if (!PortableDmaDestBufferRangeOk(gDma3Requests[gDma3RequestCursor].dest, gDma3Requests[gDma3RequestCursor].size))
+        {
+            AGB_ASSERT(FALSE);
+            gDma3Requests[gDma3RequestCursor].src = NULL;
+            gDma3Requests[gDma3RequestCursor].dest = NULL;
+            gDma3Requests[gDma3RequestCursor].size = 0;
+            gDma3Requests[gDma3RequestCursor].mode = 0;
+            gDma3Requests[gDma3RequestCursor].value = 0;
+            gDma3RequestCursor++;
+            if (gDma3RequestCursor >= MAX_DMA_REQUESTS)
+                gDma3RequestCursor = 0;
+            continue;
+        }
         PortableTraceDmaRequest("pending", gDma3RequestCursor,
                                 gDma3Requests[gDma3RequestCursor].src,
                                 gDma3Requests[gDma3RequestCursor].dest,
@@ -249,6 +299,15 @@ s16 RequestDma3Copy(const void *src, void *dest, u16 size, u8 mode)
 
     gDma3ManagerLocked = 1;
 
+#ifdef PORTABLE
+    if (!PortableDmaDestBufferRangeOk(dest, size))
+    {
+        AGB_ASSERT(FALSE);
+        gDma3ManagerLocked = FALSE;
+        return -1;
+    }
+#endif
+
     cursor = gDma3RequestCursor;
     while(1)
     {
@@ -293,6 +352,15 @@ s16 RequestDma3Fill(s32 value, void *dest, u16 size, u8 mode)
 
     cursor = gDma3RequestCursor;
     gDma3ManagerLocked = 1;
+
+#ifdef PORTABLE
+    if (!PortableDmaDestBufferRangeOk(dest, size))
+    {
+        AGB_ASSERT(FALSE);
+        gDma3ManagerLocked = FALSE;
+        return -1;
+    }
+#endif
 
     while(1)
     {

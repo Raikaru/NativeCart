@@ -42,7 +42,7 @@ extern ScrCmdFunc gScriptCmdTable[];
 extern ScrCmdFunc gScriptCmdTableEnd[];
 extern void *gNullScriptPtr;
 
-void InitScriptContext(struct ScriptContext *ctx, void *cmdTable, void *cmdTableEnd)
+void InitScriptContext(struct ScriptContext *ctx, const void *cmdTable, const void *cmdTableEnd)
 {
     s32 i;
 
@@ -50,8 +50,13 @@ void InitScriptContext(struct ScriptContext *ctx, void *cmdTable, void *cmdTable
     ctx->scriptPtr = NULL;
     ctx->stackDepth = 0;
     ctx->nativePtr = NULL;
-    ctx->cmdTable = cmdTable;
-    ctx->cmdTableEnd = cmdTableEnd;
+#ifdef PORTABLE
+    ctx->cmdTable = (const u8 *)cmdTable;
+    ctx->cmdTableEnd = (const u8 *)cmdTableEnd;
+#else
+    ctx->cmdTable = (ScrCmdFunc *)cmdTable;
+    ctx->cmdTableEnd = (ScrCmdFunc *)cmdTableEnd;
+#endif
 
     for (i = 0; i < (int)ARRAY_COUNT(ctx->data); i++)
         ctx->data[i] = 0;

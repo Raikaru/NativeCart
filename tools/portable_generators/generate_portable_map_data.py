@@ -7,7 +7,9 @@ import sys
 
 
 # Source-of-truth inputs:
-# - data/layouts/layouts.json plus per-layout border/map binaries
+# - data/layouts/layouts.json plus per-layout border/map binaries (each **`u16` LE block word**;
+#   `MAP_GRID_BLOCK_WORD_LAYOUT_VANILLA` — see `include/constants/map_grid_block_word.h`,
+#   `tools/validate_map_layout_block_bin.py`)
 # - data/maps/map_groups.json plus per-map map.json files
 # Emitted output:
 # - portable C for layouts, events, connections, map headers, gMapLayouts, gMapGroups
@@ -61,6 +63,7 @@ def load_maps(root_dir):
 
 
 def read_u16_bin(path):
+    """Little-endian u16 words (vanilla map **block words** for layout border/map grids)."""
     data = path.read_bytes()
     if len(data) % 2 != 0:
         raise ValueError(f'odd-sized u16 binary: {path.as_posix()}')
@@ -503,6 +506,19 @@ def generate_source(root_dir):
     for group_name in map_groups['group_order']:
         out.append(f'    s{group_name},')
     out.append('};')
+    out.append('')
+
+    # Stable index → &gTileset_* for optional ROM layout tileset identity (see map_layout_metatiles_access.h).
+    tileset_syms = sorted(t for t in tilesets if t != 'NULL')
+    out.append('const struct Tileset *const gFireredPortableCompiledTilesetTable[] = {')
+    for sym in tileset_syms:
+        out.append(f'    {c_tileset_ptr(sym)},')
+    out.append('};')
+    out.append('')
+    out.append(
+        'const u32 gFireredPortableCompiledTilesetTableCount = (u32)(sizeof(gFireredPortableCompiledTilesetTable) / '
+        'sizeof(gFireredPortableCompiledTilesetTable[0]));'
+    )
     out.append('')
 
     out.append('void firered_portable_init_map_object_event_script_words(void)')

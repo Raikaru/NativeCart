@@ -23,7 +23,33 @@ Current scope:
 - `F1` = open start menu
 - `F5` = save state
 - `F9` = load state
+- `F11` = cycle **turbo tier** (1x → 2x → 4x → 8x → MAX → 1x)
 - `Esc` = quit
+
+## Turbo / speed-up
+
+The SDL shell uses a **tiered turbo** mode (similar in spirit to console RPG fast-forward):
+
+| Tier | Simulation per host spin | Present | Audio |
+|------|--------------------------|---------|-------|
+| 1x | exactly **1** frame | every spin | on (normal) |
+| 2x | exactly **2** frames | every spin | on (per sim frame) |
+| 4x | **time-budget** (~4.5 ms) + cap **8** frames | every 3rd spin | muted (SDL queue cleared; not audio-bound) |
+| 8x | **time-budget** (~6 ms) + cap **16** frames | every 5th spin | muted |
+| MAX | **short budget** (~2.2 ms) + cap **24** frames | every 8th spin | muted |
+
+**4x / 8x / MAX** do not run huge fixed batches: each host iteration only simulates until a small wall-clock budget is used or a per-spin frame cap is hit, then returns so `SDL_PollEvent` and present logic run again soon.
+
+- **Shift+Tab** also cycles the same tiers (and clears Tab-sprint).
+- **Tab** (hold, without Shift): temporary **sprint** — uses the 8x policy whenever the selected tier is below 8x (shown as a `+` in the window title). At 8x or MAX, sprint does not change policy.
+
+Each host iteration still runs `SDL_PollEvent` first, so keyboard/gamepad stay responsive. Only **1x** uses the 60 FPS delay cap; higher tiers do not sleep for pacing.
+
+## Environment (optional)
+
+- **`FIRERED_VERBOSE_SDL=1`** — print informational messages to stderr (renderer name, vsync interval, gamepad connect/disconnect, first audio-activity line, F5 export path). Errors (window/renderer/audio failures) are always printed.
+- **`FIRERED_SDL_VSYNC`** — after creating the renderer, calls `SDL_SetRenderVSync`: unset or default → **1** (vsync on); **`0`** → off; **`adaptive`** or **`-1`** → `SDL_RENDERER_VSYNC_ADAPTIVE` when supported.
+- **1x pacing:** if the driver reports **vsync active** (`SDL_GetRenderVSync` → non-zero interval), the shell **skips** the extra `SDL_Delay` frame budget so pacing does not stack vsync blocking with an artificial sleep.
 
 ## Build
 

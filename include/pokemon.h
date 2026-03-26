@@ -4,6 +4,7 @@
 #include "global.h"
 #include "sprite.h"
 #include "constants/pokemon.h"
+#include "constants/trainers.h"
 
 struct PokemonSubstruct0
 {
@@ -314,9 +315,13 @@ extern struct Pokemon gEnemyParty[PARTY_SIZE];
 extern const struct SpeciesInfo gSpeciesInfo_Compiled[];
 extern const struct SpeciesInfo *gSpeciesInfoActive;
 #define gSpeciesInfo ((gSpeciesInfoActive) != NULL ? (gSpeciesInfoActive) : (gSpeciesInfo_Compiled))
+extern const u8 gSpeciesNames_Compiled[][POKEMON_NAME_LENGTH + 1];
+const u8 (*FireredSpeciesNamesTable(void))[POKEMON_NAME_LENGTH + 1];
+#define gSpeciesNames (FireredSpeciesNamesTable())
 extern const u32 (*gTMHMLearnsetsActive)[2];
 #else
 extern const struct SpeciesInfo gSpeciesInfo[];
+#define gSpeciesNames gSpeciesNames_Compiled
 #endif
 extern const u8 *const gItemEffectTable[];
 extern const u8 gStatStageRatios[][2];
@@ -335,8 +340,17 @@ const u16 *const *FireredLevelUpLearnsetsTable(void);
 #else
 #define gLevelUpLearnsets gLevelUpLearnsets_Compiled
 #endif
-extern const u8 gFacilityClassToPicIndex[];
-extern const u8 gFacilityClassToTrainerClass[];
+extern const u8 gFacilityClassToPicIndex_Compiled[];
+extern const u8 gFacilityClassToTrainerClass_Compiled[];
+#ifdef PORTABLE
+extern const u8 *gFacilityClassToPicIndexActive;
+extern const u8 *gFacilityClassToTrainerClassActive;
+#define gFacilityClassToPicIndex     ((gFacilityClassToPicIndexActive) != NULL ? (gFacilityClassToPicIndexActive) : (gFacilityClassToPicIndex_Compiled))
+#define gFacilityClassToTrainerClass ((gFacilityClassToTrainerClassActive) != NULL ? (gFacilityClassToTrainerClassActive) : (gFacilityClassToTrainerClass_Compiled))
+#else
+#define gFacilityClassToPicIndex     gFacilityClassToPicIndex_Compiled
+#define gFacilityClassToTrainerClass gFacilityClassToTrainerClass_Compiled
+#endif
 extern const struct SpriteTemplate gSpriteTemplates_Battlers[];
 extern const u8 gPPUpGetMask[];
 

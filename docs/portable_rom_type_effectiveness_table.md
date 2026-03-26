@@ -36,3 +36,5 @@ After ROM load, **`firered_portable_rom_type_effectiveness_table_refresh_after_r
 
 - `cores/firered/portable/firered_portable_rom_type_effectiveness_table.{h,c}`
 - `include/battle_main.h`
+
+Offline: **`tools/portable_generators/validate_type_effectiveness_rom_table.py`** (`tools/docs/README_validators.md`).

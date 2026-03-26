@@ -11,6 +11,7 @@ Examples:
   python tools/rom_blob_inspect.py baserom.gba -o 0x0 -n 0x100 --gba-u32-pointers
   python tools/rom_blob_inspect.py baserom.gba -o 0x... -n 0x... --u8-cols 9
   python tools/rom_blob_inspect.py baserom.gba -o 0x... -n 0x... --validate-egg-moves-u16
+  python tools/rom_blob_inspect.py baserom.gba -o 0x... -n $((375*44)) --validate-gitems-table
 """
 
 from __future__ import annotations
@@ -147,6 +148,30 @@ def validate_egg_moves_u16_stream(
     raise ValueError("stream ended without final 0xFFFF terminator")
 
 
+def validate_gitems_table(blob: bytes, *, items_count: int, struct_stride: int, rom_size: int) -> None:
+    """
+    FireRed `struct Item` / `gItems[]` layout (agbcc / decomp):
+    stride 44 bytes, `itemId` little-endian u16 at byte offset 14.
+    Validates slice length and optional per-row `itemId == row_index`.
+    """
+    need = items_count * struct_stride
+    if len(blob) != need:
+        raise ValueError(f"gItems slice length {len(blob)} != ITEMS_COUNT*stride {need}")
+    rom_lo = 0x08000000
+    rom_hi = 0x08000000 + rom_size
+    for row in range(items_count):
+        base = row * struct_stride
+        item_id = struct.unpack_from("<H", blob, base + 14)[0]
+        if item_id != row:
+            raise ValueError(f"gItems row {row}: itemId u16 @+14 is 0x{item_id:04x}, expected {row:#04x}")
+        desc = struct.unpack_from("<I", blob, base + 20)[0]
+        ffn = struct.unpack_from("<I", blob, base + 28)[0]
+        bfn = struct.unpack_from("<I", blob, base + 36)[0]
+        for label, v in (("description", desc), ("fieldUseFunc", ffn), ("battleUseFunc", bfn)):
+            if v != 0 and not (rom_lo <= v < rom_hi):
+                raise ValueError(f"gItems row {row}: {label} ptr 0x{v:08x} not in ROM image window")
+
+
 def summarize_gba_rom_pointers(words: list[int], rom_size: int) -> None:
     """Counts u32 values that look like ROM addresses in the loaded image (0x08xxxxxx)."""
     rom_lo = 0x08000000
@@ -246,6 +271,25 @@ def main() -> int:
         metavar="N",
         help="With --validate-egg-moves-u16: max exclusive move id (default 355 = MOVES_COUNT)",
     )
+    p.add_argument(
+        "--validate-gitems-table",
+        action="store_true",
+        help="Validate FireRed gItems[]: 44-byte rows, ITEMS_COUNT rows, itemId@+14 == row, ROM ptrs in-image",
+    )
+    p.add_argument(
+        "--gitems-count",
+        type=str,
+        default="375",
+        metavar="N",
+        help="With --validate-gitems-table: ITEMS_COUNT (default 375)",
+    )
+    p.add_argument(
+        "--gitems-stride",
+        type=str,
+        default="44",
+        metavar="BYTES",
+        help="With --validate-gitems-table: struct Item size (default 44)",
+    )
     args = p.parse_args()
 
     try:
@@ -338,6 +382,20 @@ def main() -> int:
                 )
         except ValueError as e:
             print(f"error: --validate-egg-moves-u16: {e}", file=sys.stderr)
+            return 1
+
+    if args.validate_gitems_table:
+        try:
+            nic = parse_int(args.gitems_count)
+            stride = parse_int(args.gitems_stride)
+        except ValueError:
+            print("error: gitems-* options must be integers", file=sys.stderr)
+            return 2
+        try:
+            validate_gitems_table(blob, items_count=nic, struct_stride=stride, rom_size=rom_size)
+            print("gItems table: ok rows=%d stride=%d" % (nic, stride))
+        except ValueError as e:
+            print(f"error: --validate-gitems-table: {e}", file=sys.stderr)
             return 1
 
     if args.crc32:

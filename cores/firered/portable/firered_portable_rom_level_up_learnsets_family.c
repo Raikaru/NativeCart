@@ -1,3 +1,6 @@
+/* Host ROM pack buffers: engine_backend_init runs this before AgbMain InitHeap. */
+#define FIRERED_HOST_LIBC_MALLOC 1
+
 #include "global.h"
 
 #include "portable/firered_portable_rom_level_up_learnsets_family.h"

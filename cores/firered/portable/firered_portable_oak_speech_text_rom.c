@@ -74,6 +74,7 @@ static const u8 *oak_tx_get_fallback(unsigned entry_index, void *user)
 static const FireredRomTextFamilyParams sOakTxParams = {
     .trace_env_var = "FIRERED_TRACE_OAK_SPEECH_ROM",
     .trace_prefix = "[firered oak-tx-rom]",
+    .trace_bind_detail_env_var = "FIRERED_TRACE_EARLY_INTRO_FLOW",
     .entry_count = FIRERED_OAK_TX_COUNT,
     .env_key_names = sOakTxEnvKeys,
     .min_rom_size_for_scan = 0x200u,

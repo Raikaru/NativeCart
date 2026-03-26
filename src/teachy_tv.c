@@ -28,6 +28,7 @@
 #include "strings.h"
 #include "constants/field_effects.h"
 #include "constants/event_objects.h"
+#include "constants/maps.h"
 
 struct TeachyTvCtrlBlk
 {
@@ -1226,13 +1227,26 @@ static void TeachyTvLoadBg3Map(u16 *buffer)
     void *palIndicesBuffer;
     u16 numMapTilesRows = 0;
     const struct MapLayout *layout = &Route1_Layout;
+#ifdef PORTABLE
+    {
+        const struct MapHeader *routeHdr = Overworld_GetMapHeaderByGroupAndId(MAP_GROUP(MAP_ROUTE1), MAP_NUM(MAP_ROUTE1));
+
+        if (routeHdr != NULL && routeHdr->mapLayoutId != 0)
+        {
+            const struct MapLayout *eff = FireredPortableEffectiveMapLayoutForLayoutId(routeHdr->mapLayoutId);
+
+            if (eff != NULL)
+                layout = eff;
+        }
+    }
+#endif
     u16 * blockIndicesBuffer = AllocZeroed(0x800);
     tilesetsBuffer = AllocZeroed(NUM_TILES_TOTAL * TILE_SIZE_4BPP);
     palIndicesBuffer = Alloc(16);
     memset(palIndicesBuffer, 0xFF, 16);
 
-    TeachyTvLoadMapTilesetToBuffer(layout->primaryTileset, tilesetsBuffer, NUM_TILES_IN_PRIMARY);
-    TeachyTvLoadMapTilesetToBuffer(layout->secondaryTileset, tilesetsBuffer + NUM_TILES_IN_PRIMARY * TILE_SIZE_4BPP, NUM_TILES_TOTAL - NUM_TILES_IN_PRIMARY);
+    TeachyTvLoadMapTilesetToBuffer(layout->primaryTileset, tilesetsBuffer, MAP_BG_PRIMARY_TILESET_TILE_COUNT);
+    TeachyTvLoadMapTilesetToBuffer(layout->secondaryTileset, tilesetsBuffer + MAP_BG_PRIMARY_TILESET_TILE_COUNT * TILE_SIZE_4BPP, MAP_BG_SECONDARY_TILESET_TILE_COUNT);
 
     for (i = 0; i < 9; i++)
     {
@@ -1259,11 +1273,15 @@ static void TeachyTvLoadBg3Map(u16 *buffer)
     mapTilesRowBuffer = Alloc(0x80);
     for (i = 0; i < numMapTilesRows; i++)
     {
+        u16 bid = blockIndicesBuffer[i];
+
         memset(mapTilesRowBuffer, 0, 0x80);
-        if (blockIndicesBuffer[i] < NUM_METATILES_IN_PRIMARY)
-            TeachyTvComputeMapTilesFromTilesetAndMetaTiles((const void *)layout->primaryTileset->metatiles + blockIndicesBuffer[i] * 16, mapTilesRowBuffer, tilesetsBuffer);
+        if (!MapGridMetatileIdIsInEncodedSpace(bid))
+            bid = 0;
+        if (MapGridMetatileIdUsesPrimaryTileset(bid))
+            TeachyTvComputeMapTilesFromTilesetAndMetaTiles((const void *)layout->primaryTileset->metatiles + bid * 16, mapTilesRowBuffer, tilesetsBuffer);
         else
-            TeachyTvComputeMapTilesFromTilesetAndMetaTiles((const void *)layout->secondaryTileset->metatiles + (blockIndicesBuffer[i] - NUM_METATILES_IN_PRIMARY) * 16, mapTilesRowBuffer, tilesetsBuffer);
+            TeachyTvComputeMapTilesFromTilesetAndMetaTiles((const void *)layout->secondaryTileset->metatiles + MapGridMetatileNonPrimaryRowOffset(bid) * 16, mapTilesRowBuffer, tilesetsBuffer);
         CpuFastCopy(mapTilesRowBuffer, bgTilesBuffer + i * 0x40, 0x80);
     }
 
@@ -1291,10 +1309,14 @@ static void TeachyTvLoadMapTilesetToBuffer(const struct Tileset *ts, u8 *dstBuff
 static void TeachyTvPushBackNewMapPalIndexArrayEntry(const struct MapLayout *mStruct, u16 *buf1, u8 *palIndexArray, u16 mapEntry, u16 offset)
 {
     const u16 * metaTileEntryAddr;
-    if (mapEntry < NUM_METATILES_IN_PRIMARY)
-        metaTileEntryAddr = &mStruct->primaryTileset->metatiles[8 * mapEntry];
+    u16 mid = mapEntry;
+
+    if (!MapGridMetatileIdIsInEncodedSpace(mid))
+        mid = 0;
+    if (MapGridMetatileIdUsesPrimaryTileset(mid))
+        metaTileEntryAddr = &mStruct->primaryTileset->metatiles[8 * mid];
     else
-        metaTileEntryAddr = &mStruct->secondaryTileset->metatiles[8 * (mapEntry - NUM_METATILES_IN_PRIMARY)];
+        metaTileEntryAddr = &mStruct->secondaryTileset->metatiles[8 * MapGridMetatileNonPrimaryRowOffset(mid)];
     buf1[0] = (TeachyTvComputePalIndexArrayEntryByMetaTile(palIndexArray, metaTileEntryAddr[0]) << 12) + 4 * offset;
     buf1[1] = (TeachyTvComputePalIndexArrayEntryByMetaTile(palIndexArray, metaTileEntryAddr[1]) << 12) + 4 * offset + 1;
     buf1[32] = (TeachyTvComputePalIndexArrayEntryByMetaTile(palIndexArray, metaTileEntryAddr[2]) << 12) + 4 * offset + 2;

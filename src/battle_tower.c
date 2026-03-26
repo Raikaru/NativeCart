@@ -124,10 +124,10 @@ static const u16 sBattleTowerHeldItems[] = {
 #include "data/battle_tower/level_50_mons.h"
 #include "data/battle_tower/level_100_mons.h"
 
-_Static_assert(sizeof(gBattleTowerLevel50Mons_Compiled) / sizeof(struct BattleTowerPokemonTemplate) == BATTLE_TOWER_LEVEL50_MON_COUNT,
-    "BATTLE_TOWER_LEVEL50_MON_COUNT out of sync with level_50_mons.h");
-_Static_assert(sizeof(gBattleTowerLevel100Mons_Compiled) / sizeof(struct BattleTowerPokemonTemplate) == BATTLE_TOWER_LEVEL100_MON_COUNT,
-    "BATTLE_TOWER_LEVEL100_MON_COUNT out of sync with level_100_mons.h");
+STATIC_ASSERT(sizeof(gBattleTowerLevel50Mons_Compiled) / sizeof(struct BattleTowerPokemonTemplate) == BATTLE_TOWER_LEVEL50_MON_COUNT,
+    gBattleTowerLevel50Mons_Compiled_count);
+STATIC_ASSERT(sizeof(gBattleTowerLevel100Mons_Compiled) / sizeof(struct BattleTowerPokemonTemplate) == BATTLE_TOWER_LEVEL100_MON_COUNT,
+    gBattleTowerLevel100Mons_Compiled_count);
 
 static const u8 sMaleTrainerClasses[] =
 {

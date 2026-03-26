@@ -45,7 +45,11 @@ static u16 WildEncounterRandom(void);
 static void AddToWildEncounterRateBuff(u8 encouterRate);
 
 #include "data/wild_encounters.h"
+#ifdef PORTABLE
 #include "portable/firered_portable_rom_wild_encounter_family.h"
+#else
+#define FireredWildMonHeadersTable() (gWildMonHeaders)
+#endif
 
 static const u8 sUnownLetterSlots[][LAND_WILD_COUNT] = {
   //  A   A   A   A   A   A   A   A   A   A   A   ?

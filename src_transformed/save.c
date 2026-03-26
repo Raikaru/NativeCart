@@ -23,8 +23,8 @@ static u16 CalculateChecksum(void *data, u16 size);
 /*
  * PKHeX (SaveUtil.GetVersionG3SAV) treats Gen 3 saves as FRLG only when u32 LE at
  * SaveBlock2+0xAC equals 1: unkFlag1=1, unkFlag2=0, and any padding before
- * battleTower must be zero. Sav2_ClearSetDefault() sets this at boot, but normal
- * in-game saves never run that path, so flash can keep 0xAC..0xAF = 0 (RS).
+ * battleTower must be zero. This runs before each write and after a successful
+ * LoadGameSave (RAM may still read 0 at 0xAC.. after ClearSav2 until then).
  */
 static void EnsureSaveBlock2ExternalToolFingerprint(void)
 {

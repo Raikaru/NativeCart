@@ -37,3 +37,7 @@ Cross-check **expected byte counts** against the doc for that table (e.g. HM mov
 3. **Optional CRC** — `--crc32` on the slice is a quick fingerprint when comparing two ROMs after a small edit; it is **not** a substitute for structural checks.
 
 This playbook is intentionally narrow: it does not duplicate the architecture narrative in `docs/rom_compat_architecture.md`.
+
+## Layout companion bundle placement (optional)
+
+Before choosing file offset **`P`** for **`FIRERED_ROM_MAP_LAYOUT_*_OFF`** on a real **`.gba`**, use **`tools/portable_generators/layout_rom_companion_audit_rom_placement.py`** for bounds + slice statistics, and **`rom_blob_inspect.py`** on the same range for a visual check. See **`docs/portable_rom_map_layout_metatiles.md`** (“Choosing `P` on a real `.gba`”).

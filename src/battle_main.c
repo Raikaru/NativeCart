@@ -448,7 +448,11 @@ const u8 gTypeNames[NUMBER_OF_MON_TYPES][TYPE_NAME_LENGTH + 1] =
 };
 
 // This is a factor in how much money you get for beating a trainer.
+#ifdef PORTABLE
+const struct TrainerMoney gTrainerMoneyTable_Compiled[] =
+#else
 const struct TrainerMoney gTrainerMoneyTable[] =
+#endif
 {
     {TRAINER_CLASS_LEADER, 25},
     {TRAINER_CLASS_ELITE_FOUR, 25},

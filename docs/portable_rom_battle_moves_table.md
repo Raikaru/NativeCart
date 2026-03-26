@@ -37,6 +37,8 @@
 
 On any failure → ROM cache **not** activated; **`gBattleMovesActive`** stays **NULL** and the **`gBattleMoves`** macro uses **`gBattleMoves_Compiled`**.
 
+Offline: **`tools/portable_generators/validate_battle_moves_rom_table.py`** (`tools/docs/README_validators.md`).
+
 **Hack note:** New **effect IDs** above **`EFFECT_CAMOUFLAGE`** require matching **engine** `battle_script_commands` / effect tables and **raising** the validator cap in lockstep.
 
 ## Runtime wiring

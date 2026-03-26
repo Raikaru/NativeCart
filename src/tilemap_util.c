@@ -1,7 +1,7 @@
 #include "global.h"
 #include "bg.h"
 #include "tilemap_util.h"
-#include "malloc.h"
+#include "gba_malloc.h"
 
 //  Handles 3 particular tilemaps ("PKMN Data" text, party menu, close box
 //  button) used for Pokémon Storage System in a somewhat unusual way.

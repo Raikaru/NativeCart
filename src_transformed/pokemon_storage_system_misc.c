@@ -86,7 +86,7 @@ static bool8 IsStorageItemIconSpriteValid(struct Sprite *sprite)
         && sprite >= gSprites
         && sprite < gSprites + MAX_SPRITES
         && sprite->inUse
-        && sprite->spriteTemplate != NULL;
+        && sprite->template != NULL;
 }
 
 void MultiMove_Free(void)

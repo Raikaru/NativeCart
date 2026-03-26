@@ -1,0 +1,6 @@
+#ifndef GUARD_FIRERED_PORTABLE_ROM_FACILITY_CLASS_LOOKUPS_H
+#define GUARD_FIRERED_PORTABLE_ROM_FACILITY_CLASS_LOOKUPS_H
+
+void firered_portable_rom_facility_class_lookups_refresh_after_rom_load(void);
+
+#endif /* GUARD_FIRERED_PORTABLE_ROM_FACILITY_CLASS_LOOKUPS_H */

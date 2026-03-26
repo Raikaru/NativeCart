@@ -1,5 +1,5 @@
 #include "global.h"
-#include "malloc.h"
+#include "gba_malloc.h"
 #include "decompress.h"
 #include "ereader_helpers.h"
 #include "link.h"

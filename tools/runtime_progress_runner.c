@@ -161,6 +161,9 @@ static uint16_t choose_buttons(int frame, const struct MarkerState *markers)
 
 int main(int argc, char **argv)
 {
+    (void)setvbuf(stdout, NULL, _IONBF, 0);
+    (void)setvbuf(stderr, NULL, _IONBF, 0);
+
     const char *rom_path = argc > 1 ? argv[1] : "baserom.gba";
     unsigned char *rom_data;
     size_t rom_size;
@@ -187,6 +190,14 @@ int main(int argc, char **argv)
         free(rom_data);
         return 1;
     }
+
+#if 0 /* FIRERED_DIAG_INIT_ONLY */
+    printf("diag: firered_init ok, shutting down\n");
+    fflush(stdout);
+    firered_shutdown();
+    free(rom_data);
+    return 0;
+#endif
 
     for (frame = 0; frame < MAX_FRAMES; frame++)
     {

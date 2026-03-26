@@ -173,7 +173,7 @@ static const struct Sprite sDummySprite =
     .oam = DUMMY_OAM_DATA,
     .anims = gDummySpriteAnimTable,
     .affineAnims = gDummySpriteAffineAnimTable,
-    .spriteTemplate = &gDummySpriteTemplate,
+    .template = &gDummySpriteTemplate,
     .callback = SpriteCallbackDummy,
     .x = DISPLAY_WIDTH + 64,
     .y = DISPLAY_HEIGHT,
@@ -552,7 +552,7 @@ u8 CreateSpriteAt(u8 index, const struct SpriteTemplate *template, s16 x, s16 y,
     sprite->oam = *template->oam;
     sprite->anims = template->anims;
     sprite->affineAnims = template->affineAnims;
-    sprite->spriteTemplate = template;
+    sprite->template = template;
     sprite->callback = template->callback;
     sprite->x = x;
     sprite->y = y;
@@ -944,13 +944,13 @@ void ResetAllSprites(void)
 
 void FreeSpriteTiles(struct Sprite *sprite)
 {
-    if (sprite->spriteTemplate->tileTag != TAG_NONE)
-        FreeSpriteTilesByTag(sprite->spriteTemplate->tileTag);
+    if (sprite->template->tileTag != TAG_NONE)
+        FreeSpriteTilesByTag(sprite->template->tileTag);
 }
 
 void FreeSpritePalette(struct Sprite *sprite)
 {
-    FreeSpritePaletteByTag(sprite->spriteTemplate->paletteTag);
+    FreeSpritePaletteByTag(sprite->template->paletteTag);
 }
 
 void FreeSpriteOamMatrix(struct Sprite *sprite)

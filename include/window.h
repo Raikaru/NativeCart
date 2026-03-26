@@ -64,7 +64,6 @@ u16 AddWindow(const struct WindowTemplate *windowTemplate);
 int AddWindowWithoutTileMap(const struct WindowTemplate *windowTemplate);
 void RemoveWindow(u8 windowId);
 void FreeAllWindowBuffers(void);
-void *GetWindowTileDataAddress(u8 windowId);
 
 void CopyWindowToVram(u8 windowId, u8 mode);
 void CopyWindowToVram8Bit(u8 windowId, u8 mode);
@@ -82,6 +81,11 @@ void ScrollWindow(u8 windowId, u8 direction, u8 distance, u8 fillValue);
 void CallWindowFunction(u8 windowId, WindowFunc func);
 bool8 SetWindowAttribute(u8 windowId, u8 attributeId, u32 value);
 u32 GetWindowAttribute(u8 windowId, u8 attributeId);
+#ifdef PORTABLE
+void *GetWindowTileDataAddress(u8 windowId);
+#else
+#define GetWindowTileDataAddress(windowId) ((void *)GetWindowAttribute((windowId), WINDOW_TILE_DATA))
+#endif
 u16 AddWindow8Bit(const struct WindowTemplate *windowTemplate);
 void FillWindowPixelBuffer8Bit(u8 windowId, u8 fillValue);
 void FillWindowPixelRect8Bit(u8 windowId, u8 fillValue, u16 x, u16 y, u16 width, u16 height);

@@ -7,7 +7,16 @@
 #include "new_menu_helpers.h"
 #include "overworld.h"
 
+/*
+ * Map metatile graphics tile indices are written into BG tilemaps for layer `MAP_BG_FIELD_TILESET_GFX_BG`
+ * (vanilla BG2; see `overworld.c` `sOverworldBgTemplates` + `fieldmap.h` `MAP_BG_*` char policy).
+ * Tilemap halfwords are standard GBA **10-bit** tile numbers relative to that BG’s char base; the engine
+ * samples chars at `charBase*BG_CHAR_SIZE + tileNum*32` (linear across 16KiB boundaries). **`DrawMetatile`**
+ * runs each halfword through **`FieldMapTranslateMetatileTileHalfwordForFieldBg`** (Direction B: identity today).
+ */
+
 #ifdef PORTABLE
+#include "map_layout_metatiles_access.h"
 extern void firered_runtime_trace_external(const char *message);
 #endif
 
@@ -251,9 +260,9 @@ static void DrawMetatileAt(const struct MapLayout *mapLayout, u16 offset, int x,
     u16 metatileId = MapGridGetMetatileIdAt(x, y);
     const u16 *metatiles;
 
-    if (metatileId > NUM_METATILES_TOTAL)
+    if (!MapGridMetatileIdIsInEncodedSpace(metatileId))
         metatileId = 0;
-    if (metatileId < NUM_METATILES_IN_PRIMARY)
+    if (MapGridMetatileIdUsesPrimaryTileset(metatileId))
     {
 #ifdef PORTABLE
         if (!sLoggedPrimaryMetatilePath)
@@ -261,7 +270,8 @@ static void DrawMetatileAt(const struct MapLayout *mapLayout, u16 offset, int x,
             firered_runtime_trace_external("DrawMetatileAt: primary-path");
             sLoggedPrimaryMetatilePath = TRUE;
         }
-        if (mapLayout->primaryTileset == NULL || mapLayout->primaryTileset->metatiles == NULL)
+        metatiles = FireredMapLayoutMetatileGraphicsPtrForPrimary(mapLayout);
+        if (mapLayout->primaryTileset == NULL || metatiles == NULL)
         {
             if (!sLoggedMissingPrimaryMetatiles)
             {
@@ -270,8 +280,11 @@ static void DrawMetatileAt(const struct MapLayout *mapLayout, u16 offset, int x,
             }
             return;
         }
-#endif
+#else
         metatiles = mapLayout->primaryTileset->metatiles;
+        if (mapLayout->primaryTileset == NULL || metatiles == NULL)
+            return;
+#endif
     }
     else
     {
@@ -281,7 +294,8 @@ static void DrawMetatileAt(const struct MapLayout *mapLayout, u16 offset, int x,
             firered_runtime_trace_external("DrawMetatileAt: secondary-path");
             sLoggedSecondaryMetatilePath = TRUE;
         }
-        if (mapLayout->secondaryTileset == NULL || mapLayout->secondaryTileset->metatiles == NULL)
+        metatiles = FireredMapLayoutMetatileGraphicsPtrForSecondary(mapLayout);
+        if (mapLayout->secondaryTileset == NULL || metatiles == NULL)
         {
             if (!sLoggedMissingSecondaryMetatiles)
             {
@@ -290,9 +304,12 @@ static void DrawMetatileAt(const struct MapLayout *mapLayout, u16 offset, int x,
             }
             return;
         }
-#endif
+#else
         metatiles = mapLayout->secondaryTileset->metatiles;
-        metatileId -= NUM_METATILES_IN_PRIMARY;
+        if (mapLayout->secondaryTileset == NULL || metatiles == NULL)
+            return;
+#endif
+        metatileId = (u16)MapGridMetatileNonPrimaryRowOffset(metatileId);
     }
     DrawMetatile(MapGridGetMetatileLayerTypeAt(x, y), metatiles + metatileId * NUM_TILES_PER_METATILE, offset);
 }
@@ -303,60 +320,60 @@ static void DrawMetatile(s32 metatileLayerType, const u16 *tiles, u16 offset)
     {
     case METATILE_LAYER_TYPE_SPLIT:
         // Draw metatile's bottom layer to the bottom background layer.
-        gBGTilemapBuffers3[offset] = tiles[0];
-        gBGTilemapBuffers3[offset + 1] = tiles[1];
-        gBGTilemapBuffers3[offset + 0x20] = tiles[2];
-        gBGTilemapBuffers3[offset + 0x21] = tiles[3];
+        gBGTilemapBuffers3[offset] = FieldMapTranslateMetatileTileHalfwordForFieldBg(tiles[0]);
+        gBGTilemapBuffers3[offset + 1] = FieldMapTranslateMetatileTileHalfwordForFieldBg(tiles[1]);
+        gBGTilemapBuffers3[offset + 0x20] = FieldMapTranslateMetatileTileHalfwordForFieldBg(tiles[2]);
+        gBGTilemapBuffers3[offset + 0x21] = FieldMapTranslateMetatileTileHalfwordForFieldBg(tiles[3]);
 
         // Draw transparent tiles to the middle background layer.
-        gBGTilemapBuffers1[offset] = 0;
-        gBGTilemapBuffers1[offset + 1] = 0;
-        gBGTilemapBuffers1[offset + 0x20] = 0;
-        gBGTilemapBuffers1[offset + 0x21] = 0;
+        gBGTilemapBuffers1[offset] = FieldMapTranslateMetatileTileHalfwordForFieldBg(0);
+        gBGTilemapBuffers1[offset + 1] = FieldMapTranslateMetatileTileHalfwordForFieldBg(0);
+        gBGTilemapBuffers1[offset + 0x20] = FieldMapTranslateMetatileTileHalfwordForFieldBg(0);
+        gBGTilemapBuffers1[offset + 0x21] = FieldMapTranslateMetatileTileHalfwordForFieldBg(0);
 
         // Draw metatile's top layer to the top background layer.
-        gBGTilemapBuffers2[offset] = tiles[4];
-        gBGTilemapBuffers2[offset + 1] = tiles[5];
-        gBGTilemapBuffers2[offset + 0x20] = tiles[6];
-        gBGTilemapBuffers2[offset + 0x21] = tiles[7];
+        gBGTilemapBuffers2[offset] = FieldMapTranslateMetatileTileHalfwordForFieldBg(tiles[4]);
+        gBGTilemapBuffers2[offset + 1] = FieldMapTranslateMetatileTileHalfwordForFieldBg(tiles[5]);
+        gBGTilemapBuffers2[offset + 0x20] = FieldMapTranslateMetatileTileHalfwordForFieldBg(tiles[6]);
+        gBGTilemapBuffers2[offset + 0x21] = FieldMapTranslateMetatileTileHalfwordForFieldBg(tiles[7]);
         break;
     case METATILE_LAYER_TYPE_COVERED:
         // Draw metatile's bottom layer to the bottom background layer.
-        gBGTilemapBuffers3[offset] = tiles[0];
-        gBGTilemapBuffers3[offset + 1] = tiles[1];
-        gBGTilemapBuffers3[offset + 0x20] = tiles[2];
-        gBGTilemapBuffers3[offset + 0x21] = tiles[3];
+        gBGTilemapBuffers3[offset] = FieldMapTranslateMetatileTileHalfwordForFieldBg(tiles[0]);
+        gBGTilemapBuffers3[offset + 1] = FieldMapTranslateMetatileTileHalfwordForFieldBg(tiles[1]);
+        gBGTilemapBuffers3[offset + 0x20] = FieldMapTranslateMetatileTileHalfwordForFieldBg(tiles[2]);
+        gBGTilemapBuffers3[offset + 0x21] = FieldMapTranslateMetatileTileHalfwordForFieldBg(tiles[3]);
 
         // Draw metatile's top layer to the middle background layer.
-        gBGTilemapBuffers1[offset] = tiles[4];
-        gBGTilemapBuffers1[offset + 1] = tiles[5];
-        gBGTilemapBuffers1[offset + 0x20] = tiles[6];
-        gBGTilemapBuffers1[offset + 0x21] = tiles[7];
+        gBGTilemapBuffers1[offset] = FieldMapTranslateMetatileTileHalfwordForFieldBg(tiles[4]);
+        gBGTilemapBuffers1[offset + 1] = FieldMapTranslateMetatileTileHalfwordForFieldBg(tiles[5]);
+        gBGTilemapBuffers1[offset + 0x20] = FieldMapTranslateMetatileTileHalfwordForFieldBg(tiles[6]);
+        gBGTilemapBuffers1[offset + 0x21] = FieldMapTranslateMetatileTileHalfwordForFieldBg(tiles[7]);
 
         // Draw transparent tiles to the top background layer.
-        gBGTilemapBuffers2[offset] = 0;
-        gBGTilemapBuffers2[offset + 1] = 0;
-        gBGTilemapBuffers2[offset + 0x20] = 0;
-        gBGTilemapBuffers2[offset + 0x21] = 0;
+        gBGTilemapBuffers2[offset] = FieldMapTranslateMetatileTileHalfwordForFieldBg(0);
+        gBGTilemapBuffers2[offset + 1] = FieldMapTranslateMetatileTileHalfwordForFieldBg(0);
+        gBGTilemapBuffers2[offset + 0x20] = FieldMapTranslateMetatileTileHalfwordForFieldBg(0);
+        gBGTilemapBuffers2[offset + 0x21] = FieldMapTranslateMetatileTileHalfwordForFieldBg(0);
         break;
     case METATILE_LAYER_TYPE_NORMAL:
         // Draw garbage to the bottom background layer.
-        gBGTilemapBuffers3[offset] = 0x3014;
-        gBGTilemapBuffers3[offset + 1] = 0x3014;
-        gBGTilemapBuffers3[offset + 0x20] = 0x3014;
-        gBGTilemapBuffers3[offset + 0x21] = 0x3014;
+        gBGTilemapBuffers3[offset] = FieldMapTranslateMetatileTileHalfwordForFieldBg(0x3014);
+        gBGTilemapBuffers3[offset + 1] = FieldMapTranslateMetatileTileHalfwordForFieldBg(0x3014);
+        gBGTilemapBuffers3[offset + 0x20] = FieldMapTranslateMetatileTileHalfwordForFieldBg(0x3014);
+        gBGTilemapBuffers3[offset + 0x21] = FieldMapTranslateMetatileTileHalfwordForFieldBg(0x3014);
 
         // Draw metatile's bottom layer to the middle background layer.
-        gBGTilemapBuffers1[offset] = tiles[0];
-        gBGTilemapBuffers1[offset + 1] = tiles[1];
-        gBGTilemapBuffers1[offset + 0x20] = tiles[2];
-        gBGTilemapBuffers1[offset + 0x21] = tiles[3];
+        gBGTilemapBuffers1[offset] = FieldMapTranslateMetatileTileHalfwordForFieldBg(tiles[0]);
+        gBGTilemapBuffers1[offset + 1] = FieldMapTranslateMetatileTileHalfwordForFieldBg(tiles[1]);
+        gBGTilemapBuffers1[offset + 0x20] = FieldMapTranslateMetatileTileHalfwordForFieldBg(tiles[2]);
+        gBGTilemapBuffers1[offset + 0x21] = FieldMapTranslateMetatileTileHalfwordForFieldBg(tiles[3]);
 
         // Draw metatile's top layer to the top background layer, which covers object event sprites.
-        gBGTilemapBuffers2[offset] = tiles[4];
-        gBGTilemapBuffers2[offset + 1] = tiles[5];
-        gBGTilemapBuffers2[offset + 0x20] = tiles[6];
-        gBGTilemapBuffers2[offset + 0x21] = tiles[7];
+        gBGTilemapBuffers2[offset] = FieldMapTranslateMetatileTileHalfwordForFieldBg(tiles[4]);
+        gBGTilemapBuffers2[offset + 1] = FieldMapTranslateMetatileTileHalfwordForFieldBg(tiles[5]);
+        gBGTilemapBuffers2[offset + 0x20] = FieldMapTranslateMetatileTileHalfwordForFieldBg(tiles[6]);
+        gBGTilemapBuffers2[offset + 0x21] = FieldMapTranslateMetatileTileHalfwordForFieldBg(tiles[7]);
         break;
     }
     ScheduleBgCopyTilemapToVram(1);

@@ -15,6 +15,8 @@ void TriggerPendingDaycareEgg(void);
 void RejectEggFromDayCare(void);
 void CreateEgg(struct Pokemon *mon, u16 species, bool8 setHotSpringsLocation);
 void GiveEggFromDaycare(void);
+void Daycare_BuildEggMoveset(struct Pokemon *egg, struct BoxPokemon *father, struct BoxPokemon *mother);
+u16 Daycare_GetEggSpecies(u16 species);
 bool8 DoEggActions_CheckHatch(void);
 u16 GetSelectedMonNickAndSpecies(void);
 void GetDaycareMonNicknames(void);
@@ -25,6 +27,9 @@ void ShowDaycareLevelMenu(void);
 void ChooseSendDaycareMon(void);
 
 void ScriptHatchMon(void);
+/* Used by daycare_egg_hatch.c (split from daycare.c for agbcc). */
+u8 *DayCare_GetMonNickname(struct Pokemon *mon, u8 *dest);
+void AddHatchedMonToParty(u8 id);
 void EggHatch(void);
 u8 GetEggStepsToSubtract(void);
 bool8 ShouldEggHatch(void);

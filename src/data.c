@@ -299,12 +299,12 @@ const union AnimCmd *const gAnims_MonPic[] =
 
 #include "data/pokemon_graphics/enemy_mon_elevation.h"
 
-_Static_assert(sizeof(gMonFrontPicCoords_Compiled) / sizeof(struct MonCoords) == SPECIES_UNOWN_QMARK + 1,
-    "gMonFrontPicCoords_Compiled length vs SPECIES_UNOWN_QMARK");
-_Static_assert(sizeof(gMonBackPicCoords_Compiled) / sizeof(struct MonCoords) == SPECIES_UNOWN_QMARK + 1,
-    "gMonBackPicCoords_Compiled length vs SPECIES_UNOWN_QMARK");
-_Static_assert(sizeof(gEnemyMonElevation_Compiled) / sizeof(u8) == NUM_SPECIES,
-    "gEnemyMonElevation_Compiled length vs NUM_SPECIES");
+STATIC_ASSERT(sizeof(gMonFrontPicCoords_Compiled) / sizeof(struct MonCoords) == SPECIES_UNOWN_QMARK + 1,
+    gMonFrontPicCoords_Compiled_count);
+STATIC_ASSERT(sizeof(gMonBackPicCoords_Compiled) / sizeof(struct MonCoords) == SPECIES_UNOWN_QMARK + 1,
+    gMonBackPicCoords_Compiled_count);
+STATIC_ASSERT(sizeof(gEnemyMonElevation_Compiled) / sizeof(u8) == NUM_SPECIES,
+    gEnemyMonElevation_Compiled_count);
 
 #include "data/trainer_parties.h"
 #include "data/text/trainer_class_names.h"

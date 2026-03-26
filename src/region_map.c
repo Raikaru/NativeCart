@@ -20,6 +20,10 @@
 #include "constants/heal_locations.h"
 #include "constants/maps.h"
 
+#ifdef PORTABLE
+#include "map_layout_metatiles_access.h"
+#endif
+
 #define MAP_WIDTH REGION_MAP_SECTION_GRID_WIDTH
 #define MAP_HEIGHT REGION_MAP_SECTION_GRID_HEIGHT
 
@@ -640,6 +644,23 @@ static const union AnimCmd *const sAnims_SwitchMapCursor[] = {
     sAnim_SwitchMapCursor
 };
 
+#include "data/region_map/region_map_entry_strings.h"
+#include "data/region_map/region_map_entries.h"
+
+/*
+ * `region_map_portable.c` includes this file; quoted `data/...` resolves under `src/` first, so the
+ * pret jsonproc `region_map_entries.h` (sMapNames / sMapSectionTopLeftCorners / sMapSectionDimensions)
+ * is often used instead of `pokefirered_core/generated/src/data/...` (*_Compiled / gRegionMap*).
+ * PORTABLE macros below expect the generated names; alias when the pret-layout header was pulled in.
+ */
+#ifdef PORTABLE
+#ifndef REGION_MAP_ENTRIES_GENERATED_FOR_PORTABLE_CORE
+#define gRegionMapMapsecNames_Compiled sMapNames
+#define sMapSectionTopLeftCorners_Compiled sMapSectionTopLeftCorners
+#define sMapSectionDimensions_Compiled sMapSectionDimensions
+#endif
+#endif
+
 static const struct DungeonMapInfo sDungeonInfo[] = {
     {
         .id = MAPSEC_VIRIDIAN_FOREST,
@@ -821,8 +842,6 @@ static const u8 sWinRegs[][2] = {
 
 static const u8 sTextColors[] = {TEXT_DYNAMIC_COLOR_6, TEXT_COLOR_WHITE, TEXT_COLOR_DARK_GRAY};
 
-#include "data/region_map/region_map_entries.h"
-
 #ifdef PORTABLE
 #include "region_map_section_layout_rom.h"
 #define REGION_MAP_SECTION_LAYOUT_ROM_ACTIVE ((gMapSectionTopLeftCornersActive) != NULL)
@@ -832,8 +851,8 @@ static const u8 sTextColors[] = {TEXT_DYNAMIC_COLOR_6, TEXT_COLOR_WHITE, TEXT_CO
     (REGION_MAP_SECTION_LAYOUT_ROM_ACTIVE ? (gMapSectionDimensionsActive) : (sMapSectionDimensions_Compiled))
 #include "region_map_mapsec_names_rom.h"
 #define sMapNames gRegionMapMapsecNamesResolved
-_Static_assert(sizeof(gRegionMapMapsecNames_Compiled) / sizeof(gRegionMapMapsecNames_Compiled[0]) == REGION_MAP_MAPSEC_NAME_ENTRY_COUNT,
-    "mapsec name table row count");
+STATIC_ASSERT(sizeof(gRegionMapMapsecNames_Compiled) / sizeof(gRegionMapMapsecNames_Compiled[0]) == REGION_MAP_MAPSEC_NAME_ENTRY_COUNT,
+    RegionMap_mapsec_name_row_count);
 #endif
 
 #include "data/region_map/region_map_layout_kanto.h"
@@ -971,8 +990,8 @@ static const u8 sMapFlyDestinations[][3] =
 };
 
 #ifdef PORTABLE
-_Static_assert(sizeof(sMapFlyDestinations_Compiled) == REGION_MAP_FLY_DESTINATION_ROW_COUNT * 3u,
-    "region map fly destinations row count");
+STATIC_ASSERT(sizeof(sMapFlyDestinations_Compiled) == REGION_MAP_FLY_DESTINATION_ROW_COUNT * 3u,
+    RegionMap_fly_destinations_row_count);
 #include "region_map_fly_destinations_rom.h"
 #define REGION_MAP_FLY_DESTINATIONS_ROM_ACTIVE ((gMapFlyDestinationsActive) != NULL)
 #define sMapFlyDestinations \
@@ -3140,6 +3159,22 @@ static u16 GetPlayerCurrentMapSectionId(void)
         (u16)(u8)gSaveBlock1Ptr->location.mapNum, h->regionMapSectionId);
 }
 
+#ifdef PORTABLE
+static const struct MapLayout *RegionMapEffectiveLayout(const struct MapHeader *hdr)
+{
+    const struct MapLayout *lay;
+
+    if (hdr == NULL)
+        return NULL;
+    if (hdr->mapLayoutId == 0)
+        return hdr->mapLayout;
+    lay = FireredPortableEffectiveMapLayoutForLayoutId(hdr->mapLayoutId);
+    if (lay != NULL)
+        return lay;
+    return hdr->mapLayout;
+}
+#endif
+
 static void GetPlayerPositionOnRegionMap(void)
 {
     u16 width;
@@ -3160,8 +3195,19 @@ static void GetPlayerPositionOnRegionMap(void)
     case MAP_TYPE_UNDERWATER:
     case MAP_TYPE_OCEAN_ROUTE:
         sMapCursor->selectedMapsec = gMapHeader.regionMapSectionId;
+#ifdef PORTABLE
+        {
+            const struct MapLayout *cur = FireredPortableEffectiveMapLayoutForLayoutId(gSaveBlock1Ptr->mapLayoutId);
+
+            if (cur == NULL)
+                cur = gMapHeader.mapLayout;
+            width = (u16)cur->width;
+            height = (u16)cur->height;
+        }
+#else
         width = gMapHeader.mapLayout->width;
         height = gMapHeader.mapLayout->height;
+#endif
         x = gSaveBlock1Ptr->pos.x;
         y = gSaveBlock1Ptr->pos.y;
         break;
@@ -3169,16 +3215,34 @@ static void GetPlayerPositionOnRegionMap(void)
     case MAP_TYPE_UNKNOWN:
         mapHeader = Overworld_GetMapHeaderByGroupAndId(gSaveBlock1Ptr->escapeWarp.mapGroup, gSaveBlock1Ptr->escapeWarp.mapNum);
         sMapCursor->selectedMapsec = mapHeader->regionMapSectionId;
+#ifdef PORTABLE
+        {
+            const struct MapLayout *lay = RegionMapEffectiveLayout(mapHeader);
+
+            width = (u16)lay->width;
+            height = (u16)lay->height;
+        }
+#else
         width = mapHeader->mapLayout->width;
         height = mapHeader->mapLayout->height;
+#endif
         x = gSaveBlock1Ptr->escapeWarp.x;
         y = gSaveBlock1Ptr->escapeWarp.y;
         break;
     case MAP_TYPE_SECRET_BASE:
         mapHeader = Overworld_GetMapHeaderByGroupAndId(gSaveBlock1Ptr->dynamicWarp.mapGroup, gSaveBlock1Ptr->dynamicWarp.mapNum);
         sMapCursor->selectedMapsec = mapHeader->regionMapSectionId;
+#ifdef PORTABLE
+        {
+            const struct MapLayout *lay = RegionMapEffectiveLayout(mapHeader);
+
+            width = (u16)lay->width;
+            height = (u16)lay->height;
+        }
+#else
         width = mapHeader->mapLayout->width;
         height = mapHeader->mapLayout->height;
+#endif
         x = gSaveBlock1Ptr->dynamicWarp.x;
         y = gSaveBlock1Ptr->dynamicWarp.y;
         break;
@@ -3194,8 +3258,17 @@ static void GetPlayerPositionOnRegionMap(void)
             mapHeader = Overworld_GetMapHeaderByGroupAndId(warp->mapGroup, warp->mapNum);
             sMapCursor->selectedMapsec = mapHeader->regionMapSectionId;
         }
+#ifdef PORTABLE
+        {
+            const struct MapLayout *lay = RegionMapEffectiveLayout(mapHeader);
+
+            width = (u16)lay->width;
+            height = (u16)lay->height;
+        }
+#else
         width = mapHeader->mapLayout->width;
         height = mapHeader->mapLayout->height;
+#endif
         x = warp->x;
         y = warp->y;
         break;

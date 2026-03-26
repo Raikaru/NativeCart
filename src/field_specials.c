@@ -6,12 +6,17 @@
 #include "script.h"
 #include "field_player_avatar.h"
 #include "overworld.h"
+#ifdef PORTABLE
 #include "map_header_scalars_access.h"
+#endif
 #include "field_message_box.h"
 #include "event_data.h"
 #include "strings.h"
 #include "battle.h"
 #include "fieldmap.h"
+#ifdef PORTABLE
+#include "map_layout_metatiles_access.h"
+#endif
 #include "field_specials.h"
 #include "region_map.h"
 #include "task.h"
@@ -42,6 +47,14 @@
 #include "constants/menu.h"
 #include "constants/event_objects.h"
 #include "constants/metatile_labels.h"
+
+#ifndef PORTABLE
+#define FS_FIELD_BG_PAL_PRIMARY_ROW ((u8)7)
+#define FS_LEAGUE_LIGHT_BLEND_PAL_MASK ((u32)0x00000080u)
+#else
+#define FS_FIELD_BG_PAL_PRIMARY_ROW FireredPortableFieldMapBgPalettePrimaryRows()
+#define FS_LEAGUE_LIGHT_BLEND_PAL_MASK ((u32)(1u << FireredPortableFieldMapBgPalettePrimaryRows()))
+#endif
 
 static EWRAM_DATA u8 sElevatorCurrentFloorWindowId = 0;
 static EWRAM_DATA u16 sElevatorScroll = 0;
@@ -1928,6 +1941,7 @@ void QuestLog_TryRecordDepartedLocation(void)
         if (gSaveBlock1Ptr->location.mapGroup == sInsideOutsidePairs[locationId].outside_grp
            && gSaveBlock1Ptr->location.mapNum == sInsideOutsidePairs[locationId].outside_num)
         {
+#ifdef PORTABLE
             {
                 const struct MapHeader *h = Overworld_GetMapHeaderByGroupAndId(sInsideOutsidePairs[locationId].inside_grp,
                     sInsideOutsidePairs[locationId].inside_num);
@@ -1935,6 +1949,10 @@ void QuestLog_TryRecordDepartedLocation(void)
                 data.mapSec = FireredRomMapHeaderScalarsRegionMapSec(sInsideOutsidePairs[locationId].inside_grp,
                     sInsideOutsidePairs[locationId].inside_num, h->regionMapSectionId);
             }
+#else
+            data.mapSec = Overworld_GetMapHeaderByGroupAndId(sInsideOutsidePairs[locationId].inside_grp,
+                sInsideOutsidePairs[locationId].inside_num)->regionMapSectionId;
+#endif
             data.locationId = locationId;
             if (locationId == QL_LOCATION_ROCK_TUNNEL_1)
             {
@@ -2151,16 +2169,16 @@ void DoPokemonLeagueLightingEffect(void)
         {
             data[0] = sChampionRoomLightingTimers[0];
             data[2] = 8;
-            LoadPalette(sChampionRoomLightingPalettes[0], BG_PLTT_ID(7), PLTT_SIZE_4BPP);
+            LoadPalette(sChampionRoomLightingPalettes[0], BG_PLTT_ID(FS_FIELD_BG_PAL_PRIMARY_ROW), PLTT_SIZE_4BPP);
         }
         else
         {
             data[0] = sEliteFourLightingTimers[0];
             data[2] = 11;
-            LoadPalette(sEliteFourLightingPalettes[0], BG_PLTT_ID(7), PLTT_SIZE_4BPP);
+            LoadPalette(sEliteFourLightingPalettes[0], BG_PLTT_ID(FS_FIELD_BG_PAL_PRIMARY_ROW), PLTT_SIZE_4BPP);
         }
         data[1] = 0;
-        ApplyGlobalTintToPaletteSlot(7, 1);
+        ApplyGlobalTintToPaletteSlot(FS_FIELD_BG_PAL_PRIMARY_ROW, 1);
     }
 }
 
@@ -2180,14 +2198,14 @@ static void Task_RunPokemonLeagueLightingEffect(u8 taskId)
         if (gSaveBlock1Ptr->location.mapGroup == MAP_GROUP(MAP_POKEMON_LEAGUE_CHAMPIONS_ROOM) && gSaveBlock1Ptr->location.mapNum == MAP_NUM(MAP_POKEMON_LEAGUE_CHAMPIONS_ROOM))
         {
             data[0] = sChampionRoomLightingTimers[data[1]];
-            LoadPalette(sChampionRoomLightingPalettes[data[1]], BG_PLTT_ID(7), PLTT_SIZE_4BPP);
+            LoadPalette(sChampionRoomLightingPalettes[data[1]], BG_PLTT_ID(FS_FIELD_BG_PAL_PRIMARY_ROW), PLTT_SIZE_4BPP);
         }
         else
         {
             data[0] = sEliteFourLightingTimers[data[1]];
-            LoadPalette(sEliteFourLightingPalettes[data[1]], BG_PLTT_ID(7), PLTT_SIZE_4BPP);
+            LoadPalette(sEliteFourLightingPalettes[data[1]], BG_PLTT_ID(FS_FIELD_BG_PAL_PRIMARY_ROW), PLTT_SIZE_4BPP);
         }
-        ApplyGlobalTintToPaletteSlot(7, 1);
+        ApplyGlobalTintToPaletteSlot(FS_FIELD_BG_PAL_PRIMARY_ROW, 1);
     }
 }
 
@@ -2197,13 +2215,13 @@ static void Task_CancelPokemonLeagueLightingEffect(u8 taskId)
     if (FlagGet(FLAG_TEMP_4) != FALSE)
     {
         if (gSaveBlock1Ptr->location.mapGroup == MAP_GROUP(MAP_POKEMON_LEAGUE_CHAMPIONS_ROOM) && gSaveBlock1Ptr->location.mapNum == MAP_NUM(MAP_POKEMON_LEAGUE_CHAMPIONS_ROOM))
-            LoadPalette(sChampionRoomLightingPalettes[8], BG_PLTT_ID(7), PLTT_SIZE_4BPP);
+            LoadPalette(sChampionRoomLightingPalettes[8], BG_PLTT_ID(FS_FIELD_BG_PAL_PRIMARY_ROW), PLTT_SIZE_4BPP);
         else
-            LoadPalette(sEliteFourLightingPalettes[11], BG_PLTT_ID(7), PLTT_SIZE_4BPP);
-        ApplyGlobalTintToPaletteSlot(7, 1);
+            LoadPalette(sEliteFourLightingPalettes[11], BG_PLTT_ID(FS_FIELD_BG_PAL_PRIMARY_ROW), PLTT_SIZE_4BPP);
+        ApplyGlobalTintToPaletteSlot(FS_FIELD_BG_PAL_PRIMARY_ROW, 1);
         if (gPaletteFade.active)
         {
-            BlendPalettes(0x00000080, 16, RGB_BLACK);
+            BlendPalettes(FS_LEAGUE_LIGHT_BLEND_PAL_MASK, 16, RGB_BLACK);
         }
         DestroyTask(taskId);
     }

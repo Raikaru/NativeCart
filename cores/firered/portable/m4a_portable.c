@@ -1,3 +1,6 @@
+/* Host-side wave load may run before game heap init; keep libc malloc. */
+#define FIRERED_HOST_LIBC_MALLOC 1
+
 #include "../../../include/global.h"
 #include "../../../include/constants/songs.h"
 #include "../../../include/m4a.h"

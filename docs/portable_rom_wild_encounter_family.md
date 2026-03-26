@@ -1,6 +1,8 @@
-# Portable ROM: wild encounter family (planning reference)
+# Portable ROM: wild encounter family
 
-Scoped notes for **validating and documenting** a future ROM-backed slice around **`gWildMonHeaders`** and its **pointer graph** (land / water / rock smash / fishing). This file is **design and inspection only**; it does not imply existing **`FIRERED_ROM_*`** wiring for wild data. Read with **`docs/generated_data_rom_seam_playbook.md`** §2 and §7–§8, and **`docs/rom_blob_inspection_playbook.md`** for **`tools/rom_blob_inspect.py`**.
+Runtime seam for **`gWildMonHeaders`** and its **pointer graph** (land / water / rock smash / fishing) on **PORTABLE** builds. **Implemented:** **`FIRERED_ROM_WILD_ENCOUNTER_FAMILY_PACK_OFF`** → **`firered_portable_rom_wild_encounter_family_refresh_after_rom_load()`** (from **`engine_backend_init`**, with other ROM refresh hooks) → **`FireredWildMonHeadersTable()`** used by **`src/wild_encounter.c`** and **`src/wild_pokemon_area.c`**. When inactive or invalid, the game keeps **compiled** **`gWildMonHeaders`** from **`wild_encounters.h`**.
+
+For planning / inspection workflows, still read **`docs/generated_data_rom_seam_playbook.md`** §2 and §7–§8, and **`docs/rom_blob_inspection_playbook.md`** for **`tools/rom_blob_inspect.py`**.
 
 ## 1. Data structure summary (wire mental model)
 
@@ -53,9 +55,13 @@ Portable builds may load a **single coherent pack** (env hex **file** offset, th
 | **+0** | **4** | Magic **`0x464E4957`** (`WINF` LE) |
 | **+4** | **4** | Version **`1`** (LE **`u32`**) |
 | **+8** | **4** | **`header_bytes`** (LE **`u32`**) — length of the following GBA-wire header blob |
-| **+12** | **`header_bytes`** | GBA **`WildPokemonHeader` wire rows**, **20 bytes** each: **`mapGroup`**, **`mapNum`**, **2 bytes padding**, four LE **`u32`** GBA ROM pointers (**`0x08……`** or zero) for land / water / rock smash / fishing. **Last row** must be the **`MAP_UNDEFINED`** sentinel (**`MAP_GROUP` / `MAP_NUM`** only; pointers zero). The sentinel must be the **final** row (no rows after it). |
+| **+12** | **`header_bytes`** | GBA **`WildPokemonHeader` wire rows**, **20 bytes** each: **`mapGroup`**, **`mapNum`**, **2 padding bytes (must be zero)**, four LE **`u32`** GBA ROM pointers (**`0x08……`** or zero) for land / water / rock smash / fishing. **Last row** must be the **`MAP_UNDEFINED`** sentinel (**`MAP_GROUP` / `MAP_NUM`** only; pointers zero). The sentinel must be the **final** row (no rows after it). |
 
-Downstream structs in ROM must match **`LAND_WILD_COUNT` / `WATER_WILD_COUNT` / `ROCK_WILD_COUNT` / `FISH_WILD_COUNT`** slot counts. **`firered_portable_rom_wild_encounter_family_refresh_after_rom_load()`** runs from **`engine_backend_init`** after map header scalars.
+Downstream structs in ROM must match **`LAND_WILD_COUNT` / `WATER_WILD_COUNT` / `ROCK_WILD_COUNT` / `FISH_WILD_COUNT`** slot counts. **`firered_portable_rom_wild_encounter_family_refresh_after_rom_load()`** runs from **`engine_backend_init`** with the other portable ROM table refresh hooks (see **`engine/core/engine_runtime_backend.c`**).
+
+**Offline structural check:** **`tools/portable_generators/validate_wild_encounter_family_pack.py`** on a ROM file (**`--pack-offset`** = **`FIRERED_ROM_WILD_ENCOUNTER_FAMILY_PACK_OFF`**) or on a standalone pack image starting with **`WINF`**.
+
+**Pack builder:** **`tools/portable_generators/build_wild_encounter_family_pack.py`** reads **`src/data/wild_encounters.json`** (FireRed vs LeafGreen via **`--edition`**) and **`include/constants/map_groups.h`** / **`include/constants/species.h`** for map and species ids. Emits **`WINF`** v1 with the same 20-byte header rows, **`WildPokemonInfo`** (**8** bytes: rate + **3** zero pads + LE mon pointer), and slot tables (**`LAND_WILD_COUNT` / …** rows). **`--file-offset-base P`** sets **`0x08000000 + P + offset_in_pack`** for every pointer (use when the pack is embedded at file offset **`P`** in a full **`.gba`**; default **`P=0`** matches a standalone **`.bin`** smoke test against the validator).
 
 **Legacy / inspect-only name:** **`FIRERED_ROM_WILD_MON_HEADERS_TABLE_OFF`** — raw **`gWildMonHeaders[]`** rodata in a linked ROM (pointer-heavy); use **`rom_blob_inspect.py`** and sym/map proof before treating offsets as authoritative.
 
@@ -97,3 +103,5 @@ python tools/rom_blob_inspect.py path\to\game.gba -o 0xPURE_U32_REGION_OFF -n 0x
 | **`docs/portable_rom_map_generated_data_playbook.md`** | Map-generated data context, env naming pattern, **`rom_blob_inspect.py`** entry points. |
 | **`docs/rom_blob_inspection_playbook.md`** | Full flag reference and offset conventions. |
 | **`include/wild_encounter.h`** | Struct definitions and **`LAND_WILD_COUNT`** / **`WATER_WILD_COUNT`** / **`ROCK_WILD_COUNT`** / **`FISH_WILD_COUNT`**. |
+| **`tools/portable_generators/build_wild_encounter_family_pack.py`** | Emit **`WINF`** from **`wild_encounters.json`** + constants. |
+| **`tools/portable_generators/validate_wild_encounter_family_pack.py`** | Offline structural validation. |

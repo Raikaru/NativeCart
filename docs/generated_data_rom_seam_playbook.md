@@ -23,7 +23,9 @@ Source of truth in-tree: **`pokefirered_core/generated/src/data/wild_encounters.
 
 Forks that add maps or repack wild data break portable builds when **counts or pointer topology** no longer match the compiled headers—overlays cannot fix that without a matching layout spec.
 
-**Reference:** **`docs/portable_rom_wild_encounter_family.md`** — data layout summary, pointer-closure checklist, suggested **`FIRERED_ROM_*`** placeholders, **`rom_blob_inspect.py`** notes, and an explicit do-not-half-migrate list.
+**Runtime pack:** **`FIRERED_ROM_WILD_ENCOUNTER_FAMILY_PACK_OFF`** (**`WINF`** v1) — **`firered_portable_rom_wild_encounter_family.c`** + **`FireredWildMonHeadersTable()`**; emit **`tools/portable_generators/build_wild_encounter_family_pack.py`**, validate **`tools/portable_generators/validate_wild_encounter_family_pack.py`**.
+
+**Reference:** **`docs/portable_rom_wild_encounter_family.md`** — wire layout, pointer-closure checklist, **`rom_blob_inspect.py`** notes, and do-not-half-migrate list.
 
 ## 3. `map_data_portable.c` scale warning
 
@@ -31,7 +33,7 @@ Forks that add maps or repack wild data break portable builds when **counts or p
 
 Implications for **analysis** (not necessarily for the compiler):
 
-- Full-file open in some editors is slow; prefer **`tools/list_generated_data_candidates.py`**, targeted **`grep`/`rg`**, or reading **head/tail** slices.
+- Full-file open in some editors is slow; prefer **`tools/list_generated_data_candidates.py`**, targeted **`rg`** text searches, **`ast-grep`** for syntax-aware code audits, or reading **head/tail** slices.
 - Treat **full regeneration or manual merge** of this file as a **high-cost** operation; for a **first ROM seam**, prefer a **smaller, bounded** table (constants, a single map family, or wild headers) to prove offset + validation before attacking the monolithic map blob.
 
 ## 4. Suggested order for a **first slice**

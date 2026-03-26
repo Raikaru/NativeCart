@@ -25,6 +25,30 @@ jobs:
           echo "SDL3_INCLUDE_DIR=$(pkg-config --variable=includedir sdl3)" >> $GITHUB_ENV
           echo "SDL3_LIB_DIR=$(pkg-config --variable=libdir sdl3)" >> $GITHUB_ENV
 
+      # Direction B: `.inc` + default validator (door contract + collision warnings). Non-identity hacks: run
+      # `python3 tools/validate_field_map_logical_to_physical_inc.py --strict-injective` in a dedicated step/CI if needed.
+      - name: Direction B offline (logical->physical table)
+        run: python3 tools/check_direction_b_offline.py
+
+      - name: Project C block-word contract (offline)
+        run: python3 tools/check_project_c_block_word_offline.py
+
+      - name: Project C Phase 3 u32 constants (offline)
+        run: python3 tools/check_project_c_phase3_offline.py
+
+      - name: Layout block bins (Project C)
+        run: python3 tools/validate_map_layout_block_bin.py --layouts-json data/layouts/layouts.json --repo-root .
+
+      - name: Layout ROM companion bundle (metatile + dimensions + tileset indices)
+        run: |
+          mkdir -p build
+          python3 tools/portable_generators/build_map_layout_rom_companion_bundle.py .
+          python3 tools/portable_generators/layout_rom_companion_emit_embed_env.py \
+            build/offline_map_layout_rom_companion_bundle.bin.manifest.txt -b 0
+
+      - name: Direction D offline (compiled tileset role map)
+        run: python3 tools/check_direction_d_offline.py
+
       - name: SDL shell + runtime_progress_runner (debug, Linux)
         working-directory: engine/shells/sdl
         run: scons -Q platform=linux target=debug -j$(nproc)

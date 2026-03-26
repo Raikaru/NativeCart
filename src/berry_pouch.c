@@ -1,5 +1,5 @@
 #include "global.h"
-#include "malloc.h"
+#include "gba_malloc.h"
 #include "bg.h"
 #include "decompress.h"
 #include "gpu_regs.h"

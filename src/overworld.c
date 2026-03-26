@@ -17,6 +17,7 @@
 #include "field_tasks.h"
 #include "field_weather.h"
 #include "fieldmap.h"
+#include "map_layout_metatiles_access.h"
 #include "fldeff.h"
 #include "heal_location.h"
 #include "help_system.h"
@@ -48,12 +49,37 @@
 #include "vs_seeker.h"
 #include "wild_encounter.h"
 #include "map_header_scalars_access.h"
+#include "map_connections_access.h"
+#include "map_scripts_access.h"
+#include "map_events_access.h"
 #include "constants/cable_club.h"
 #include "constants/event_objects.h"
 #include "constants/maps.h"
 #include "constants/region_map_sections.h"
 #include "constants/songs.h"
 #include "constants/sound.h"
+
+#ifdef PORTABLE
+#include <stdint.h>
+
+static const void *ResolveRomPointer(const void *ptr)
+{
+    uintptr_t value;
+    u32 rawValue;
+
+    if (ptr == NULL)
+        return NULL;
+
+    value = (uintptr_t)ptr;
+    if (value <= 0xFFFFFFFFu)
+    {
+        rawValue = (u32)value;
+        return firered_portable_resolve_script_ptr(rawValue);
+    }
+
+    return ptr;
+}
+#endif
 
 #define PLAYER_LINK_STATE_IDLE 0x80
 #define PLAYER_LINK_STATE_BUSY 0x81
@@ -486,9 +512,25 @@ static void InitMapView(void)
 static const struct MapLayout *GetMapLayout(void)
 {
     u16 mapLayoutId = gSaveBlock1Ptr->mapLayoutId;
+
     if (mapLayoutId)
+#ifdef PORTABLE
+        return FireredPortableEffectiveMapLayoutForLayoutId(mapLayoutId);
+#else
         return gMapLayouts[mapLayoutId - 1];
+#endif
     return NULL;
+}
+
+/*
+ * See src_transformed/overworld.c: after ROM header-scalar merge, copy `gMapHeader.mapLayoutId` into
+ * save before Bind when loading from disk (`LoadCurrentMapData` / `LoadSaveblockMapHeaderWithLayoutSync`),
+ * except after `QL_RestoreMapLayoutId`.
+ */
+static void BindMapLayoutFromSave(void)
+{
+    gMapHeader.mapLayoutId = gSaveBlock1Ptr->mapLayoutId;
+    gMapHeader.mapLayout = GetMapLayout();
 }
 
 // Routines related to warps
@@ -548,21 +590,52 @@ static void LoadCurrentMapData(void)
 {
     gMapHeader = *Overworld_GetMapHeaderByGroupAndId(gSaveBlock1Ptr->location.mapGroup, gSaveBlock1Ptr->location.mapNum);
 #ifdef PORTABLE
+    gMapHeader.events = ResolveRomPointer(gMapHeader.events);
+    gMapHeader.mapScripts = (const u8 *)ResolveRomPointer(gMapHeader.mapScripts);
+    gMapHeader.connections = (const struct MapConnections *)ResolveRomPointer(gMapHeader.connections);
     firered_portable_rom_map_header_scalars_merge(&gMapHeader, (u16)(u8)gSaveBlock1Ptr->location.mapGroup,
+        (u16)(u8)gSaveBlock1Ptr->location.mapNum);
+    firered_portable_rom_map_connections_merge(&gMapHeader, (u16)(u8)gSaveBlock1Ptr->location.mapGroup,
+        (u16)(u8)gSaveBlock1Ptr->location.mapNum);
+    firered_portable_rom_map_scripts_directory_merge(&gMapHeader, (u16)(u8)gSaveBlock1Ptr->location.mapGroup,
+        (u16)(u8)gSaveBlock1Ptr->location.mapNum);
+    firered_portable_rom_map_events_directory_merge(&gMapHeader, (u16)(u8)gSaveBlock1Ptr->location.mapGroup,
         (u16)(u8)gSaveBlock1Ptr->location.mapNum);
 #endif
     gSaveBlock1Ptr->mapLayoutId = gMapHeader.mapLayoutId;
-    gMapHeader.mapLayout = GetMapLayout();
+    BindMapLayoutFromSave();
+}
+
+static void LoadSaveblockMapHeaderWithLayoutSync(bool8 syncSaveMapLayoutFromMergedHeader)
+{
+    u16 prevSaveLayoutId = gSaveBlock1Ptr->mapLayoutId;
+
+    gMapHeader = *Overworld_GetMapHeaderByGroupAndId(gSaveBlock1Ptr->location.mapGroup, gSaveBlock1Ptr->location.mapNum);
+#ifdef PORTABLE
+    gMapHeader.events = ResolveRomPointer(gMapHeader.events);
+    gMapHeader.mapScripts = (const u8 *)ResolveRomPointer(gMapHeader.mapScripts);
+    gMapHeader.connections = (const struct MapConnections *)ResolveRomPointer(gMapHeader.connections);
+    firered_portable_rom_map_header_scalars_merge(&gMapHeader, (u16)(u8)gSaveBlock1Ptr->location.mapGroup,
+        (u16)(u8)gSaveBlock1Ptr->location.mapNum);
+    firered_portable_rom_map_connections_merge(&gMapHeader, (u16)(u8)gSaveBlock1Ptr->location.mapGroup,
+        (u16)(u8)gSaveBlock1Ptr->location.mapNum);
+    firered_portable_rom_map_scripts_directory_merge(&gMapHeader, (u16)(u8)gSaveBlock1Ptr->location.mapGroup,
+        (u16)(u8)gSaveBlock1Ptr->location.mapNum);
+    firered_portable_rom_map_events_directory_merge(&gMapHeader, (u16)(u8)gSaveBlock1Ptr->location.mapGroup,
+        (u16)(u8)gSaveBlock1Ptr->location.mapNum);
+#endif
+    if (syncSaveMapLayoutFromMergedHeader)
+    {
+        if (gMapHeader.mapLayoutId != prevSaveLayoutId)
+            CpuFill16(0, gSaveBlock2Ptr->mapView, sizeof(gSaveBlock2Ptr->mapView));
+        gSaveBlock1Ptr->mapLayoutId = gMapHeader.mapLayoutId;
+    }
+    BindMapLayoutFromSave();
 }
 
 static void LoadSaveblockMapHeader(void)
 {
-    gMapHeader = *Overworld_GetMapHeaderByGroupAndId(gSaveBlock1Ptr->location.mapGroup, gSaveBlock1Ptr->location.mapNum);
-#ifdef PORTABLE
-    firered_portable_rom_map_header_scalars_merge(&gMapHeader, (u16)(u8)gSaveBlock1Ptr->location.mapGroup,
-        (u16)(u8)gSaveBlock1Ptr->location.mapNum);
-#endif
-    gMapHeader.mapLayout = GetMapLayout();
+    LoadSaveblockMapHeaderWithLayoutSync(FALSE);
 }
 
 static void SetPlayerCoordsFromWarp(void)
@@ -776,8 +849,8 @@ void LoadMapFromCameraTransition(u8 mapGroup, u8 mapNum)
     InitMap();
     CopySecondaryTilesetToVramUsingHeap(gMapHeader.mapLayout);
     LoadSecondaryTilesetPalette(gMapHeader.mapLayout);
-    for (paletteIndex = 7; paletteIndex < 13; paletteIndex++)
-        ApplyWeatherGammaShiftToPal(paletteIndex);
+    for (paletteIndex = (int)FireredPortableFieldMapBgPalettePrimaryRows(); paletteIndex < (int)NUM_PALS_TOTAL; paletteIndex++)
+        ApplyWeatherGammaShiftToPal((u8)paletteIndex);
     InitSecondaryTilesetAnimation();
     UpdateLocationHistoryForRoamer();
     RoamerMove();
@@ -982,7 +1055,7 @@ u8 Overworld_GetFlashLevel(void)
 void SetCurrentMapLayout(u16 mapLayoutId)
 {
     gSaveBlock1Ptr->mapLayoutId = mapLayoutId;
-    gMapHeader.mapLayout = GetMapLayout();
+    BindMapLayoutFromSave();
 }
 
 void Overworld_SetWarpDestinationFromWarp(struct WarpData * warp)
@@ -1355,12 +1428,30 @@ static const struct BgTemplate sOverworldBgTemplates[] = {
     }
 };
 
+STATIC_ASSERT(NELEMS(sOverworldBgTemplates) > MAP_BG_FIELD_TILESET_GFX_BG, overworld_bg_template_field_bg_idx_in_bounds);
+
+#ifdef PORTABLE
+static void FieldOverworldVerifyFieldTilesetBgAgreement(void)
+{
+    u8 bg = (u8)MAP_BG_FIELD_TILESET_GFX_BG;
+
+    AGB_ASSERT(sOverworldBgTemplates[bg].bg == MAP_BG_FIELD_TILESET_GFX_BG);
+    AGB_ASSERT(GetBgAttribute(bg, BG_ATTR_CHARBASEINDEX) == MAP_BG_FIELD_TILESET_CHAR_BASE_BLOCK);
+    AGB_ASSERT(GetBgAttribute(bg, BG_ATTR_BASETILE) == MAP_BG_PRIMARY_TILESET_CHAR_BASE_TILE);
+    AGB_ASSERT(GetBgControlAttribute(bg, BG_CTRL_ATTR_PALETTEMODE) == 0);
+}
+#endif
+
 static void InitOverworldBgs(void)
 {
     MoveSaveBlocks_ResetHeap_();
     ResetScreenForMapLoad();
     ResetBgsAndClearDma3BusyFlags(FALSE);
     InitBgsFromTemplates(0, sOverworldBgTemplates, NELEMS(sOverworldBgTemplates));
+#ifdef PORTABLE
+    FieldOverworldVerifyFieldTilesetBgAgreement();
+    FieldMapVerifyLogicalToPhysicalTileTable();
+#endif
     SetBgAttribute(1, BG_ATTR_MOSAIC, TRUE);
     SetBgAttribute(2, BG_ATTR_MOSAIC, TRUE);
     SetBgAttribute(3, BG_ATTR_MOSAIC, TRUE);
@@ -1379,6 +1470,10 @@ static void InitOverworldBgs_NoResetHeap(void)
 {
     ResetBgsAndClearDma3BusyFlags(FALSE);
     InitBgsFromTemplates(0, sOverworldBgTemplates, NELEMS(sOverworldBgTemplates));
+#ifdef PORTABLE
+    FieldOverworldVerifyFieldTilesetBgAgreement();
+    FieldMapVerifyLogicalToPhysicalTileTable();
+#endif
     SetBgAttribute(1, BG_ATTR_MOSAIC, TRUE);
     SetBgAttribute(2, BG_ATTR_MOSAIC, TRUE);
     SetBgAttribute(3, BG_ATTR_MOSAIC, TRUE);
@@ -1709,7 +1804,7 @@ void CB2_ContinueSavedGame(void)
     FieldClearVBlankHBlankCallbacks();
     StopMapMusic();
     ResetSafariZoneFlag_();
-    LoadSaveblockMapHeader();
+    LoadSaveblockMapHeaderWithLayoutSync(TRUE);
     LoadSaveblockObjEventScripts();
     UnfreezeObjectEvents();
     Overworld_ResetStateOnContinue();
